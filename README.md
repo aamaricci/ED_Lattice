@@ -1,7 +1,8 @@
-# EDIpack: A *parallel* Exact Diagonalization solver for Quantum Impurity problems
+# EDlattice: A *parallel* Exact Diagonalization algorithm for interacting electrons (and phonons) on a lattice. 
 
-A Lanczos based solver for generic quantum impurity models exploiting distributed memory MPI parallelisation. This software focuses on the *normal* case (as opposed to superconducting or spin non-conserving cases) including long range magnetic ordering and arbitrary unit cells. 
-See [arxiv.org/2105.06806](https://arxiv.org/abs/2105.06806). 
+This is a beta version softwware.
+
+A Lanczos based solver for interacting electrons on a lattice exploiting distributed memory MPI parallelisation. This software focuses on the *normal* case (as opposed to superconducting or spin non-conserving cases) including long range magnetic ordering and arbitrary unit cells. 
 
 ### Dependencies
 
@@ -14,12 +15,11 @@ The code is written around the SciFortran library. Dependencies are:
 
 
 ### Installation
-
 Installation is  available using CMake.    
 
 Clone the repo:
 
-`git clone https://github.com/QcmPlab/EDIpack EDIpack`
+`git clone https://github.com/QcmPlab/EDlattice EDlattice`
 
 and from the just created directory make a standard out-of-source CMake compilation:
 
@@ -40,13 +40,13 @@ The `CMake` compilation can be controlled using the following additional variabl
 
 The library can be loaded into the operative system using one of the following, automatically generated, methods:    
 
-* environment module file `~/.modules.d/edipack/<PLAT>`  
-* homebrew `bash` script `<PREFIX>/bin/edipack_configvars.sh`
-* pkg-config file in `~/.pkg-config.d/edipack.pc`
+* environment module file `~/.modules.d/edlattice/<PLAT>`  
+* homebrew `bash` script `<PREFIX>/bin/edlattice_configvars.sh`
+* pkg-config file in `~/.pkg-config.d/edlattice.pc`
 
 ### Python binding
 
-Python binding (API) through module `edipy` can be  installed, once the library is successfully loaded in the OS, using the conventional toolchain:
+Python binding (API) through module `edlatpy` can be  installed, once the library is successfully loaded in the OS, using the conventional toolchain:
 
 `export F90=mpif90` (required if library has been compiled and installed with MPI support)  
 
@@ -71,7 +71,7 @@ adriano DOT amaricci @ gmail DOT com
 --
 
 ***COPYRIGHT & LICENSING***  
-Copyright  (c), Adriano Amaricci, Lorenzo Crippa, Alberto Scazzola, Francesco Petocchi, Giacomo Mazza, Luca de Medici, Massimo Capone.  
+Copyright  (c), Adriano Amaricci.  
 All rights reserved. 
 
 This program is free software: you can redistribute it and/or modify
@@ -84,7 +84,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 The software is provided as it is and can be read and copied, in agreement with 
 the Terms of Service of GITHUB. 
-Using this code please consider to cite the corresponding article [arxiv.org/2105.06806](https://arxiv.org/abs/2105.06806)
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
