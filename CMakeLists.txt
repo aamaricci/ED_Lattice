@@ -2,11 +2,11 @@
 # DMFTED PROJECT
 ##################################################
 CMAKE_MINIMUM_REQUIRED(VERSION 3.0.0)
-PROJECT(edipack Fortran)
+PROJECT(edlat Fortran)
 SET(VERSION 1.0.1)
 
 # Define the library name
-SET(LANCEDLIB edipack)
+SET(LANCEDLIB edlat)
 
 
 MESSAGE(STATUS "OS: ${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_VERSION}")
@@ -252,7 +252,7 @@ ADD_SUBDIRECTORY(${LIB_SRC}/CHI)
 ADD_SUBDIRECTORY(${LIB_SRC})
 
 
-ADD_LIBRARY(edipack STATIC
+ADD_LIBRARY(edlat STATIC
   $<TARGET_OBJECTS:INIT_LIB>
   $<TARGET_OBJECTS:BATH_LIB>
   $<TARGET_OBJECTS:IO_LIB>
@@ -284,7 +284,7 @@ SET(PERMISSION_777
 
 
 
-#Build the Edipack module for environment modules
+#Build the Edlat module for environment modules
 FILE(REMOVE_RECURSE ${LIB_TMP_ETC}/modules/)
 SET(TMP_MODULE_NAME "${FULL_VER}" CACHE PATH "Prefix prepended to install directories")
 SET(TMP_ENV_MODULE_FILE ${LIB_TMP_ETC}/modules/${PROJECT_NAME}/${TMP_MODULE_NAME})
@@ -297,16 +297,16 @@ SET(TMP_PKCONFIG_FILE ${LIB_TMP_ETC}/${PROJECT_NAME}.pc)
 CONFIGURE_FILE( ${LIB_ETC}/${PROJECT_NAME}.pc.in ${TMP_PKCONFIG_FILE} @ONLY)
 
 #Build the user config script (sourced in user shell config file, i.e. .bashrc)
-SET(CONFIG_SCRIPT edipack_config.sh)
+SET(CONFIG_SCRIPT edlat_config.sh)
 SET(TMP_CONFIGVARS_FILE ${LIB_TMP_ETC}/${CONFIG_SCRIPT})
-CONFIGURE_FILE(${LIB_ETC}/config_edipack.sh.in ${TMP_CONFIGVARS_FILE} @ONLY)
+CONFIGURE_FILE(${LIB_ETC}/config_edlat.sh.in ${TMP_CONFIGVARS_FILE} @ONLY)
 
 
 FILE(WRITE  ${LIB_TMP_VER}  "${VERSION}\n")
 
 INSTALL(DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY}/ DESTINATION ${LIB_TARGET_INC})
 
-INSTALL(TARGETS edipack DESTINATION ${LIB_TARGET_LIB})
+INSTALL(TARGETS edlat DESTINATION ${LIB_TARGET_LIB})
 
 INSTALL(DIRECTORY ${LIB_TMP_ETC}/ DESTINATION ${LIB_TARGET_ETC})
 
