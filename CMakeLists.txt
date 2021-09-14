@@ -198,25 +198,37 @@ SET(USER_HOME $ENV{HOME})
 SET(USER $ENV{USER})
 
 STRING(TOLOWER "${CMAKE_Fortran_COMPILER_ID}" FC_ID)
+STRING(TOLOWER "${CMAKE_BUILD_TYPE}" BUILD_TYPE)
 
-SET(LIB_PATH  "$ENV{HOME}/opt/${PROJECT_NAME}/${FC_ID}")
-SET(FULL_VER "${FC_ID}")
+#default prefix is $HOME/opt/<dmft_tools>/<fc_id>/[<git_branch>[/<debug>]]/<version>
+SET(PREFIX_DEF_LOC "$ENV{HOME}/opt")
+SET(PREFIX_PROJ "${PROJECT_NAME}")
+SET(PREFIX_PATH "${FC_ID}")
+#if not master branch, include simplified branch name
+IF( (NOT GIT_BRANCH MATCHES "master") )
+    SET(PREFIX_PATH  "${PREFIX_PATH}/${GIT_BRANCH}")
+ENDIF()
+
+#If DEBUG, add /debug to 
 IF("${CMAKE_BUILD_TYPE}" MATCHES "DEBUG")
-  STRING(TOLOWER "${CMAKE_BUILD_TYPE}" BUILD_TYPE)
-  SET(LIB_PATH  "${LIB_PATH}/${BUILD_TYPE}")
-  SET(FULL_VER  "${FULL_VER}/${BUILD_TYPE}")
+  SET(PREFIX_PATH  "${PREFIX_PATH}/${BUILD_TYPE}")
 ENDIF()
 
-IF(GIT_REPO)
-  IF(NOT GIT_BRANCH MATCHES "master")
-    SET(LIB_PATH  "${LIB_PATH}/${GIT_BRANCH}")
-    SET(FULL_VER  "${FULL_VER}/${GIT_BRANCH}")
-  ENDIF()
-ENDIF()
-
-SET(FULL_VER  "${FULL_VER}/${VERSION}")
-SET(PREFIX  "${LIB_PATH}/${VERSION}" CACHE PATH "Prefix prepended to install directories")
+#set default prefix:
+SET(FULL_VER "${PREFIX_PATH}/${VERSION}")
+SET(VERSION_PATH "${PREFIX_PROJ}/${PREFIX_PATH}")
+SET(DEFAULT_PREFIX "${PREFIX_DEF_LOC}/${PREFIX_PROJ}/${PREFIX_PATH}/${VERSION}")
+SET(PREFIX  "${DEFAULT_PREFIX}" CACHE PATH "Prefix prepended to install directories")
 SET(CMAKE_INSTALL_PREFIX "${PREFIX}" CACHE INTERNAL "Prefix prepended to install directories" FORCE)
+
+#Now set module name corresponding to given prefix:
+#if prefix is default nothing to be done.
+#if user defined prefix prepend
+IF(PREFIX STREQUAL "${DEFAULT_PREFIX}")
+  SET(MODULE_NAME "${PREFIX_PROJ}/${PREFIX_PATH}/${VERSION}")
+ELSE()
+  SET(MODULE_NAME "${PREFIX_PROJ}/user_prefix/${PREFIX_PATH}/${VERSION}")
+ENDIF()
 
 
 
@@ -283,21 +295,45 @@ SET(PERMISSION_777
   WORLD_WRITE WORLD_READ WORLD_EXECUTE)
 
 
+# SET(LIB_VERSION_FILE ${LIB_SRC}/${PROJECT_NAME}_version_current_sha1.inc)
+# ADD_CUSTOM_COMMAND(OUTPUT ${LIB_VERSION_FILE}
+#   COMMAND ${CMAKE_COMMAND} -E echo "character(len=41),parameter,public :: ${PROJECT_NAME}_version_sha1 = \"${GIT_SHA1}\"" > ${LIB_VERSION_FILE}
+#   COMMENT "${Yellow}Creating ${LIB_VERSION_FILE}: ${ColourReset}"
+#   VERBATIM)
+# ADD_CUSTOM_TARGET(LIB_VERSION_SHA1 DEPENDS ${LIB_VERSION_FILE})
 
-#Build the Edlat module for environment modules
+
+#Build the EDLAT module for environment modules
 FILE(REMOVE_RECURSE ${LIB_TMP_ETC}/modules/)
-SET(TMP_MODULE_NAME "${FULL_VER}" CACHE PATH "Prefix prepended to install directories")
-SET(TMP_ENV_MODULE_FILE ${LIB_TMP_ETC}/modules/${PROJECT_NAME}/${TMP_MODULE_NAME})
-SET(TMP_VER_MODULE_FILE ${LIB_TMP_ETC}/modules/${PROJECT_NAME}/${FC_ID}/.version)
-CONFIGURE_FILE(${LIB_ENV}/module.in ${TMP_ENV_MODULE_FILE} @ONLY)
-CONFIGURE_FILE(${LIB_ENV}/version.in ${TMP_VER_MODULE_FILE} @ONLY)
+#Create default .version file if following conditions are verified:
+#1. master branch
+#2. no debug
+#3. default prefix
+IF( (GIT_BRANCH MATCHES "master")
+    AND (NOT "${CMAKE_BUILD_TYPE}" MATCHES "DEBUG")
+    AND (PREFIX STREQUAL "${DEFAULT_PREFIX}")
+    ) 
+  SET(TMP_VER_MODULE_FILE ${LIB_TMP_ETC}/modules/${VERSION_PATH}/.version)
+  CONFIGURE_FILE(${LIB_ENV}/version.in ${TMP_VER_MODULE_FILE}  @ONLY)
+  MESSAGE(STATUS "${Red}Version file${ColourReset}: ${TMP_VER_MODULE_FILE}")
+ENDIF()
 
+#Build the DMFT_TOOLS module for environment modules
+SET(TMP_MODULE_NAME "${MODULE_NAME}" CACHE PATH "Prefix prepended to install directories")
+SET(TMP_ENV_MODULE_FILE ${LIB_TMP_ETC}/modules/${TMP_MODULE_NAME})
+CONFIGURE_FILE(${LIB_ENV}/module.in ${TMP_ENV_MODULE_FILE} @ONLY)
+MESSAGE(STATUS "${Red}Module file${ColourReset}: ${MODULE_NAME}")
+
+#Build the PKG-CONFIG file
 #Build the PKG-CONFIG file
 SET(TMP_PKCONFIG_FILE ${LIB_TMP_ETC}/${PROJECT_NAME}.pc)
 CONFIGURE_FILE( ${LIB_ETC}/${PROJECT_NAME}.pc.in ${TMP_PKCONFIG_FILE} @ONLY)
 
+
+
+
 #Build the user config script (sourced in user shell config file, i.e. .bashrc)
-SET(CONFIG_SCRIPT edlat_config.sh)
+SET(CONFIG_SCRIPT config_edlat.sh)
 SET(TMP_CONFIGVARS_FILE ${LIB_TMP_ETC}/${CONFIG_SCRIPT})
 CONFIGURE_FILE(${LIB_ETC}/config_edlat.sh.in ${TMP_CONFIGVARS_FILE} @ONLY)
 
@@ -320,6 +356,45 @@ INSTALL(FILES ${LIB_TARGET_ETC}/${PROJECT_NAME}.pc DESTINATION $ENV{HOME}/.pkgco
   PERMISSIONS ${PERMISSION_777} SETUID)
 
 INSTALL(DIRECTORY ${LIB_TARGET_ETC}/modules/ DESTINATION $ENV{HOME}/.modules.d)
+
+
+
+
+MESSAGE( STATUS "${Red}Library version:${ColourReset} ${VERSION}")
+MESSAGE( STATUS "${Red}Library will be installed in:${ColourReset} ${CMAKE_INSTALL_PREFIX}")
+MESSAGE( STATUS "
+>> ${Red}TO CONCLUDE INSTALLATION${ColourReset} <<
+Compile with:
+$ make
+Install with:
+$ make install
+
+Uninstall with:
+$ make uninstall
+")
+
+
+INSTALL(CODE "MESSAGE(
+\"
+ADD LIBRARY TO YOUR SYSTEM: 
+Pick ONE method below [or add it in your bash profile, e.g. ~/.bashrc]:
+${Yellow}Method 1: use the provided ${PROJECT_NAME} environment module${ColourReset}:
+   $ module use $HOME/.modules.d
+   $ module load ${PROJECT_NAME}/${FC_PLAT}
+
+${Yellow}Method 2: source the config script${ColourReset}:
+   $ source ${SF_TARGET_BIN}/${USER_CONFIG_FILE}
+
+${Yellow}Method 3: use pkg-config with the provided ${PROJECT_NAME}.pc${ColourReset}:
+   $ export PKG_CONFIG_PATH=${SF_TARGET_ETC}/:$PKG_CONFIG_PATH
+   $ pkg-config --cflags --libs ${PROJECT_NAME}
+
+${Yellow}Method ADMIN: Add this line to the system shell configuration file, e.g. /etc/bash.bashrc${ColourReset}
+   $ source ${SF_TARGET_BIN}/${GLOBAL_CONFIG_FILE}
+\")
+")
+
+
 
 
 MESSAGE( STATUS "${Red}Library version:${ColourReset} ${VERSION}")
