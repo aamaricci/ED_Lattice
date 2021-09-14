@@ -60,16 +60,6 @@
      endif
      !
      !
-     !> H_Bath: local bath energy contribution.
-     !diagonal bath hamiltonian: +energy of the bath=\sum_a=1,Norb\sum_{l=1,Nbath}\e^a_l n^a_l
-     do iorb=1,size(bath_diag,2)
-        do kp=1,Nbath
-           ialfa = getBathStride(iorb,kp)
-           htmp =htmp + bath_diag(1    ,iorb,kp)*Nup(ialfa) !UP
-           htmp =htmp + bath_diag(Nspin,iorb,kp)*Ndw(ialfa) !DW
-        enddo
-     enddo
-     !
      select case(MpiStatus)
      case (.true.)
         call sp_insert_element(MpiComm,spH0d,htmp,i,i)

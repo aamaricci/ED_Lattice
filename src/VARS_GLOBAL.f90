@@ -11,45 +11,6 @@ MODULE ED_VARS_GLOBAL
 
 
 
-
-  !-------------------- EFFECTIVE BATH STRUCTURE ----------------------!
-  type H_operator
-     real(8),dimension(:,:,:,:),allocatable                  :: O          !Replica hamilt
-  end type H_operator
-
-  type effective_bath_component
-     real(8)                                                 :: v
-     real(8),dimension(:),allocatable                        :: lambda![Nsym]
-  end type effective_bath_component
-
-  type effective_bath
-     real(8),dimension(:,:,:),allocatable                    :: e     !local energies [Nspin][Norb][Nbath]/[Nspin][1][Nbath]_hybrid
-     real(8),dimension(:,:,:),allocatable                    :: v     !spin-keep hyb. [Nspin][Norb][Nbath]
-     integer                                                 :: Nbasis  !H Basis dimension  
-     type(effective_bath_component),dimension(:),allocatable :: item  ![Nbath] Replica bath components, V included
-     logical                                                 :: status=.false.
-  end type effective_bath
-
-
-
-  !-------------------- CUSTOM OBSERVABLE STRUCTURE ----------------------!
-  type observable
-     complex(8),dimension(:,:,:),allocatable :: sij ![Nlso][Nlso][Nk]
-     character(len=32)                       :: o_name
-     real(8)                                 :: o_value
-  end type observable
-
-  type custom_observables
-     type(observable),dimension(:),allocatable               :: item     ![:]
-     complex(8),dimension(:,:,:),allocatable                 :: Hk       ![Nlso][Nlso][Nk]
-     integer                                                 :: N_asked
-     integer                                                 :: N_filled
-     logical                                                 :: init=.false.
-  end type custom_observables
-
-
-
-
   !---------------- SECTOR-TO-FOCK SPACE STRUCTURE -------------------!
 
   type sector_map
@@ -108,18 +69,9 @@ MODULE ED_VARS_GLOBAL
   integer,allocatable,dimension(:)                   :: getDim             ! [Nsectors]
   integer,allocatable,dimension(:,:,:)               :: getCsector         ! [1/Norb,2,NSectors]
   integer,allocatable,dimension(:,:,:)               :: getCDGsector       ! [1/Norb,2,NSectors]
-  integer,allocatable,dimension(:,:)                 :: getBathStride
   integer,allocatable,dimension(:,:)                 :: impIndex
   logical,allocatable,dimension(:)                   :: twin_mask
   logical,allocatable,dimension(:)                   :: sectors_mask
-
-  !Effective Bath used in the ED code (this is opaque to user)
-  !PRIVATE
-  !=========================================================
-  type(effective_bath)                               :: dmft_bath
-  type(H_operator),dimension(:),allocatable          :: H_basis
-  real(8),dimension(:),allocatable                   :: lambda_impHloc
-  real(8),dimension(:,:,:,:),allocatable             :: impHloc           !local hamiltonian
 
 
 
@@ -217,19 +169,6 @@ MODULE ED_VARS_GLOBAL
 
 
 
-  !--------------- LATTICE WRAP VARIABLES -----------------!
-  complex(8),dimension(:,:,:,:,:,:),allocatable,save :: Smats_ineq,Sreal_ineq  ![Nlat,Nspin,Nspin,Norb,Norb,L]
-  complex(8),dimension(:,:,:,:,:,:),allocatable,save :: Gmats_ineq,Greal_ineq
-  complex(8),dimension(:,:,:,:,:,:),allocatable,save :: G0mats_ineq,G0real_ineq
-  complex(8),dimension(:,:),allocatable,save         :: Dmats_ph_ineq,Dreal_ph_ineq
-  complex(8),dimension(:,:,:,:,:),allocatable,save   :: imp_density_matrix_ineq
-  real(8),dimension(:,:),allocatable,save            :: dens_ineq 
-  real(8),dimension(:,:),allocatable,save            :: docc_ineq
-  real(8),dimension(:,:),allocatable,save            :: mag_ineq
-  real(8),dimension(:,:),allocatable,save            :: dd_ineq,e_ineq
-  integer,allocatable,dimension(:,:)                 :: neigen_sector_ineq
-  integer,allocatable,dimension(:)                   :: neigen_total_ineq
-
   !File suffixes for printing fine tuning.
   !=========================================================
   character(len=32)                                  :: ed_file_suffix=""       !suffix string attached to the output files.
@@ -237,8 +176,8 @@ MODULE ED_VARS_GLOBAL
   integer                                            :: site_indx_padding=4
   logical                                            :: Jhflag              !spin-exchange and pair-hopping flag.
   logical                                            :: offdiag_gf_flag=.false.
-  ! character(len=200)                               :: ed_input_file=""
-
+  logical                                            :: finiteT             !flag for finite temperature calculation
+  
 
   !This is the internal Mpi Communicator and variables.
   !=========================================================

@@ -24,62 +24,28 @@
      !
      !
      !> H_Bath: inter-orbital bath hopping contribution.
-     if(bath_type=="replica") then
-        do kp=1,Nbath
-           do iorb=1,Norb
-              do jorb=1,Norb
+     do kp=1,Nbath
+        do iorb=1,Norb
+           do jorb=1,Norb
+              !
+              ialfa = getBathStride(iorb,kp)
+              ibeta = getBathStride(jorb,kp)
+              Jcondition = &
+                   (hbath_tmp(1,1,iorb,jorb,kp)/=zero) &
+                   .AND. (Nup(ibeta)==1) .AND. (Nup(ialfa)==0)
+              !
+              if (Jcondition)then
+                 call c(ibeta,mup,k1,sg1)
+                 call cdg(ialfa,k1,k2,sg2)
+                 iup = binary_search(Hsector%H(1)%map,k2)
+                 htmp = XXX*sg1*sg2
                  !
-                 ialfa = getBathStride(iorb,kp)
-                 ibeta = getBathStride(jorb,kp)
-                 Jcondition = &
-                      (hbath_tmp(1,1,iorb,jorb,kp)/=zero) &
-                      .AND. (Nup(ibeta)==1) .AND. (Nup(ialfa)==0)
+                 call sp_insert_element(spH0ups(1),htmp,iup,jup)
                  !
-                 if (Jcondition)then
-                    call c(ibeta,mup,k1,sg1)
-                    call cdg(ialfa,k1,k2,sg2)
-                    iup = binary_search(Hsector%H(1)%map,k2)
-                    htmp = hbath_tmp(1,1,iorb,jorb,kp)*sg1*sg2
-                    !
-                    call sp_insert_element(spH0ups(1),htmp,iup,jup)
-                    !
-                 endif
-              enddo
+              endif
            enddo
-        enddo
-        !
-     end if
-     !
-     !
-     !>H_hyb: hopping terms for a given spin (imp <--> bath)
-     do iorb=1,Norb
-        do kp=1,Nbath
-           ialfa=getBathStride(iorb,kp)
-           !
-           if( (diag_hybr(1,iorb,kp)/=0d0) &
-                .AND. (nup(iorb)==1) .AND. (nup(ialfa)==0) )then              
-              call c(iorb,mup,k1,sg1)
-              call cdg(ialfa,k1,k2,sg2)
-              iup = binary_search(Hsector%H(1)%map,k2)
-              htmp = diag_hybr(1,iorb,kp)*sg1*sg2
-              !
-              call sp_insert_element(spH0ups(1),htmp,iup,jup)
-              !
-           endif
-           !
-           if( (diag_hybr(1,iorb,kp)/=0d0) &
-                .AND. (nup(iorb)==0) .AND. (nup(ialfa)==1) )then
-              call c(ialfa,mup,k1,sg1)
-              call cdg(iorb,k1,k2,sg2)
-              iup=binary_search(Hsector%H(1)%map,k2)
-              htmp = diag_hybr(1,iorb,kp)*sg1*sg2
-              !
-              call sp_insert_element(spH0ups(1),htmp,iup,jup)
-              !
-           endif
         enddo
      enddo
      !
-  enddo
 
 

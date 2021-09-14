@@ -17,19 +17,15 @@ MODULE ED_HAMILTONIAN
 
   !>Sparse Mat-Vec product using stored sparse matrix
   public  :: spMatVec_main
-  public  :: spMatVec_orbs
 #ifdef _MPI
   public  :: spMatVec_MPI_main
-  public  :: spMatVec_MPI_orbs
 #endif
 
 
   !>Sparse Mat-Vec direct on-the-fly product 
   public  :: directMatVec_main
-  public  :: directMatVec_orbs
 #ifdef _MPI
   public  :: directMatVec_MPI_main
-  public  :: directMatVec_MPI_orbs
 #endif
 
 
@@ -133,43 +129,23 @@ contains
     !          HxV SETUP
     !#################################
     if(present(Hmat))then
-       if(ed_total_ud)then
-          spHtimesV_p => null()
-          call ed_buildh_main(Hmat)          
-       else
-          spHtimesV_p => null()
-          call ed_buildh_orbs(Hmat)
-       end if
+       spHtimesV_p => null()
+       call ed_buildh_main(Hmat)          
        return
     endif
     !
     select case (ed_sparse_H)
     case (.true.)
-       if(ed_total_ud)then
-          spHtimesV_p => spMatVec_main
+       spHtimesV_p => spMatVec_main
 #ifdef _MPI
-          if(MpiStatus)spHtimesV_p => spMatVec_MPI_main
+       if(MpiStatus)spHtimesV_p => spMatVec_MPI_main
 #endif
-          call ed_buildh_main()
-       else
-          spHtimesV_p => spMatVec_orbs
-#ifdef _MPI
-          if(MpiStatus)spHtimesV_p => spMatVec_MPI_orbs
-#endif
-          call ed_buildh_orbs()
-       endif
+       call ed_buildh_main()
     case (.false.)
-       if(ed_total_ud)then
-          spHtimesV_p => directMatVec_main
+       spHtimesV_p => directMatVec_main
 #ifdef _MPI
-          if(MpiStatus)spHtimesV_p => directMatVec_MPI_main
+       if(MpiStatus)spHtimesV_p => directMatVec_MPI_main
 #endif
-       else
-          spHtimesV_p => directMatVec_orbs
-#ifdef _MPI
-          if(MpiStatus)spHtimesV_p => directMatVec_MPI_orbs
-#endif
-       endif
     end select
     !
   end subroutine build_Hv_sector

@@ -20,18 +20,10 @@ MODULE ED_SETUP
 contains
 
   subroutine ed_checks_global
-    !
-    if(Lfit>Lmats)Lfit=Lmats
     if(Nspin>2)stop "ED ERROR: Nspin > 2 is currently not supported"
     if(Norb>5)stop "ED ERROR: Norb > 5 is currently not supported"
     !
-    if(.not.ed_total_ud)then
-       if(bath_type=="hybrid")stop "ED ERROR: ed_total_ud=F can not be used with bath_type=hybrid"
-       if(Jhflag)stop "ED ERROR: ed_total_ud=F can not be used with Jx!=0 OR Jp!=0"
-       if(ph_type==2)stop "ED_ERROR: ed_total_ud=F can not be used with ph_type=2"
-    endif
-    !
-    if(Nspin>1.AND.ed_twin.eqv..true.)then
+    if(Nspin>1.AND.(ed_twin))then
        write(LOGfile,"(A)")"WARNING: using twin_sector with Nspin>1"
     end if
     !
@@ -40,46 +32,23 @@ contains
        if(lanc_nstates_sector>1)stop "ED ERROR: lanc_method==lanczos available only for lanc_nstates_sector==1, T=0"
     endif
     !
-    if(lanc_method=="dvdson".AND.MpiStatus)then
-       if(mpiSIZE>1)stop "ED ERROR: lanc_method=Dvdson + MPIsize>1: not possible at the moment"       
-    endif
-    !
     if(ed_finite_temp)then
        if(lanc_nstates_total==1)stop "ED ERROR: ed_finite_temp=T *but* lanc_nstates_total==1 => T=0. Increase lanc_nstates_total"
     else
        if(lanc_nstates_total>1)print*, "ED WARNING: ed_finite_temp=F, T=0 *AND* lanc_nstates_total>1. re-Set lanc_nstates_total=1"
        lanc_nstates_total=1
     endif
-    !
   end subroutine ed_checks_global
 
 
   !+------------------------------------------------------------------+
   !PURPOSE  : Setup Dimensions of the problem
-  ! Norb    = # of impurity orbitals
-  ! Nbath   = # of bath levels (depending on bath_type)
-  ! Ns      = # of levels (per spin)
-  ! Nlevels = 2*Ns = Total # of levels (counting spin degeneracy 2) 
   !+------------------------------------------------------------------+
   subroutine ed_setup_dimensions()
-    select case(bath_type)
-    case default
-       Ns = (Nbath+1)*Norb
-    case ('hybrid')
-       Ns = Nbath+Norb
-       if(.not.ed_total_ud)stop "ed_setup_dimension: bath_type==hybrid AND .NOT.ed_total_ud"
-    case ('replica')
-       Ns = Norb*(Nbath+1)
-    end select
+    Ns = sum(Nsites(1:Norb))
     !
-    select case(ed_total_ud)
-    case (.true.)
-       Ns_Orb = Ns
-       Ns_Ud  = 1
-    case (.false.)
-       Ns_Orb = Ns/Norb
-       Ns_Ud  = Norb
-    end select
+    Ns_Orb = Ns
+    Ns_Ud  = 1
     !
     DimPh = Nph+1
     Nsectors = ((Ns_Orb+1)*(Ns_Orb+1))**Ns_Ud
@@ -96,7 +65,7 @@ contains
     integer,dimension(:),allocatable :: DimUps,DimDws
     !
     Jhflag=.FALSE.
-    if(Norb>1.AND.(Jx/=0d0.OR.Jp/=0d0))Jhflag=.TRUE.
+    if(Norb>1.AND.(Jx/=0d0.OR.Jp/=0d0.OR.Jk/=0d0))Jhflag=.TRUE.
     !
     call ed_checks_global
     !
@@ -112,11 +81,10 @@ contains
     if(MpiMaster)then
        write(LOGfile,"(A)")"Summary:"
        write(LOGfile,"(A)")"--------------------------------------------"
-       write(LOGfile,"(A,I15)")'# of levels/spin      = ',Ns
-       write(LOGfile,"(A,I15)")'Total size            = ',2*Ns
-       write(LOGfile,"(A,I15)")'# of impurities       = ',Norb
-       write(LOGfile,"(A,I15)")'# of bath/impurity    = ',Nbath
-       write(LOGfile,"(A,I15)")'# of Bath levels/spin = ',Ns-Norb
+       write(LOGfile,"(A,I15)")'# of levels           = ',Ns
+       write(LOGfile,"(A,I15)")'# of spins            = ',2*Ns
+       write(LOGfile,"(A,I15)")'# of orbitals         = ',Norb
+       write(LOGfile,"(A,5I4)")'# Nsites              = ',Nsites
        write(LOGfile,"(A,I15)")'# of  sectors         = ',Nsectors
        write(LOGfile,"(A,I15)")'Ns_Orb                = ',Ns_Orb
        write(LOGfile,"(A,I15)")'Ns_Ud                 = ',Ns_Ud
@@ -137,7 +105,6 @@ contains
     !
     allocate(getDim(Nsectors));getDim=0
     !
-    allocate(getBathStride(Norb,Nbath));getBathStride=0
     allocate(twin_mask(Nsectors))
     allocate(sectors_mask(Nsectors))
     allocate(neigen_sector(Nsectors))
@@ -166,17 +133,7 @@ contains
     !
     !
     offdiag_gf_flag=ed_solve_offdiag_gf
-    if(bath_type/="normal")offdiag_gf_flag=.true.
-    if(.not.ed_total_ud.AND.offdiag_gf_flag)then
-       write(LOGfile,"(A)")"ED WARNING: can not do offdiag_gf_flag=T.AND.ed_total_ud=F. Set to F."
-       offdiag_gf_flag=.false.
-    endif
     !
-    !
-    if(nread/=0.d0)then
-       i=abs(floor(log10(abs(nerr)))) !modulus of the order of magnitude of nerror
-       niter=nloop/3
-    endif
     !
     !
     !allocate functions
@@ -296,24 +253,6 @@ contains
        call sleep(1)
     endif
     !
-    select case(bath_type)
-    case default
-       do i=1,Nbath
-          do iorb=1,Norb
-             getBathStride(iorb,i) = Norb + (iorb-1)*Nbath + i
-          enddo
-       enddo
-    case ('hybrid')
-       do i=1,Nbath
-          getBathStride(:,i)       = Norb + i
-       enddo
-    case ('replica')
-       do i=1,Nbath
-          do iorb=1,Norb
-             getBathStride(iorb,i) = iorb + i*Norb 
-          enddo
-       enddo
-    end select
     !
     getCsector  = 0
     getCDGsector= 0

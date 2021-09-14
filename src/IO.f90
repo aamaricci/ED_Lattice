@@ -2,8 +2,6 @@ MODULE ED_IO
   USE ED_INPUT_VARS
   USE ED_VARS_GLOBAL
   USE ED_AUX_FUNX
-  USE ED_BATH
-  USE ED_BATH_FUNCTIONS
   USE SF_LINALG
   USE SF_ARRAYS, only: linspace,arange
   USE SF_IOTOOLS, only: str,reg,free_unit,splot,sread
@@ -11,99 +9,17 @@ MODULE ED_IO
   private
 
 
-  !Retrieve imp GF through routines.
-  interface ed_get_gimp_matsubara
-     module procedure ed_get_gimp_matsubara_main
-     module procedure ed_get_gimp_matsubara_lattice
-  end interface ed_get_gimp_matsubara
-
-
-  interface ed_get_gimp_realaxis
-     module procedure ed_get_gimp_realaxis_main
-     module procedure ed_get_gimp_realaxis_lattice
-  end interface ed_get_gimp_realaxis
-
-
-  !Retrieve self-energy through routines:
-  interface ed_get_sigma_matsubara
-     module procedure ed_get_sigma_matsubara_main
-     module procedure ed_get_sigma_matsubara_lattice
-  end interface ed_get_sigma_matsubara
-
-  interface ed_get_sigma_realaxis
-     module procedure ed_get_sigma_realaxis_main
-     module procedure ed_get_sigma_realaxis_lattice
-  end interface ed_get_sigma_realaxis
-
-
-
-  !Retrieve Anderson non-interacting GF from the user bath
-  interface ed_get_delta_function
-     module procedure delta_bath_user
-  end interface ed_get_delta_function
-
-  interface ed_get_g0and_function
-     module procedure g0and_bath_user
-  end interface ed_get_g0and_function
-
-  interface ed_get_invg0_function
-     module procedure invg0_bath_user
-  end interface ed_get_invg0_function
-
-
-
-  !Retrieve static common observables  
-  interface ed_get_dens
-     module procedure ed_get_dens_main
-     module procedure ed_get_dens_lattice
-  end interface ed_get_dens
-
-  interface ed_get_mag
-     module procedure ed_get_mag_main
-     module procedure ed_get_mag_lattice
-  end interface ed_get_mag
-
-  interface ed_get_docc
-     module procedure ed_get_docc_main
-     module procedure ed_get_docc_lattice
-  end interface ed_get_docc
-
-  interface ed_get_eimp
-     module procedure :: ed_get_eimp_main
-     module procedure :: ed_get_eimp_lattice
-  end interface ed_get_eimp
-
-  interface ed_get_doubles
-     module procedure :: ed_get_doubles_main
-     module procedure :: ed_get_doubles_lattice
-  end interface ed_get_doubles
-
-  
-  interface ed_get_density_matrix
-     module procedure :: ed_get_density_matrix_single
-     module procedure :: ed_get_density_matrix_lattice
-  end interface ed_get_density_matrix
-
   public :: ed_get_sigma_matsubara
   public :: ed_get_sigma_realaxis
-
   public :: ed_get_gimp_matsubara
   public :: ed_get_gimp_realaxis
-
-  public :: ed_get_delta_function
-  public :: ed_get_g0and_function
-  public :: ed_get_invg0_function
-
   public :: ed_get_dens
   public :: ed_get_mag
   public :: ed_get_docc
   public :: ed_get_eimp
   public :: ed_get_doubles
-
   public :: ed_get_density_matrix
 
-  public :: ed_read_impSigma_single
-  public :: ed_read_impSigma_lattice
 
   !****************************************************************************************!
   !****************************************************************************************!
@@ -119,11 +35,53 @@ MODULE ED_IO
   !****************************************************************************************!
 
 
-
-  !Frequency and time arrays:
-  !=========================================================
-  ! real(8),dimension(:),allocatable :: wm,tau,wr,vm
   character(len=64)                :: suffix
+
+  !Retrieve imp GF through routines.
+  interface ed_get_gimp_matsubara
+     module procedure ed_get_gimp_matsubara_main
+  end interface ed_get_gimp_matsubara
+
+
+  interface ed_get_gimp_realaxis
+     module procedure ed_get_gimp_realaxis_main
+  end interface ed_get_gimp_realaxis
+
+
+  !Retrieve self-energy through routines:
+  interface ed_get_sigma_matsubara
+     module procedure ed_get_sigma_matsubara_main
+  end interface ed_get_sigma_matsubara
+
+  interface ed_get_sigma_realaxis
+     module procedure ed_get_sigma_realaxis_main
+  end interface ed_get_sigma_realaxis
+
+
+  !Retrieve static common observables  
+  interface ed_get_dens
+     module procedure ed_get_dens_main
+  end interface ed_get_dens
+
+  interface ed_get_mag
+     module procedure ed_get_mag_main
+  end interface ed_get_mag
+
+  interface ed_get_docc
+     module procedure ed_get_docc_main
+  end interface ed_get_docc
+
+  interface ed_get_eimp
+     module procedure :: ed_get_eimp_main
+  end interface ed_get_eimp
+
+  interface ed_get_doubles
+     module procedure :: ed_get_doubles_main
+  end interface ed_get_doubles
+
+  interface ed_get_density_matrix
+     module procedure :: ed_get_density_matrix_single
+  end interface ed_get_density_matrix
 
 
 
@@ -136,20 +94,92 @@ contains
   !+--------------------------------------------------------------------------+!
   ! PURPOSE: Retrieve measured values of the impurity GF and self-energy 
   !+--------------------------------------------------------------------------+!
-  include "get_gimp.f90"
+  !NORMAL, MATSUBARA GREEN'S FUNCTIONS
+  subroutine ed_get_gimp_matsubara_main(Gmats)
+    complex(8),dimension(Nspin,Nspin,Norb,Norb,Lmats),intent(inout) :: Gmats
+    Gmats(:,:,:,:,:) = impGmats(:,:,:,:,:)
+  end subroutine ed_get_gimp_matsubara_main
+
+  !NORMAL, REAL SELF-ENERGY
+  subroutine ed_get_gimp_realaxis_main(Greal)
+    complex(8),dimension(Nspin,Nspin,Norb,Norb,Lreal),intent(inout) :: Greal
+    Greal(:,:,:,:,:) = impGreal(:,:,:,:,:)
+  end subroutine ed_get_gimp_realaxis_main
 
 
-  !+--------------------------------------------------------------------------+!
-  ! PURPOSE: Retrieve Anderson non-interacting green's functions 
-  !+--------------------------------------------------------------------------+!
-  include "get_gand_bath.f90"
+  !NORMAL, MATSUBARA SELF-ENEGRGY
+  subroutine ed_get_sigma_matsubara_main(Smats)
+    complex(8),dimension(Nspin,Nspin,Norb,Norb,Lmats),intent(inout) :: Smats
+    Smats(:,:,:,:,:) = impSmats(:,:,:,:,:)
+  end subroutine ed_get_sigma_matsubara_main
+
+
+  !NORMAL, REAL SELF-ENERGY
+  subroutine ed_get_sigma_realaxis_main(Sreal)
+    complex(8),dimension(Nspin,Nspin,Norb,Norb,Lreal),intent(inout) :: Sreal
+    Sreal(:,:,:,:,:) = impSreal(:,:,:,:,:)
+  end subroutine ed_get_sigma_realaxis_main
+
 
 
   !+--------------------------------------------------------------------------+!
   ! PURPOSE: Retrieve measured values of the local observables
   !+--------------------------------------------------------------------------+!
-  include "get_obs.f90"
-  include "get_imp_dm.f90"
+  subroutine ed_get_dens_main(dens)
+    real(8),dimension(Norb) :: dens
+    dens = ed_dens
+  end subroutine ed_get_dens_main
+
+  subroutine ed_get_mag_main(mag) 
+    real(8),dimension(Norb) :: mag
+    mag = (ed_dens_up-ed_dens_dw)
+  end subroutine ed_get_mag_main
+
+  subroutine ed_get_docc_main(docc) 
+    real(8),dimension(Norb) :: docc
+    docc = ed_docc
+  end subroutine ed_get_docc_main
+
+  subroutine ed_get_doubles_main(docc)
+    real(8),dimension(4) :: docc
+    docc = [ed_Dust,ed_Dund,ed_Dse,ed_Dph]
+  end subroutine ed_get_doubles_main
+
+
+  subroutine ed_get_eimp_main(eimp)
+    real(8),dimension(4) :: eimp
+    eimp = [ed_Epot,ed_Eint,ed_Ehartree,ed_Eknot]
+  end subroutine ed_get_eimp_main
+
+
+
+
+
+  subroutine ed_get_density_matrix_single(dm_)
+    implicit none
+    !passed
+    complex(8),allocatable,intent(out)           :: dm_(:,:)
+    !internal
+    integer                                      :: unit
+    integer                                      :: iorb,jorb,ispin,jspin,io,jo
+    complex(8)                                   :: Tr
+    complex(8),allocatable                       :: dm_custom_rot(:,:)
+    real(8)                                      :: soc
+    !
+    if (.not.allocated(imp_density_matrix)) then
+       write(LOGfile,"(A)") "imp_density_matrix is not allocated"
+       stop
+    endif
+    !
+    if(allocated(dm_))deallocate(dm_)
+    allocate(dm_(Nspin*Norb,Nspin*Norb))
+    dm_ = zero
+    !
+    ! dm in the impurity problem basis
+    dm_ = nn2so_reshape(imp_density_matrix,Nspin,Norb)
+    !
+  end subroutine ed_get_density_matrix_single
+
 
 
 
@@ -166,36 +196,19 @@ contains
     integer,dimension(:),allocatable                  :: getIorb,getJorb
     integer                                           :: totNorb,l
     !
-    ! if(.not.allocated(wm))allocate(wm(Lmats))
-    ! if(.not.allocated(wr))allocate(wr(Lreal))
-    ! wm     = pi/beta*real(2*arange(1,Lmats)-1,8)
-    ! wr     = linspace(wini,wfin,Lreal)
     call allocate_grids()
     !
-    select case(bath_type)
-    case default                !Diagonal in both spin and orbital
-       totNorb=Norb
-       allocate(getIorb(totNorb),getJorb(totNorb))
-       l=0
-       do iorb=1,Norb
-          L=l+1
+    totNorb=Norb*(Norb+1)/2
+    allocate(getIorb(totNorb),getJorb(totNorb))
+    l=0
+    do iorb=1,Norb
+       do jorb=iorb,Norb
+          l=l+1
           getIorb(l)=iorb
-          getJorb(l)=iorb
+          getJorb(l)=jorb
        enddo
-       totNorb=l
-    case ('hybrid')             !Diagonal in spin only. Full Orbital structure
-       totNorb=Norb*(Norb+1)/2
-       allocate(getIorb(totNorb),getJorb(totNorb))
-       l=0
-       do iorb=1,Norb
-          do jorb=iorb,Norb
-             l=l+1
-             getIorb(l)=iorb
-             getJorb(l)=jorb
-          enddo
-       enddo
-    end select
-    if(l/=totNorb)stop "print_gf_normal error counting the orbitals"
+    enddo
+    if(l/=totNorb)stop "ed_print_impSigma error counting the orbitals"
     !!
     !Print the impurity functions:
     do ispin=1,Nspin
@@ -208,8 +221,6 @@ contains
        enddo
     enddo
     !
-    ! if(allocated(wm))deallocate(wm)
-    ! if(allocated(wr))deallocate(wr)
     call deallocate_grids()
     !
   end subroutine ed_print_impSigma
@@ -228,30 +239,17 @@ contains
     !
     call allocate_grids()
     !
-    select case(bath_type)
-    case default                !Diagonal in both spin and orbital
-       totNorb=Norb
-       allocate(getIorb(totNorb),getJorb(totNorb))
-       l=0
-       do iorb=1,Norb
-          L=l+1
+    totNorb=Norb*(Norb+1)/2
+    allocate(getIorb(totNorb),getJorb(totNorb))
+    l=0
+    do iorb=1,Norb
+       do jorb=iorb,Norb
+          l=l+1
           getIorb(l)=iorb
-          getJorb(l)=iorb
+          getJorb(l)=jorb
        enddo
-       totNorb=l
-    case ('hybrid')             !Diagonal in spin only. Full Orbital structure
-       totNorb=Norb*(Norb+1)/2
-       allocate(getIorb(totNorb),getJorb(totNorb))
-       l=0
-       do iorb=1,Norb
-          do jorb=iorb,Norb
-             l=l+1
-             getIorb(l)=iorb
-             getJorb(l)=jorb
-          enddo
-       enddo
-    end select
-    if(l/=totNorb)stop "print_gf_normal error counting the orbitals"
+    enddo
+    if(l/=totNorb)stop "ed_print_impG error counting the orbitals"
     !!
     !Print the impurity functions:
     do ispin=1,Nspin
@@ -281,30 +279,17 @@ contains
     !
     call allocate_grids()
     !
-    select case(bath_type)
-    case default                !Diagonal in both spin and orbital
-       totNorb=Norb
-       allocate(getIorb(totNorb),getJorb(totNorb))
-       l=0
-       do iorb=1,Norb
-          L=l+1
+    totNorb=Norb*(Norb+1)/2
+    allocate(getIorb(totNorb),getJorb(totNorb))
+    l=0
+    do iorb=1,Norb
+       do jorb=iorb,Norb
+          l=l+1
           getIorb(l)=iorb
-          getJorb(l)=iorb
+          getJorb(l)=jorb
        enddo
-       totNorb=l
-    case ('hybrid')             !Diagonal in spin only. Full Orbital structure
-       totNorb=Norb*(Norb+1)/2
-       allocate(getIorb(totNorb),getJorb(totNorb))
-       l=0
-       do iorb=1,Norb
-          do jorb=iorb,Norb
-             l=l+1
-             getIorb(l)=iorb
-             getJorb(l)=jorb
-          enddo
-       enddo
-    end select
-    if(l/=totNorb)stop "print_gf_normal error counting the orbitals"
+    enddo
+    if(l/=totNorb)stop "ed_print_impG0 error counting the orbitals"
     !!
     !Print the impurity functions:
     do ispin=1,Nspin
@@ -429,91 +414,6 @@ contains
 
 
 
-  ! PURPOSE: Read self-energy function(s) - also for inequivalent sites.
-  !+-----------------------------------------------------------------------------+!
-  subroutine read_impSigma_normal
-    integer                                           :: i,ispin,isign,unit(2),iorb,jorb
-    character(len=20)                                 :: suffix
-    integer,dimension(:),allocatable                  :: getIorb,getJorb
-    integer                                           :: totNorb,l
-    !
-    if(.not.allocated(wm))allocate(wm(Lmats))
-    if(.not.allocated(wr))allocate(wr(Lreal))
-    wm     = pi/beta*real(2*arange(1,Lmats)-1,8)
-    wr     = linspace(wini,wfin,Lreal)
-    !
-    select case(bath_type)
-    case default                !Diagonal in both spin and orbital
-       totNorb=Norb
-       allocate(getIorb(totNorb),getJorb(totNorb))
-       l=0
-       do iorb=1,Norb
-          L=l+1
-          getIorb(l)=iorb
-          getJorb(l)=iorb
-       enddo
-       totNorb=l
-    case ('hybrid')             !Diagonal in spin only. Full Orbital structure
-       totNorb=Norb*(Norb+1)/2
-       allocate(getIorb(totNorb),getJorb(totNorb))
-       l=0
-       do iorb=1,Norb
-          do jorb=iorb,Norb
-             l=l+1
-             getIorb(l)=iorb
-             getJorb(l)=jorb
-          enddo
-       enddo
-    end select
-    if(l/=totNorb)stop "print_gf_normal error counting the orbitals"
-    !!
-    !Print the impurity functions:
-    do ispin=1,Nspin
-       do l=1,totNorb
-          iorb=getIorb(l)
-          jorb=getJorb(l)
-          suffix="_l"//str(iorb)//str(jorb)//"_s"//str(ispin)
-          call sread("impSigma"//reg(suffix)//"_iw"//reg(ed_file_suffix)//".ed"   ,wm,impSmats(ispin,ispin,iorb,jorb,:))
-          call sread("impSigma"//reg(suffix)//"_realw"//reg(ed_file_suffix)//".ed",wr,impSreal(ispin,ispin,iorb,jorb,:))
-       enddo
-    enddo
-    !
-    if(allocated(wm))deallocate(wm)
-    if(allocated(wr))deallocate(wr)
-    !
-  end subroutine read_impSigma_normal
-
-  subroutine ed_read_impSigma_single
-    !
-    if(allocated(impSmats))deallocate(impSmats)
-    if(allocated(impSreal))deallocate(impSreal)
-    allocate(impSmats(Nspin,Nspin,Norb,Norb,Lmats))
-    allocate(impSreal(Nspin,Nspin,Norb,Norb,Lreal))
-    impSmats=zero
-    impSreal=zero
-    !
-    call read_impSigma_normal
-  end subroutine ed_read_impSigma_single
-
-  subroutine ed_read_impSigma_lattice(Nineq)
-    integer :: Nineq
-    integer :: ilat
-    !
-    if(allocated(Smats_ineq))deallocate(Smats_ineq)
-    if(allocated(Sreal_ineq))deallocate(Sreal_ineq)
-    allocate(Smats_ineq(Nineq,Nspin,Nspin,Norb,Norb,Lmats))
-    allocate(Sreal_ineq(Nineq,Nspin,Nspin,Norb,Norb,Lreal))
-    Smats_ineq  = zero 
-    Sreal_ineq  = zero 
-    !
-    do ilat=1,Nineq
-       ed_file_suffix=reg(ineq_site_suffix)//str(ilat,site_indx_padding)
-       call ed_read_impSigma_single
-       Smats_ineq(ilat,:,:,:,:,:)  = impSmats
-       Sreal_ineq(ilat,:,:,:,:,:)  = impSreal
-    enddo
-    ed_file_suffix=""
-  end subroutine ed_read_impSigma_lattice
 
 
 END MODULE ED_IO

@@ -10,6 +10,37 @@ MODULE ED_AUX_FUNX
   private
 
 
+  !FERMIONIC OPERATORS IN BITWISE OPERATIONS
+  public :: c,cdg
+  !BIT DECOMPOSITION 
+  public :: bdecomp
+  !BINARY SEARCH
+  public :: binary_search
+  !MPI PROCEDURES
+#ifdef _MPI
+  public :: scatter_vector_MPI
+  public :: scatter_basis_MPI
+  public :: gather_vector_MPI
+  public :: allgather_vector_MPI
+#endif
+  !AUX RESHAPE FUNCTIONS (internal use)
+  public :: lso2nnn_reshape
+  public :: so2nn_reshape
+  public :: nnn2lso_reshape
+  public :: nn2so_reshape
+  !
+  !SEARCH CHEMICAL POTENTIAL, this should go into DMFT_TOOLS I GUESS
+  public :: ed_search_variable
+  !ALLOCATE/DEALLOCATE GRIDS
+  public :: allocate_grids
+  public :: deallocate_grids
+
+  public :: ed_set_suffix
+  public :: ed_reset_suffix
+
+
+
+
   interface lso2nnn_reshape
      module procedure d_nlso2nnn
      module procedure c_nlso2nnn
@@ -37,60 +68,7 @@ MODULE ED_AUX_FUNX
   end interface ed_set_suffix
 
 
-
-  !FERMIONIC OPERATORS IN BITWISE OPERATIONS
-  public :: c,cdg
-  !AUX BIT OPERATIONS
-  public :: bdecomp
-  public :: breorder
-  public :: bjoin
-  !BINARY SEARCH
-  public :: binary_search
-  !MPI PROCEDURES
-#ifdef _MPI
-  public :: scatter_vector_MPI
-  public :: scatter_basis_MPI
-  public :: gather_vector_MPI
-  public :: allgather_vector_MPI
-#endif
-  !AUX RESHAPE FUNCTIONS (internal use)
-  public :: index_stride_so
-  public :: lso2nnn_reshape
-  public :: so2nn_reshape
-  public :: nnn2lso_reshape
-  public :: nn2so_reshape
-  !
-  !SEARCH CHEMICAL POTENTIAL, this should go into DMFT_TOOLS I GUESS
-  public :: ed_search_variable
-  public :: search_chemical_potential
-  !ALLOCATE/DEALLOCATE GRIDS
-  public :: allocate_grids
-  public :: deallocate_grids
-
-  public :: ed_set_suffix
-  public :: ed_reset_suffix
-
-
-
 contains
-
-
-  subroutine ed_reset_suffix()
-    ed_file_suffix=''
-  end subroutine ed_reset_suffix
-
-  subroutine ed_set_suffix_i(indx)
-    integer :: indx
-    ed_file_suffix=reg(ineq_site_suffix)//str(indx,site_indx_padding)
-  end subroutine ed_set_suffix_i
-  subroutine ed_set_suffix_d(indx)
-    real(8) :: indx
-    ed_file_suffix=reg(ineq_site_suffix)//str(indx)
-  end subroutine ed_set_suffix_d
-  subroutine ed_set_suffix_c(indx)
-    character(len=*) :: indx
-    ed_file_suffix=reg(ineq_site_suffix)//str(indx)
-  end subroutine ed_set_suffix_c
 
 
 
@@ -158,53 +136,6 @@ contains
     enddo
   end function bdecomp
 
-
-  !+------------------------------------------------------------------+
-  ! Reorder a binary decomposition so to have a state of the form:
-  ! default: |(1:Norb),([1:Nbath]_1, [1:Nbath]_2, ... ,[1:Nbath]_Norb)>_spin
-  ! hybrid:  |(1:Norb),([1:Nbath])_spin
-  ! replica: |(1:Norb),([1:Norb]_1, [1:Norb]_2, ...  , [1:Norb]_Nbath)>_spin
-  !
-  !> case (ed_total_ud):
-  !   (T): Ns_Ud=1, Ns_Orb=Ns.
-  !        bdecomp is already of the form above [1:Ns]
-  !   (F): Ns_Ud=Norb, Ns_Orb=Ns/Norb==1+Nbath
-  !        bdecomp is
-  !        |( [1:1+Nbath]_1,...,[1:1+Nbath]_Norb)>_spin
-  !+------------------------------------------------------------------+
-  function breorder(Nins) result(Ivec)
-    integer,intent(in),dimension(Ns_Ud,Ns_Orb) :: Nins ![1,Ns] - [Norb,1+Nbath]
-    integer,dimension(Ns)                      :: Ivec ![Ns]
-    integer                                    :: iud,ibath,indx
-    select case (ed_total_ud)
-    case (.true.)
-       Ivec = Nins(1,:)
-    case (.false.)
-       do iud=1,Ns_Ud           ![1:Norb]
-          Ivec(iud) = Nins(iud,1)
-          do ibath=1,Nbath
-             indx = getBathStride(iud,ibath) !take care of normal/
-             Ivec(indx) = Nins(iud,1+ibath)
-          enddo
-       enddo
-    end select
-  end function breorder
-
-
-  !+------------------------------------------------------------------+
-  !PURPOSE  : input a vector ib(Nlevels) with the binary sequence 
-  ! and output the corresponding state |i>
-  !(corresponds to the recomposition of the number i-1)
-  !+------------------------------------------------------------------+
-  function bjoin(ib,Ntot) result(i)
-    integer                 :: Ntot
-    integer,dimension(Ntot) :: ib
-    integer                 :: i,j
-    i=0
-    do j=0,Ntot-1
-       i=i+ib(j+1)*2**j
-    enddo
-  end function bjoin
 
 
   !+------------------------------------------------------------------+
@@ -417,18 +348,32 @@ contains
 
 
 
+
+  subroutine ed_reset_suffix()
+    ed_file_suffix=''
+  end subroutine ed_reset_suffix
+
+  subroutine ed_set_suffix_i(indx)
+    integer :: indx
+    ed_file_suffix=reg(ineq_site_suffix)//str(indx,site_indx_padding)
+  end subroutine ed_set_suffix_i
+  subroutine ed_set_suffix_d(indx)
+    real(8) :: indx
+    ed_file_suffix=reg(ineq_site_suffix)//str(indx)
+  end subroutine ed_set_suffix_d
+  subroutine ed_set_suffix_c(indx)
+    character(len=*) :: indx
+    ed_file_suffix=reg(ineq_site_suffix)//str(indx)
+  end subroutine ed_set_suffix_c
+
+
+
+
+
+
   !##################################################################
   !                   RESHAPE ROUTINES
   !##################################################################
-  !> Get stride position in the one-particle many-body space 
-  function index_stride_so(ispin,iorb) result(indx)
-    integer :: iorb
-    integer :: ispin
-    integer :: indx
-    indx = iorb  + (ispin-1)*Norb
-  end function index_stride_so
-
-
   !+-----------------------------------------------------------------------------+!
   !PURPOSE: 
   ! reshape a matrix from the [Nlso][Nlso] shape
@@ -771,133 +716,6 @@ contains
 
 
 
-  subroutine search_chemical_potential(var,ntmp,converged)
-    real(8),intent(inout) :: var
-    real(8),intent(in)    :: ntmp
-    logical,intent(inout) :: converged
-    logical               :: bool
-    real(8)               :: ndiff
-    integer,save          :: count=0,totcount=0,i
-    integer,save          :: nindex=0
-    integer               :: nindex_old(3)
-    real(8)               :: ndelta_old,nratio,kcompr=0d0
-    integer,save          :: nth_magnitude=-2,nth_magnitude_old=-2
-    real(8),save          :: nth=1.d-2,var_old,ntmp_old
-    logical,save          :: ireduce=.true.
-    integer               :: unit
-    !
-    if(count==0)then
-       inquire(file="var.restart",EXIST=bool)
-       if(bool)then
-          open(free_unit(unit),file="var.restart")
-          read(unit,*)var,ndelta
-          ndelta=abs(ndelta)*ncoeff
-          close(unit)
-       endif
-    endif
-    !
-    ndiff=ntmp-nread
-    nratio = 0.5d0;!nratio = 1.d0/(6.d0/11.d0*pi)
-    !
-    !check actual value of the density *ntmp* with respect to goal value *nread*
-    count=count+1
-    totcount=totcount+1
-    if(count>2)then
-       do i=1,2
-          nindex_old(i+1)=nindex_old(i)
-       enddo
-    endif
-    nindex_old(1)=nindex
-    !
-    if(ndiff >= nth)then
-       nindex=-1
-    elseif(ndiff <= -nth)then
-       nindex=1
-    else
-       nindex=0
-    endif
-    !
-    !
-    ndelta_old=ndelta
-    bool=nindex/=0.AND.( (nindex+nindex_old(1)==0).OR.(nindex+sum(nindex_old(:))==0) )
-    !if(nindex_old(1)+nindex==0.AND.nindex/=0)then !avoid loop forth and back
-    if(bool)then
-       ndelta=ndelta_old*nratio !decreasing the step
-    else
-       ndelta=ndelta_old
-    endif
-    !
-    if(abs(ndelta_old)<1.d-9)then
-       ndelta_old=0.d0
-       nindex=0
-    endif
-    !
-    !update chemical potential
-    var=var+dble(nindex)*ndelta
-    !
-    ! if(count>0)kcompr = (ntmp - ntmp_old)/(var - var_old)       
-    !
-    !Print information
-    write(LOGfile,"(A,f16.9,A,f15.9)")"n    = ",ntmp," /",nread
-    if(nindex>0)then
-       write(LOGfile,"(A,I0,A1,es16.9,A)")"shift= ",nindex,"*",ndelta," ==>"
-    elseif(nindex<0)then
-       write(LOGfile,"(A,I0,A1,es16.9,A)")"shift= ",nindex,"*",ndelta," <=="
-    else
-       write(LOGfile,"(A,I0,A1,es16.9,A)")"shift= ",nindex,"*",ndelta," ==="
-    endif
-    write(LOGfile,"(A,ES16.9,A,ES16.9)")"dn   = ",ndiff,"/",nth
-    ! write(LOGfile,"(A,10F16.9)")"k    = ",kcompr,1d0/kcompr,ntmp,ntmp_old,ntmp-ntmp_old,var,var_old,var-var_old
-    write(LOGfile,"(A,f15.9)")"var  = ",var
-    !
-    open(free_unit(unit),file="search_mu_iteration"//reg(ed_file_suffix)//".ed",position="append")
-    write(unit,*)var,ntmp,ndiff
-    close(unit)
-    !
-    !check convergence within actual threshold
-    !if reduce is activetd
-    !if density is in the actual threshold
-    !if DMFT is converged
-    !if threshold is larger than nerror (i.e. this is not last loop)
-    bool=ireduce.AND.(abs(ndiff)<nth).AND.converged.AND.(nth>nerr)
-    if(bool)then
-       nth_magnitude_old=nth_magnitude        !save old threshold magnitude
-       nth_magnitude=nth_magnitude_old-1      !decrease threshold magnitude || floor(log10(abs(ntmp-nread)))
-       nth=max(nerr,10.d0**(nth_magnitude))   !set the new threshold 
-       count=0                                !reset the counter
-       converged=.false.                      !reset convergence
-       ndelta=ndelta_old*nratio                  !reduce the delta step
-       !
-    endif
-    !
-    !if density is not converged set convergence to .false.
-    if(abs(ntmp-nread)>nth)converged=.false.
-    !
-    !check convergence for this threshold
-    !!---if smallest threshold-- NO MORE
-    !if reduce is active (you reduced the treshold at least once)
-    !if # iterations > max number
-    !if not yet converged
-    !set threshold back to the previous larger one.
-    !bool=(nth==nerr).AND.ireduce.AND.(count>niter).AND.(.not.converged)
-    bool=ireduce.AND.(count>niter).AND.(.not.converged)
-    if(bool)then
-       ireduce=.false.
-       nth=10.d0**(nth_magnitude_old)
-    endif
-    !
-    write(LOGfile,"(A,I5)")"count= ",count
-    write(LOGfile,"(A,L2)")"Converged=",converged
-    print*,""
-    !
-    open(free_unit(unit),file="var.restart")
-    write(unit,*)var,ndelta
-    close(unit)
-    !
-    ntmp_old = ntmp
-    var_old  = var
-    !
-  end subroutine search_chemical_potential
 
 
 

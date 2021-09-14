@@ -5,7 +5,6 @@ MODULE ED_HAMILTONIAN_COMMON
   USE ED_INPUT_VARS
   USE ED_VARS_GLOBAL
   USE ED_AUX_FUNX
-  USE ED_BATH
   USE ED_SETUP
   USE ED_SECTOR
   implicit none
@@ -36,8 +35,6 @@ MODULE ED_HAMILTONIAN_COMMON
   real(8)                                   :: htmp,htmpup,htmpdw
   logical                                   :: Jcondition
   integer                                   :: Nfoo
-  real(8),dimension(:,:,:),allocatable      :: diag_hybr ![Nspin,Norb,Nbath]
-  real(8),dimension(:,:,:),allocatable      :: bath_diag ![Nspin,Norb/1,Nbath]
 
 
 contains

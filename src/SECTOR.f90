@@ -11,15 +11,6 @@ MODULE ED_SECTOR
   implicit none
   private
 
-  interface map_allocate
-     module procedure :: map_allocate_scalar
-     module procedure :: map_allocate_vector
-  end interface map_allocate
-
-  interface map_deallocate
-     module procedure :: map_deallocate_scalar
-     module procedure :: map_deallocate_vector
-  end interface map_deallocate
 
 
 
@@ -47,6 +38,20 @@ MODULE ED_SECTOR
   public :: twin_sector_order
   public :: get_twin_sector
   public :: flip_state
+
+
+
+  interface map_allocate
+     module procedure :: map_allocate_scalar
+     module procedure :: map_allocate_vector
+  end interface map_allocate
+
+  interface map_deallocate
+     module procedure :: map_deallocate_scalar
+     module procedure :: map_deallocate_vector
+  end interface map_deallocate
+
+
 
 contains
 
@@ -187,8 +192,8 @@ contains
     integer                     :: iph,i_el
     integer,dimension(2*Ns_Ud)  :: Indices
     integer,dimension(2*Ns_Ud)  :: Jndices
-    integer,dimension(2,Ns_Orb) :: Nud !Nbits(Ns_Orb)
-    integer,dimension(2)        :: Iud
+    integer,dimension(Ns_Orb)   :: Nud
+    integer                     :: Iud
     !
     j=0
     sgn=0d0
@@ -198,12 +203,10 @@ contains
     i_el = mod(i-1,sectorI%DimEl) + 1
     !
     call state2indices(i_el,[sectorI%DimUps,sectorI%DimDws],Indices)
-    iud(1)   = sectorI%H(ialfa)%map(Indices(ialfa))
-    iud(2)   = sectorI%H(ialfa+Ns_Ud)%map(Indices(ialfa+Ns_Ud))
-    nud(1,:) = Bdecomp(iud(1),Ns_Orb)
-    nud(2,:) = Bdecomp(iud(2),Ns_Orb)
-    if(Nud(ispin,ipos)/=1)return
-    call c(ipos,iud(ispin),r,sgn)
+    iud = sectorI%H(ibeta)%map(Indices(ialfa))
+    nud = Bdecomp(iud,Ns_Orb)
+    if(nud(ipos)/=1)return
+    call c(ipos,iud,r,sgn)
     Jndices        = Indices
     Jndices(ibeta) = binary_search(sectorJ%H(ibeta)%map,r)
     call indices2state(Jndices,[sectorJ%DimUps,sectorJ%DimDws],j)
@@ -213,17 +216,17 @@ contains
 
 
   subroutine apply_op_CDG(i,j,sgn,ipos,ialfa,ispin,sectorI,sectorJ) 
-    integer, intent(in)         :: i,ipos,ialfa,ispin
-    type(sector),intent(in)     :: sectorI,sectorJ
-    integer,intent(out)         :: j
-    real(8),intent(out)         :: sgn
-    integer                     :: ibeta
-    integer                     :: r
-    integer                     :: iph,i_el
-    integer,dimension(2*Ns_Ud)  :: Indices
-    integer,dimension(2*Ns_Ud)  :: Jndices
-    integer,dimension(2,Ns_Orb) :: Nud !Nbits(Ns_Orb)
-    integer,dimension(2)        :: Iud
+    integer, intent(in)        :: i,ipos,ialfa,ispin
+    type(sector),intent(in)    :: sectorI,sectorJ
+    integer,intent(out)        :: j
+    real(8),intent(out)        :: sgn
+    integer                    :: ibeta
+    integer                    :: r
+    integer                    :: iph,i_el
+    integer,dimension(2*Ns_Ud) :: Indices
+    integer,dimension(2*Ns_Ud) :: Jndices
+    integer,dimension(Ns_Orb)  :: Nud
+    integer                    :: Iud
     !
     j=0
     sgn=0d0
@@ -233,12 +236,10 @@ contains
     i_el = mod(i-1,sectorI%DimEl) + 1
     !
     call state2indices(i_el,[sectorI%DimUps,sectorI%DimDws],Indices)
-    iud(1)   = sectorI%H(ialfa)%map(Indices(ialfa))
-    iud(2)   = sectorI%H(ialfa+Ns_Ud)%map(Indices(ialfa+Ns_Ud))
-    nud(1,:) = Bdecomp(iud(1),Ns_Orb)
-    nud(2,:) = Bdecomp(iud(2),Ns_Orb)
-    if(Nud(ispin,ipos)/=0)return
-    call cdg(ipos,iud(ispin),r,sgn)
+    iud = sectorI%H(ibeta)%map(Indices(ialfa))
+    nud = Bdecomp(iud,Ns_Orb)
+    if(nud(ipos)/=0)return
+    call cdg(ipos,iud,r,sgn)
     Jndices        = Indices
     Jndices(ibeta) = binary_search(sectorJ%H(ibeta)%map,r)
     call indices2state(Jndices,[sectorJ%DimUps,sectorJ%DimDws],j)
@@ -307,7 +308,6 @@ contains
     integer                         :: iph,i_el,ii,iorb
     integer,dimension(2*Ns_Ud)      :: Indices
     integer,dimension(Ns_Ud,Ns_Orb) :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
-    integer,dimension(2*Ns)         :: Ib
     integer,dimension(2)            :: Iud
     !
     iph = (i-1)/(sectorI%DimEl) + 1
@@ -320,8 +320,8 @@ contains
        Nups(ii,:) = Bdecomp(iud(1),Ns_Orb) ![Norb,1+Nbath]
        Ndws(ii,:) = Bdecomp(iud(2),Ns_Orb)
     enddo
-    Nup = Breorder(Nups)
-    Ndw = Breorder(Ndws)
+    Nup = Nups(1,:)!Breorder(Nups)
+    Ndw = Ndws(1,:)!Breorder(Ndws)
     !
   end subroutine build_op_Ns
 

@@ -1,7 +1,3 @@
-!########################################################################
-!PURPOSE  : Diagonalize the Effective Impurity Problem
-!|{ImpUP1,...,ImpUPN},BathUP>|{ImpDW1,...,ImpDWN},BathDW>
-!########################################################################
 module ED_DIAG
   USE SF_CONSTANTS
   USE SF_LINALG, only: eigh
@@ -69,7 +65,7 @@ contains
     state_list=es_init_espace()
     oldzero=1000.d0
     if(MPIMASTER)then
-       write(LOGfile,"(A)")"Diagonalize impurity H:"
+       write(LOGfile,"(A)")"Diagonalize H:"
        call start_timer()
     endif
     !
