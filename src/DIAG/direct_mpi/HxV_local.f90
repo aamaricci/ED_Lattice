@@ -13,10 +13,9 @@
      !
      !> HxV_imp: Diagonal Elements, i.e. local part
      htmp = zero
-     do iorb=1,Norb
-        htmp = htmp + impHloc(1,1,iorb,iorb)*Nup(iorb)
-        htmp = htmp + impHloc(Nspin,Nspin,iorb,iorb)*Ndw(iorb)
-        htmp = htmp - xmu*(Nup(iorb)+Ndw(iorb))
+     do io=1,Ns
+        htmp = htmp + Hdiag(1,io)*nup(io) + Hdiag(Nspin,io)*ndw(io)
+        htmp = htmp - xmu*(Nup(io)+Ndw(io))
      enddo
      !
      !
@@ -25,15 +24,26 @@
      ! density-density interaction: same orbital, opposite spins:
      !  = \sum_\a U_\a*(n_{\a,up}*n_{\a,dw})
      do iorb=1,Norb
-        htmp = htmp + Uloc(iorb)*Nup(iorb)*Ndw(iorb)
+        do isite=1,Nsites(iorb)          
+           io = pack_indices(iorb,isite)
+           htmp = htmp + Uloc(iorb)*Nup(io)*Ndw(io)
+        enddo
      enddo
+     !
      if(Norb>1)then
         !density-density interaction: different orbitals, opposite spins:
         ! =   U'   *     sum_{i/=j} [ n_{i,up}*n_{j,dw} + n_{j,up}*n_{i,dw} ]
         ! =  (Uloc-2*Jh)*sum_{i/=j} [ n_{i,up}*n_{j,dw} + n_{j,up}*n_{i,dw} ]
         do iorb=1,Norb
            do jorb=iorb+1,Norb
-              htmp = htmp + Ust*(Nup(iorb)*Ndw(jorb) + Nup(jorb)*Ndw(iorb))
+              do isite=1,Nsites(iorb)
+                 do jsite=1,Nsites(jorb)
+                    if(isite/=jsite)cycle !local interaction only:
+                    io = pack_indices(iorb,isite)
+                    jo = pack_indices(jorb,isite)
+                    htmp = htmp + Ust*(Nup(io)*Ndw(jo) + Nup(jo)*Ndw(io))
+                 enddo
+              enddo
            enddo
         enddo
         !density-density interaction: different orbitals, parallel spins
@@ -41,7 +51,14 @@
         ! = \sum_{i<j} (Uloc-3*Jh)*[ n_{i,up}*n_{j,up} + n_{i,dw}*n_{j,dw} ]
         do iorb=1,Norb
            do jorb=iorb+1,Norb
-              htmp = htmp + (Ust-Jh)*(Nup(iorb)*Nup(jorb) + Ndw(iorb)*Ndw(jorb))
+              do isite=1,Nsites(iorb)
+                 do jsite=1,Nsites(jorb)
+                    if(isite/=jsite)cycle !local interaction only:
+                    io = pack_indices(iorb,isite)
+                    jo = pack_indices(jorb,isite)
+                    htmp = htmp + (Ust-Jh)*(Nup(io)*Nup(jo) + Ndw(io)*Ndw(jo))
+                 enddo
+              enddo
            enddo
         enddo
      endif
@@ -49,28 +66,28 @@
      !sum up the contributions of hartree terms:
      if(hfmode)then
         do iorb=1,Norb
-           htmp = htmp - 0.5d0*Uloc(iorb)*(Nup(iorb)+Ndw(iorb)) + 0.25d0*uloc(iorb)
+           do isite=1,Nsites(iorb)          
+              io = pack_indices(iorb,isite)
+              htmp = htmp - 0.5d0*Uloc(iorb)*(nup(io)+ndw(io)) + 0.25d0*Uloc(iorb)
+           enddo
         enddo
         if(Norb>1)then
            do iorb=1,Norb
               do jorb=iorb+1,Norb
-                 htmp=htmp-0.5d0*Ust*(Nup(iorb)+Ndw(iorb)+Nup(jorb)+Ndw(jorb))+0.25d0*Ust
-                 htmp=htmp-0.5d0*(Ust-Jh)*(Nup(iorb)+Ndw(iorb)+Nup(jorb)+Ndw(jorb))+0.25d0*(Ust-Jh)
+                 do isite=1,Nsites(iorb)
+                    do jsite=1,Nsites(jorb)
+                       if(isite/=jsite)cycle !local interaction only:
+                       io = pack_indices(iorb,isite)
+                       jo = pack_indices(jorb,isite)
+                       htmp=htmp-0.5d0*Ust*(nup(io)+ndw(io)+nup(jo)+ndw(jo))+0.25d0*Ust
+                       htmp=htmp-0.5d0*(Ust-Jh)*(nup(io)+ndw(io)+nup(jo)+ndw(jo))+0.25d0*(Ust-Jh)
+                    enddo
+                 enddo
               enddo
            enddo
         endif
      endif
      !
-     !
-     !> H_Bath: local bath energy contribution.
-     !diagonal bath hamiltonian: +energy of the bath=\sum_a=1,Norb\sum_{l=1,Nbath}\e^a_l n^a_l
-     do iorb=1,size(bath_diag,2)
-        do kp=1,Nbath
-           ialfa = getBathStride(iorb,kp)
-           htmp =htmp + bath_diag(1    ,iorb,kp)*Nup(ialfa) !UP
-           htmp =htmp + bath_diag(Nspin,iorb,kp)*Ndw(ialfa) !DW
-        enddo
-     enddo
      !
      hv(i) = hv(i) + htmp*vin(i)
      !

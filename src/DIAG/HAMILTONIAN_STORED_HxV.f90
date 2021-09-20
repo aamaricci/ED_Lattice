@@ -19,14 +19,16 @@ contains
 
 
   subroutine ed_buildh_main(Hmat)
-    real(8),dimension(:,:),optional                :: Hmat
-    integer                                        :: isector   
-    real(8),dimension(:,:),allocatable             :: Htmp_up,Htmp_dw,Hrdx,Hmat_tmp
-    real(8),dimension(:,:),allocatable             :: Htmp_ph,Htmp_eph_e,Htmp_eph_ph,Htmp_eph_eup,Htmp_eph_edw
-    integer,dimension(2*Ns_Ud)                     :: Indices    ![2-2*Norb]
-    integer,dimension(Ns_Ud,Ns_Orb)                :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
-    integer,dimension(Ns)                          :: Nup,Ndw    ![Ns]
-    real(8),dimension(Norb,Norb)                   :: g_matrix	!matrix of electron-phonon coupling constants
+    real(8),dimension(:,:),optional    :: Hmat
+    integer                            :: isector,ispin
+    real(8),dimension(:,:),allocatable :: Htmp_up,Htmp_dw,Hrdx,Hmat_tmp
+    real(8),dimension(:,:),allocatable :: Htmp_ph,Htmp_eph_e,Htmp_eph_ph
+    real(8),dimension(:,:),allocatable :: Htmp_eph_eup,Htmp_eph_edw
+    integer,dimension(2*Ns_Ud)         :: Indices    ![2-2*Norb]
+    integer,dimension(Ns_Ud,Ns_Orb)    :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
+    integer,dimension(Ns)              :: Nup,Ndw    ![Ns]
+    complex(8),dimension(Nspin,Ns,Ns)  :: Hij,Hloc
+    complex(8),dimension(Nspin,Ns)     :: Hdiag
     !
 #ifdef _MPI
     if(Mpistatus .AND. MpiComm == MPI_COMM_NULL)return
@@ -38,11 +40,17 @@ contains
     if(present(Hmat))&
          call assert_shape(Hmat,[getdim(isector), getdim(isector)],"ed_buildh_main","Hmat")
     !
+    call Hij_get(Hij)
+    call Hij_get(Hloc)
+    do ispin=1,Nspin
+       Hdiag(ispin,:) = diagonal(Hloc(ispin,:,:))
+    enddo
+    !
 #ifdef _MPI
     if(MpiStatus)then
        call sp_set_mpi_matrix(MpiComm,spH0d,mpiIstart,mpiIend,mpiIshift)
        call sp_init_matrix(MpiComm,spH0d,DimUp*DimDw)
-       if(DimPh>1 .and. ph_type==1) then
+       if(DimPh>1) then
           call sp_set_mpi_matrix(MpiComm,spH0e_eph,mpiIstart,mpiIend,mpiIshift)
           call sp_init_matrix(MpiComm,spH0e_eph,DimUp*DimDw)
        endif
@@ -53,12 +61,12 @@ contains
        endif
     else
        call sp_init_matrix(spH0d,DimUp*DimDw)
-       if(DimPh>1 .and. ph_type==1) call sp_init_matrix(spH0e_eph,DimUp*DimDw)
+       if(DimPh>1) call sp_init_matrix(spH0e_eph,DimUp*DimDw)
        if(Jhflag)call sp_init_matrix(spH0nd,DimUp*DimDw)
     endif
 #else
     call sp_init_matrix(spH0d,DimUp*DimDw)
-    if(DimPh>1 .and. ph_type==1) call sp_init_matrix(spH0e_eph,DimUp*DimDw)
+    if(DimPh>1) call sp_init_matrix(spH0e_eph,DimUp*DimDw)
     if(Jhflag)call sp_init_matrix(spH0nd,DimUp*DimDw)
 #endif
     call sp_init_matrix(spH0dws(1),DimDw)
@@ -66,10 +74,6 @@ contains
     if(DimPh>1) then
        call sp_init_matrix(spH0_ph,DimPh)
        call sp_init_matrix(spH0ph_eph,DimPh)
-       if(ph_type==2) then
-          call sp_init_matrix(spH0e_eph,DimUp)
-          call sp_init_matrix(spH0edw_eph,DimDw)
-       endif
     end if
     !
     !-----------------------------------------------!
@@ -137,28 +141,16 @@ contains
           allocate(Htmp_eph_ph(DimPh,DimPh));Htmp_eph_ph=0d0
           allocate(Htmp_eph_e(DimUp*DimDw,DimUp*DimDw));Htmp_eph_e=0d0
           !
-          if(ph_type==2) then
-             allocate(Htmp_eph_eup(DimUp,DimUp));Htmp_eph_eup=0d0
-             allocate(Htmp_eph_edw(DimDw,DimDw));Htmp_eph_edw=0d0
-          endif
-          !
           call sp_dump_matrix(spH0_ph,Htmp_ph)
-          if(ph_type==1) then
 #ifdef _MPI
-             if(MpiStatus)then
-                call sp_dump_matrix(MpiComm,spH0e_eph,Htmp_eph_e)
-             else
-                call sp_dump_matrix(spH0e_eph,Htmp_eph_e)
-             endif
-#else
+          if(MpiStatus)then
+             call sp_dump_matrix(MpiComm,spH0e_eph,Htmp_eph_e)
+          else
              call sp_dump_matrix(spH0e_eph,Htmp_eph_e)
-#endif
-          elseif(ph_type==2) then
-             call sp_dump_matrix(spH0e_eph,Htmp_eph_eup)
-             call sp_dump_matrix(spH0edw_eph,Htmp_eph_edw)
-             Htmp_eph_e = kronecker_product(Htmp_eph_edw,eye(DimUp)) + &
-                  kronecker_product(eye(DimDw),Htmp_eph_eup)
           endif
+#else
+          call sp_dump_matrix(spH0e_eph,Htmp_eph_e)
+#endif
           !
           call sp_dump_matrix(spH0ph_eph,Htmp_eph_ph)
           !
@@ -167,7 +159,6 @@ contains
                kronecker_product(Htmp_eph_ph,Htmp_eph_e)
           !
           deallocate(Htmp_ph,Htmp_eph_e,Htmp_eph_ph)
-          if(ph_type==2) deallocate(Htmp_eph_eup,Htmp_eph_edw)
        else
           Hmat = Hmat_tmp
        endif
@@ -270,56 +261,20 @@ contains
           enddo
           !
           !ELECTRON-PHONON
-          if(ph_type==1) then      !coupling to density operators
-             do i_el = 1,DimUp*DimDw
-                i = i_el + (iph-1)*DimUp*DimDw
-                !
-                do j_el = 1,spH0e_eph%row(i_el)%Size
-                   do jj = 1,spH0ph_eph%row(iph)%Size
-                      val = spH0e_eph%row(i_el)%vals(j_el)*&
-                           spH0ph_eph%row(iph)%vals(jj)
-                      j = spH0e_eph%row(i_el)%cols(j_el) +&
-                           (spH0ph_eph%row(iph)%cols(jj)-1)*DimUp*DimDw
-                      Hv(i) = Hv(i) + val*v(j)
-                   enddo
+          do i_el = 1,DimUp*DimDw
+             i = i_el + (iph-1)*DimUp*DimDw
+             !
+             do j_el = 1,spH0e_eph%row(i_el)%Size
+                do jj = 1,spH0ph_eph%row(iph)%Size
+                   val = spH0e_eph%row(i_el)%vals(j_el)*&
+                        spH0ph_eph%row(iph)%vals(jj)
+                   j = spH0e_eph%row(i_el)%cols(j_el) +&
+                        (spH0ph_eph%row(iph)%cols(jj)-1)*DimUp*DimDw
+                   Hv(i) = Hv(i) + val*v(j)
                 enddo
-                !
              enddo
              !
-          elseif(ph_type==2) then  !coupling to the orbital hydridization
-             do iup=1,DimUp
-                do idw=1,DimDw
-                   i = iup + (idw-1)*DimUp + (iph-1)*DimUp*DimDw
-                   !
-                   !Up spin component
-                   do j_el = 1,spH0e_eph%row(iup)%Size
-                      do jj = 1,spH0ph_eph%row(iph)%Size
-                         val = spH0e_eph%row(iup)%vals(j_el)*&
-                              spH0ph_eph%row(iph)%vals(jj)
-                         jup = spH0e_eph%row(iup)%cols(j_el)
-                         jdw = idw
-                         j = jup + (jdw-1)*DimUp +&
-                              (spH0ph_eph%row(iph)%cols(jj)-1)*DimUp*DimDw
-                         Hv(i) = Hv(i) + val*v(j)
-                      enddo
-                   enddo
-                   !
-                   !Down spin component
-                   do j_el = 1,spH0edw_eph%row(idw)%Size
-                      do jj = 1,spH0ph_eph%row(iph)%Size
-                         val = spH0edw_eph%row(idw)%vals(j_el)*&
-                              spH0ph_eph%row(iph)%vals(jj)
-                         jup = iup
-                         jdw = spH0e_eph%row(idw)%cols(j_el)
-                         j = jup + (jdw-1)*DimUp +&
-                              (spH0ph_eph%row(iph)%cols(jj)-1)*DimUp*DimDw
-                         Hv(i) = Hv(i) + val*v(j)
-                      enddo
-                   enddo
-                   !
-                enddo
-             enddo
-          endif
+          enddo
           !
        endif
        !
@@ -435,83 +390,22 @@ contains
        enddo
        !
        !ELECTRON-PHONON
-       if(ph_type==1) then      !coupling to density operators
-          do iph=1,DimPh
-             do i_el = 1,DimUp*MpiQdw
-                i = i_el + (iph-1)*DimUp*MpiQdw
-                !
-                do j_el = 1,spH0e_eph%row(i_el)%Size
-                   do jj = 1,spH0ph_eph%row(iph)%Size
-                      val = spH0e_eph%row(i_el)%vals(j_el)*&
-                           spH0ph_eph%row(iph)%vals(jj)
-                      !interaction is diag from the electron point of view (coupling to the density)
-                      j = i_el + (spH0ph_eph%row(iph)%cols(jj)-1)*DimUp*MpiQdw
-                      Hv(i) = Hv(i) + val*v(j)
-                   enddo
-                enddo
-                !
-             enddo
-          enddo
-       elseif(ph_type==2) then  !coupling to the orbital hydridization
-          !UP part: contiguous in memory.
-          do iph=1,DimPh
-             do idw=1,MpiQdw
-                do iup=1,DimUp
-                   i = iup + (idw-1)*DimUp + (iph-1)*DimUp*MpiQdw
-                   do j_el=1,spH0e_eph%row(iup)%Size
-                      do jj = 1,spH0ph_eph%row(iph)%Size
-                         jup = spH0e_eph%row(iup)%cols(j_el)
-                         jdw = idw
-                         val = spH0e_eph%row(iup)%vals(j_el)*spH0ph_eph%row(iph)%vals(jj)
-                         j   = jup + (jdw-1)*DimUp + (spH0ph_eph%row(iph)%cols(jj)-1)*DimUp*MpiQdw
-                         Hv(i) = Hv(i) + val*v(j)
-                      enddo
-                   end do
-                enddo
-             end do
-          enddo
-          !
-          !DW part: non-contiguous in memory -> MPI transposition
-          !Transpose the input vector as a whole:
-          allocate(vt(mpiQup*DimDw*DimPh))
-          allocate(Hvt(mpiQup*DimDw*DimPh))
-          vt=0d0
-          Hvt=0d0
-          do iph=1,DimPh     !transpose the vector
-             i_start = 1 + (iph-1)*DimUp*MpiQdw
-             i_end = iph*DimUp*MpiQdw
-             i_start2 = 1 + (iph-1)*MpiQup*DimDw
-             i_end2 = iph*MpiQup*DimDw
-             call vector_transpose_MPI(DimUp,MpiQdw,v(i_start:i_end),DimDw,MpiQup,vt(i_start2:i_end2))
-          enddo
-          !
-          do iph=1,DimPh
-             do idw=1,MpiQup             !<= Transposed order:  column-wise DW <--> UP  
-                do iup=1,DimDw           !<= Transposed order:  column-wise DW <--> UP
-                   i = iup + (idw-1)*DimDw + (iph-1)*DimDw*MpiQup
-                   do j_el=1,spH0edw_eph%row(iup)%Size
-                      do jj=1,spH0ph_eph%row(iph)%Size
-                         jup = spH0edw_eph%row(iup)%cols(j_el)
-                         jdw = idw             
-                         j   = jup + (jdw-1)*DimDw + (spH0ph_eph%row(iph)%cols(jj)-1)*DimDw*MpiQup
-                         val = spH0edw_eph%row(iup)%vals(j_el)*spH0ph_eph%row(iph)%vals(jj)
-                         Hvt(i) = Hvt(i) + val*vt(j)
-                      enddo
-                   end do
+       do iph=1,DimPh
+          do i_el = 1,DimUp*MpiQdw
+             i = i_el + (iph-1)*DimUp*MpiQdw
+             !
+             do j_el = 1,spH0e_eph%row(i_el)%Size
+                do jj = 1,spH0ph_eph%row(iph)%Size
+                   val = spH0e_eph%row(i_el)%vals(j_el)*&
+                        spH0ph_eph%row(iph)%vals(jj)
+                   !interaction is diag from the electron point of view (coupling to the density)
+                   j = i_el + (spH0ph_eph%row(iph)%cols(jj)-1)*DimUp*MpiQdw
+                   Hv(i) = Hv(i) + val*v(j)
                 enddo
              enddo
+             !
           enddo
-          deallocate(vt) ; allocate(vt(DimUp*mpiQdw*DimPh)) ; vt=0d0
-          do iph=1,DimPh    !transpose back
-             i_start = 1 + (iph-1)*DimUp*MpiQdw
-             i_end = iph*DimUp*MpiQdw
-             i_start2 = 1 + (iph-1)*MpiQup*DimDw
-             i_end2 = iph*MpiQup*DimDw
-             call vector_transpose_MPI(DimDw,mpiQup,Hvt(i_start2:i_end2),DimUp,mpiQdw,vt(i_start:i_end))
-          enddo
-          Hv = Hv + Vt
-          deallocate(vt,Hvt)
-       endif
+       enddo
     end if
     !
     !Non-Local:

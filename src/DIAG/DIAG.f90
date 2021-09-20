@@ -239,7 +239,7 @@ contains
        !
        if(MPIMASTER)then
           unit=free_unit()
-          open(unit,file="eigenvalues_list"//reg(ed_file_suffix)//".ed",position='append',action='write')
+          open(unit,file="eigenvalues_list.ed",position='append',action='write')
           call print_eigenvalues_list(isector,eig_values(1:Neigen),unit,lanc_solve,mpiAllThreads)
           close(unit)
        endif
@@ -279,14 +279,14 @@ contains
     sectors_mask=.true.
     !
     if(ed_sectors)then
-       inquire(file=reg(SectorFile)//reg(ed_file_suffix)//".restart",exist=IOfile)
+       inquire(file=reg(SectorFile)//".restart",exist=IOfile)
        if(IOfile)then
           sectors_mask=.false.
           write(LOGfile,"(A)")"Analysing sectors_list to reduce sectors scan:"
-          list_len=file_length(reg(SectorFile)//reg(ed_file_suffix)//".restart")
+          list_len=file_length(reg(SectorFile)//".restart")
           !
-          open(free_unit(unit),file=reg(SectorFile)//reg(ed_file_suffix)//".restart",status="old")
-          open(free_unit(unit2),file="list_of_sectors"//reg(ed_file_suffix)//".ed")
+          open(free_unit(unit),file=reg(SectorFile)//".restart",status="old")
+          open(free_unit(unit2),file="list_of_sectors"//".ed")
           do istate=1,list_len
              read(unit,*,iostat=status)Indices
              call get_Sector(Indices,Ns_Orb,isector)
@@ -340,7 +340,7 @@ contains
     integer,allocatable :: list_sector(:),count_sector(:)    
     !POST PROCESSING:
     if(MPIMASTER)then
-       open(free_unit(unit),file="state_list"//reg(ed_file_suffix)//".ed")
+       open(free_unit(unit),file="state_list.ed")
        call save_state_list(unit)
        close(unit)
     endif
@@ -375,7 +375,7 @@ contains
     !
     if(.not.finiteT)then
        !generate a sector_list to be reused in case we want to reduce sectors scan
-       open(free_unit(unit),file=reg(SectorFile)//reg(ed_file_suffix)//".restart")       
+       open(free_unit(unit),file=reg(SectorFile)//".restart")       
        do istate=1,state_list%size
           isector = es_return_sector(state_list,istate)
           call get_QuantumNumbers(isector,Ns_Orb,Indices)
@@ -387,7 +387,7 @@ contains
        !go through states list and update the neigen_sector(isector) sector-by-sector
        if(MPIMASTER)then
           unit=free_unit()
-          open(unit,file="histogram_states"//reg(ed_file_suffix)//".ed",position='append')
+          open(unit,file="histogram_states.ed",position='append')
           hist_n = Nsectors
           hist_a = 1d0
           hist_b = dble(Nsectors)

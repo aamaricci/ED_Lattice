@@ -203,7 +203,7 @@ contains
     i_el = mod(i-1,sectorI%DimEl) + 1
     !
     call state2indices(i_el,[sectorI%DimUps,sectorI%DimDws],Indices)
-    iud = sectorI%H(ibeta)%map(Indices(ialfa))
+    iud = sectorI%H(ibeta)%map(Indices(ibeta))
     nud = Bdecomp(iud,Ns_Orb)
     if(nud(ipos)/=1)return
     call c(ipos,iud,r,sgn)
@@ -236,7 +236,7 @@ contains
     i_el = mod(i-1,sectorI%DimEl) + 1
     !
     call state2indices(i_el,[sectorI%DimUps,sectorI%DimDws],Indices)
-    iud = sectorI%H(ibeta)%map(Indices(ialfa))
+    iud = sectorI%H(ibeta)%map(Indices(ibeta))
     nud = Bdecomp(iud,Ns_Orb)
     if(nud(ipos)/=0)return
     call cdg(ipos,iud,r,sgn)
@@ -648,64 +648,3 @@ contains
   end function binomial
 
 end MODULE ED_SECTOR
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-! getCsector=0
-! do isector=1,Nsectors
-!    call get_Nup(isector,Nup)
-!    call get_Ndw(isector,Ndw)
-!    !
-!    jup=nup-1; jdw=ndw; if(jup < 0)cycle
-!    !
-!    call get_Sector([jup,jdw],Ns,jsector)
-!    getCsector(1,1,isector)=jsector
-! enddo
-! !
-! !
-! !
-! do isector=1,Nsectors
-!    call get_Nup(isector,Nup)
-!    call get_Ndw(isector,Ndw)
-!    !
-!    jup=nup;jdw=ndw-1;if(jdw < 0)cycle
-!    !
-!    call get_Sector([jup,jdw],Ns,jsector)
-!    getCsector(1,2,isector)=jsector
-! enddo
-! !
-! !
-! !
-! getCDGsector=0
-! do isector=1,Nsectors
-!    call get_Nup(isector,Nup)
-!    call get_Ndw(isector,Ndw)
-!    !
-!    jup=nup+1;jdw=ndw;if(jup > Ns)cycle
-!    !
-!    call get_Sector([jup,jdw],Ns,jsector)
-!    getCDGsector(1,1,isector)=jsector
-! enddo
-! !
-! !
-! !
-! do isector=1,Nsectors
-!    call get_Nup(isector,Nup)
-!    call get_Ndw(isector,Ndw)
-!    !
-!    jup=nup;jdw=ndw+1;if(jdw > Ns)cycle
-!    !
-!    call get_Sector([jup,jdw],Ns,jsector)
-!    getCDGsector(1,2,isector)=jsector
-! enddo

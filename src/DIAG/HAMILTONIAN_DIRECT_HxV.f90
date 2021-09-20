@@ -17,19 +17,26 @@ contains
 
 
   subroutine directMatVec_main(Nloc,vin,Hv)
-    integer                                        :: Nloc
-    real(8),dimension(Nloc)                        :: vin
-    real(8),dimension(Nloc)                        :: Hv
-    real(8),dimension(:),allocatable               :: vt,Hvt
-    integer,dimension(2*Ns_Ud)                     :: Indices,Jndices ![2-2*Norb]
-    integer,dimension(Ns_Ud,Ns_Orb)                :: Nups,Ndws       ![1,Ns]-[Norb,1+Nbath]
-    integer,dimension(Ns)                          :: Nup,Ndw
-    real(8),dimension(Norb,Norb)                   :: g_matrix
+    integer                           :: Nloc
+    real(8),dimension(Nloc)           :: vin
+    real(8),dimension(Nloc)           :: Hv
+    real(8),dimension(:),allocatable  :: vt,Hvt
+    integer,dimension(2*Ns_Ud)        :: Indices,Jndices ![2-2*Norb]
+    integer,dimension(Ns_Ud,Ns_Orb)   :: Nups,Ndws       ![1,Ns]-[Norb,1+Nbath]
+    integer,dimension(Ns)             :: Nup,Ndw
+    complex(8),dimension(Nspin,Ns,Ns) :: Hij,Hloc
+    complex(8),dimension(Nspin,Ns)    :: Hdiag
 
     if(.not.Hsector%status)stop "directMatVec_cc ERROR: Hsector NOT allocated"
     isector=Hsector%index
     !
     if(Nloc/=getdim(isector))stop "directMatVec_cc ERROR: Nloc != dim(isector)"
+    !
+    call Hij_get(Hij)
+    call Hij_get(Hloc)
+    do ispin=1,Nspin
+       Hdiag(ispin,:) = diagonal(Hloc(ispin,:,:))
+    enddo
     !
     Hv=0d0
     !
@@ -62,17 +69,18 @@ contains
 
 #ifdef _MPI
   subroutine directMatVec_MPI_main(Nloc,vin,Hv)
-    integer                                        :: Nloc,N
-    real(8),dimension(Nloc)                        :: Vin
-    real(8),dimension(Nloc)                        :: Hv
-    real(8),dimension(:),allocatable               :: vt,Hvt
+    integer                           :: Nloc,N
+    real(8),dimension(Nloc)           :: Vin
+    real(8),dimension(Nloc)           :: Hv
+    real(8),dimension(:),allocatable  :: vt,Hvt
     !
-    integer,dimension(2*Ns_Ud)                     :: Indices,Jndices ![2-2*Norb]
-    integer,dimension(Ns_Ud,Ns_Orb)                :: Nups,Ndws       ![1,Ns]-[Norb,1+Nbath]
-    integer,dimension(Ns)                          :: Nup,Ndw
-    real(8),dimension(Norb,Norb)                   :: g_matrix
+    integer,dimension(2*Ns_Ud)        :: Indices,Jndices ![2-2*Norb]
+    integer,dimension(Ns_Ud,Ns_Orb)   :: Nups,Ndws       ![1,Ns]-[Norb,1+Nbath]
+    integer,dimension(Ns)             :: Nup,Ndw
+    complex(8),dimension(Nspin,Ns,Ns) :: Hij,Hloc
+    complex(8),dimension(Nspin,Ns)    :: Hdiag
     !
-    integer                                        :: i_start,i_end,i_start2,i_end2
+    integer                           :: i_start,i_end,i_start2,i_end2
     !
     if(.not.Hsector%status)stop "directMatVec_cc ERROR: Hsector NOT allocated"
     isector=Hsector%index    
@@ -80,6 +88,12 @@ contains
     if(MpiComm==MPI_UNDEFINED.OR.MpiComm==Mpi_Comm_Null)&
          stop "directMatVec_MPI_cc ERRROR: MpiComm = MPI_UNDEFINED"
     ! if(.not.MpiStatus)stop "directMatVec_MPI_cc ERROR: MpiStatus = F"
+    !
+    call Hij_get(Hij)
+    call Hij_get(Hloc)
+    do ispin=1,Nspin
+       Hdiag(ispin,:) = diagonal(Hloc(ispin,:,:))
+    enddo
     !
     Hv=0d0
     !

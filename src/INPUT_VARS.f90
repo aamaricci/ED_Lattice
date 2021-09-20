@@ -21,7 +21,7 @@ MODULE ED_INPUT_VARS
   real(8)              :: beta                !inverse temperature
   !
   integer              :: Nph                 !max number of phonons allowed (cut off)
-  integer              :: ph_type             !shape of the e part of the e-ph interaction: 1=orbital occupation, 2=orbital hybridization
+  ! integer              :: ph_type             !shape of the e part of the e-ph interaction: 1=orbital occupation, 2=orbital hybridization
   real(8),dimension(10):: g_ph                !g_ph: electron-phonon coupling constant
   real(8)              :: w0_ph               !w0_ph: phonon frequency (constant)
   !
@@ -81,7 +81,7 @@ MODULE ED_INPUT_VARS
 
   !LOG AND Hamiltonian UNITS
   !=========================================================
-  character(len=100)   :: Hfile,HLOCfile,SectorFile
+  character(len=100)   :: Hfile,SectorFile
   integer,save         :: LOGfile
 
   !THIS IS JUST A RELOCATED GLOBAL VARIABLE
@@ -130,7 +130,7 @@ contains
     call parse_input_variable(sb_field,"SB_FIELD",INPUTunit,default=0.1d0,comment="Value of a symmetry breaking field for magnetic solutions.")
     !
     call parse_input_variable(Nph,"NPH",INPUTunit,default=0,comment="Max number of phonons allowed (cut off)")   
-    call parse_input_variable(ph_type,"PH_TYPE",INPUTunit,default=1,comment="Shape e-ph interaction: 1=orbital density, 2=orbital hybridization")
+    ! call parse_input_variable(ph_type,"PH_TYPE",INPUTunit,default=1,comment="Shape e-ph interaction: 1=orbital density, 2=orbital hybridization")
     call parse_input_variable(g_ph,"G_PH",INPUTunit,default=[0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0],comment="Electron-phonon coupling constant")
     call parse_input_variable(w0_ph,"W0_PH",INPUTunit,default=0.d0,comment="Phonon frequency")
     !
@@ -184,9 +184,8 @@ contains
     call parse_input_variable(lanc_tolerance,"LANC_TOLERANCE",INPUTunit,default=1d-18,comment="Tolerance for the Lanczos iterations as used in Arpack and plain lanczos.")
     call parse_input_variable(lanc_dim_threshold,"LANC_DIM_THRESHOLD",INPUTunit,default=1024,comment="Min dimension threshold to use Lanczos determination of the spectrum rather than Lapack based exact diagonalization.")
     !
-    call parse_input_variable(SectorFile,"SectorFile",INPUTunit,default="sectors",comment="File where to retrieve/store the sectors contributing to the spectrum.")
-    call parse_input_variable(Hfile,"Hfile",INPUTunit,default="hamiltonian",comment="File where to retrieve/store the bath parameters.")
-    call parse_input_variable(HLOCfile,"HLOCfile",INPUTunit,default="inputHLOC.in",comment="File read the input local H.")
+    call parse_input_variable(SectorFile,"SectorFile",INPUTunit,default="sectors",comment="File conintaing the sectors to address to determine the spectrum.")
+    call parse_input_variable(Hfile,"Hfile",INPUTunit,default="hmatrix",comment="File containing the Hamiltonian matrix, ie setting the Hamiltonian problem")
     call parse_input_variable(LOGfile,"LOGFILE",INPUTunit,default=6,comment="LOG unit.")
 
 

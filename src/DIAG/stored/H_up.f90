@@ -2,19 +2,19 @@
      mup  = Hsector%H(1)%map(jup)
      Nup  = Bdecomp(mup,Ns)
      !
-     !
-     !> H_imp: Off-diagonal elements, i.e. non-local part. 
-     !remark: iorb=jorb cant have simultaneously n=0 and n=1 (Jcondition)
-     do iorb=1,Norb
-        do jorb=1,Norb
+     !> Hup: Off-diagonal elements, i.e. non-local part. 
+     !remark: io=jo cant have simultaneously n=0 and n=1 (Jcondition)
+     !        so diagonal element (in H_local) are neglected
+     do io=1,Ns
+        do jo=1,Ns
            Jcondition = &
-                (impHloc(1,1,iorb,jorb)/=zero) .AND. &
-                (Nup(jorb)==1) .AND. (Nup(iorb)==0)
+                (Hij(1,io,jo)/=zero) .AND. &
+                (Nup(jo)==1) .AND. (Nup(io)==0)
            if (Jcondition) then
-              call c(jorb,mup,k1,sg1)
-              call cdg(iorb,k1,k2,sg2)
+              call c(jo,mup,k1,sg1)
+              call cdg(io,k1,k2,sg2)
               iup = binary_search(Hsector%H(1)%map,k2)
-              htmp = impHloc(1,1,iorb,jorb)*sg1*sg2
+              htmp = Hij(1,io,jo)*sg1*sg2
               !
               call sp_insert_element(spH0ups(1),htmp,iup,jup)
               !
@@ -22,30 +22,4 @@
         enddo
      enddo
      !
-     !
-     !> H_Bath: inter-orbital bath hopping contribution.
-     do kp=1,Nbath
-        do iorb=1,Norb
-           do jorb=1,Norb
-              !
-              ialfa = getBathStride(iorb,kp)
-              ibeta = getBathStride(jorb,kp)
-              Jcondition = &
-                   (hbath_tmp(1,1,iorb,jorb,kp)/=zero) &
-                   .AND. (Nup(ibeta)==1) .AND. (Nup(ialfa)==0)
-              !
-              if (Jcondition)then
-                 call c(ibeta,mup,k1,sg1)
-                 call cdg(ialfa,k1,k2,sg2)
-                 iup = binary_search(Hsector%H(1)%map,k2)
-                 htmp = XXX*sg1*sg2
-                 !
-                 call sp_insert_element(spH0ups(1),htmp,iup,jup)
-                 !
-              endif
-           enddo
-        enddo
-     enddo
-     !
-
-
+  enddo

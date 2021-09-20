@@ -7,8 +7,6 @@ MODULE ED_GREENS_FUNCTIONS
   USE ED_VARS_GLOBAL
   USE ED_IO                     !< this contains the routine to print GF,Sigma and G0
   USE ED_EIGENSPACE
-  USE ED_BATH
-  USE ED_BATH_FUNCTIONS
   USE ED_SETUP
   USE ED_HAMILTONIAN
   USE ED_AUX_FUNX
@@ -40,8 +38,8 @@ contains
     impG0mats=zero
     impG0real=zero
     !
-    impDmats_ph=zero
-    impDreal_ph=zero
+    impDmats=zero
+    impDreal=zero
     !
     write(LOGfile,"(A)")"Get impurity Greens functions:"
     call build_gf_normal()

@@ -16,72 +16,25 @@ MODULE ED_IO
   public :: ed_get_dens
   public :: ed_get_mag
   public :: ed_get_docc
-  public :: ed_get_eimp
+  public :: ed_get_elocal
   public :: ed_get_doubles
   public :: ed_get_density_matrix
-
-
-  !****************************************************************************************!
-  !****************************************************************************************!
-
+  !
   public :: ed_print_impSigma
   public :: ed_print_impG
   public :: ed_print_impG0
   public :: ed_print_impD
-  public :: ed_print_impChi
 
 
-  !****************************************************************************************!
-  !****************************************************************************************!
+  character(len=128)   :: suffix
+  character(len=128) :: gf_suffix='.ed'
+  character(len=8)   :: w_suffix
 
-
-  character(len=64)                :: suffix
-
-  !Retrieve imp GF through routines.
-  interface ed_get_gimp_matsubara
-     module procedure ed_get_gimp_matsubara_main
-  end interface ed_get_gimp_matsubara
-
-
-  interface ed_get_gimp_realaxis
-     module procedure ed_get_gimp_realaxis_main
-  end interface ed_get_gimp_realaxis
-
-
-  !Retrieve self-energy through routines:
-  interface ed_get_sigma_matsubara
-     module procedure ed_get_sigma_matsubara_main
-  end interface ed_get_sigma_matsubara
-
-  interface ed_get_sigma_realaxis
-     module procedure ed_get_sigma_realaxis_main
-  end interface ed_get_sigma_realaxis
-
-
-  !Retrieve static common observables  
-  interface ed_get_dens
-     module procedure ed_get_dens_main
-  end interface ed_get_dens
-
-  interface ed_get_mag
-     module procedure ed_get_mag_main
-  end interface ed_get_mag
-
-  interface ed_get_docc
-     module procedure ed_get_docc_main
-  end interface ed_get_docc
-
-  interface ed_get_eimp
-     module procedure :: ed_get_eimp_main
-  end interface ed_get_eimp
-
-  interface ed_get_doubles
-     module procedure :: ed_get_doubles_main
-  end interface ed_get_doubles
-
-  interface ed_get_density_matrix
-     module procedure :: ed_get_density_matrix_single
-  end interface ed_get_density_matrix
+  interface ed_write_func
+     module procedure :: ed_write_func_NN
+     module procedure :: ed_write_func_N
+     module procedure :: ed_write_func_0
+  end interface ed_write_func
 
 
 
@@ -95,90 +48,64 @@ contains
   ! PURPOSE: Retrieve measured values of the impurity GF and self-energy 
   !+--------------------------------------------------------------------------+!
   !NORMAL, MATSUBARA GREEN'S FUNCTIONS
-  subroutine ed_get_gimp_matsubara_main(Gmats)
-    complex(8),dimension(Nspin,Nspin,Norb,Norb,Lmats),intent(inout) :: Gmats
-    Gmats(:,:,:,:,:) = impGmats(:,:,:,:,:)
-  end subroutine ed_get_gimp_matsubara_main
+  subroutine ed_get_gimp_matsubara(Func) 
+    complex(8),dimension(Nspin,Ns,Ns,Lmats),intent(inout) :: Func
+    Func = impGmats
+  end subroutine ed_get_gimp_matsubara
 
   !NORMAL, REAL SELF-ENERGY
-  subroutine ed_get_gimp_realaxis_main(Greal)
-    complex(8),dimension(Nspin,Nspin,Norb,Norb,Lreal),intent(inout) :: Greal
-    Greal(:,:,:,:,:) = impGreal(:,:,:,:,:)
-  end subroutine ed_get_gimp_realaxis_main
-
+  subroutine ed_get_gimp_realaxis(Func) 
+    complex(8),dimension(Nspin,Ns,Ns,Lmats),intent(inout) :: Func
+    Func = impGreal
+  end subroutine ed_get_gimp_realaxis
 
   !NORMAL, MATSUBARA SELF-ENEGRGY
-  subroutine ed_get_sigma_matsubara_main(Smats)
-    complex(8),dimension(Nspin,Nspin,Norb,Norb,Lmats),intent(inout) :: Smats
-    Smats(:,:,:,:,:) = impSmats(:,:,:,:,:)
-  end subroutine ed_get_sigma_matsubara_main
-
+  subroutine ed_get_sigma_matsubara(Func) 
+    complex(8),dimension(Nspin,Ns,Ns,Lmats),intent(inout) :: Func
+    Func = impSmats
+  end subroutine ed_get_sigma_matsubara
 
   !NORMAL, REAL SELF-ENERGY
-  subroutine ed_get_sigma_realaxis_main(Sreal)
-    complex(8),dimension(Nspin,Nspin,Norb,Norb,Lreal),intent(inout) :: Sreal
-    Sreal(:,:,:,:,:) = impSreal(:,:,:,:,:)
-  end subroutine ed_get_sigma_realaxis_main
+  subroutine ed_get_sigma_realaxis(Func) 
+    complex(8),dimension(Nspin,Ns,Ns,Lmats),intent(inout) :: Func
+    Func = impSreal
+  end subroutine ed_get_sigma_realaxis
 
 
 
   !+--------------------------------------------------------------------------+!
   ! PURPOSE: Retrieve measured values of the local observables
   !+--------------------------------------------------------------------------+!
-  subroutine ed_get_dens_main(dens)
-    real(8),dimension(Norb) :: dens
+  subroutine ed_get_dens(dens)
+    real(8),dimension(Ns) :: dens
     dens = ed_dens
-  end subroutine ed_get_dens_main
+  end subroutine ed_get_dens
 
-  subroutine ed_get_mag_main(mag) 
-    real(8),dimension(Norb) :: mag
+  subroutine ed_get_mag(mag) 
+    real(8),dimension(Ns) :: mag
     mag = (ed_dens_up-ed_dens_dw)
-  end subroutine ed_get_mag_main
+  end subroutine ed_get_mag
 
-  subroutine ed_get_docc_main(docc) 
-    real(8),dimension(Norb) :: docc
+  subroutine ed_get_docc(docc) 
+    real(8),dimension(Ns) :: docc
     docc = ed_docc
-  end subroutine ed_get_docc_main
+  end subroutine ed_get_docc
 
-  subroutine ed_get_doubles_main(docc)
+  subroutine ed_get_doubles(docc)
     real(8),dimension(4) :: docc
     docc = [ed_Dust,ed_Dund,ed_Dse,ed_Dph]
-  end subroutine ed_get_doubles_main
+  end subroutine ed_get_doubles
 
-
-  subroutine ed_get_eimp_main(eimp)
+  subroutine ed_get_elocal(eimp)
     real(8),dimension(4) :: eimp
     eimp = [ed_Epot,ed_Eint,ed_Ehartree,ed_Eknot]
-  end subroutine ed_get_eimp_main
+  end subroutine ed_get_elocal
 
+  subroutine ed_get_density_matrix(rho) 
+    complex(8),dimension(Nspin,Ns,Ns),intent(inout) :: rho
+    rho = imp_density_matrix
+  end subroutine ed_get_density_matrix
 
-
-
-
-  subroutine ed_get_density_matrix_single(dm_)
-    implicit none
-    !passed
-    complex(8),allocatable,intent(out)           :: dm_(:,:)
-    !internal
-    integer                                      :: unit
-    integer                                      :: iorb,jorb,ispin,jspin,io,jo
-    complex(8)                                   :: Tr
-    complex(8),allocatable                       :: dm_custom_rot(:,:)
-    real(8)                                      :: soc
-    !
-    if (.not.allocated(imp_density_matrix)) then
-       write(LOGfile,"(A)") "imp_density_matrix is not allocated"
-       stop
-    endif
-    !
-    if(allocated(dm_))deallocate(dm_)
-    allocate(dm_(Nspin*Norb,Nspin*Norb))
-    dm_ = zero
-    !
-    ! dm in the impurity problem basis
-    dm_ = nn2so_reshape(imp_density_matrix,Nspin,Norb)
-    !
-  end subroutine ed_get_density_matrix_single
 
 
 
@@ -188,230 +115,245 @@ contains
 
 
   !+------------------------------------------------------------------+
-  !                         PRINT SIGMA:
-  !+------------------------------------------------------------------+  
+  !                         PRINT LATTICE FUNCTIONS:
+  !+------------------------------------------------------------------+
   subroutine ed_print_impSigma
-    integer                                           :: i,ispin,isign,unit(2),iorb,jorb
-    character(len=20)                                 :: suffix
-    integer,dimension(:),allocatable                  :: getIorb,getJorb
-    integer                                           :: totNorb,l
-    !
     call allocate_grids()
-    !
-    totNorb=Norb*(Norb+1)/2
-    allocate(getIorb(totNorb),getJorb(totNorb))
-    l=0
-    do iorb=1,Norb
-       do jorb=iorb,Norb
-          l=l+1
-          getIorb(l)=iorb
-          getJorb(l)=jorb
-       enddo
-    enddo
-    if(l/=totNorb)stop "ed_print_impSigma error counting the orbitals"
-    !!
-    !Print the impurity functions:
-    do ispin=1,Nspin
-       do l=1,totNorb
-          iorb=getIorb(l)
-          jorb=getJorb(l)
-          suffix="_l"//str(iorb)//str(jorb)//"_s"//str(ispin)
-          call splot("impSigma"//reg(suffix)//"_iw"//reg(ed_file_suffix)//".ed"   ,wm,impSmats(ispin,ispin,iorb,jorb,:))
-          call splot("impSigma"//reg(suffix)//"_realw"//reg(ed_file_suffix)//".ed",wr,impSreal(ispin,ispin,iorb,jorb,:))
-       enddo
-    enddo
-    !
+    call ed_write_func(impSmats,"Sigma",'mats',wm,3)
+    call ed_write_func(impSreal,"Sigma",'real',wr,3)
     call deallocate_grids()
-    !
   end subroutine ed_print_impSigma
 
-
-
-
-  !+------------------------------------------------------------------+
-  !                         PRINT G
-  !+------------------------------------------------------------------+  
   subroutine ed_print_impG
-    integer                                           :: i,ispin,isign,unit(2),iorb,jorb
-    character(len=20)                                 :: suffix
-    integer,dimension(:),allocatable                  :: getIorb,getJorb
-    integer                                           :: totNorb,l
-    !
     call allocate_grids()
-    !
-    totNorb=Norb*(Norb+1)/2
-    allocate(getIorb(totNorb),getJorb(totNorb))
-    l=0
-    do iorb=1,Norb
-       do jorb=iorb,Norb
-          l=l+1
-          getIorb(l)=iorb
-          getJorb(l)=jorb
-       enddo
-    enddo
-    if(l/=totNorb)stop "ed_print_impG error counting the orbitals"
-    !!
-    !Print the impurity functions:
-    do ispin=1,Nspin
-       do l=1,totNorb
-          iorb=getIorb(l)
-          jorb=getJorb(l)
-          suffix="_l"//str(iorb)//str(jorb)//"_s"//str(ispin)
-          call splot("impG"//reg(suffix)//"_iw"//reg(ed_file_suffix)//".ed"   ,wm,impGmats(ispin,ispin,iorb,jorb,:))
-          call splot("impG"//reg(suffix)//"_realw"//reg(ed_file_suffix)//".ed",wr,impGreal(ispin,ispin,iorb,jorb,:))
-       enddo
-    enddo
-    !
+    call ed_write_func(impGmats,"G",'mats',wm,3)
+    call ed_write_func(impGreal,"G",'real',wr,3)
     call deallocate_grids()
-    !
   end subroutine ed_print_impG
 
-
-
-  !+------------------------------------------------------------------+
-  !                         PRINT G0
-  !+------------------------------------------------------------------+  
   subroutine ed_print_impG0
-    integer                                           :: i,ispin,isign,unit(2),iorb,jorb
-    character(len=20)                                 :: suffix
-    integer,dimension(:),allocatable                  :: getIorb,getJorb
-    integer                                           :: totNorb,l
-    !
     call allocate_grids()
-    !
-    totNorb=Norb*(Norb+1)/2
-    allocate(getIorb(totNorb),getJorb(totNorb))
-    l=0
-    do iorb=1,Norb
-       do jorb=iorb,Norb
-          l=l+1
-          getIorb(l)=iorb
-          getJorb(l)=jorb
-       enddo
-    enddo
-    if(l/=totNorb)stop "ed_print_impG0 error counting the orbitals"
-    !!
-    !Print the impurity functions:
-    do ispin=1,Nspin
-       do l=1,totNorb
-          iorb=getIorb(l)
-          jorb=getJorb(l)
-          suffix="_l"//str(iorb)//str(jorb)//"_s"//str(ispin)
-          call splot("impG0"//reg(suffix)//"_iw"//reg(ed_file_suffix)//".ed"   ,wm,impG0mats(ispin,ispin,iorb,jorb,:))
-          call splot("impG0"//reg(suffix)//"_realw"//reg(ed_file_suffix)//".ed",wr,impG0real(ispin,ispin,iorb,jorb,:))
-       enddo
-    enddo
-    !
+    call ed_write_func(impG0mats,"G0",'mats',wm,3)
+    call ed_write_func(impG0real,"G0",'real',wr,3)
     call deallocate_grids()
-    !
   end subroutine ed_print_impG0
 
-
-
-  !+------------------------------------------------------------------+
-  !                         PRINT D (phonon Green's function)
-  !+------------------------------------------------------------------+  
   subroutine ed_print_impD
-    !
     call allocate_grids()
-    !
-    !Print the impurity functions:
-    call splot("impDph_iw.ed"   ,vm,impDmats_ph(:))
-    call splot("impDph_realw.ed",vr,impDreal_ph(:))
-    !
+    call ed_write_func(impDmats,"D",'mats',wm,1)
+    call ed_write_func(impDreal,"D",'real',vr,1)
     call deallocate_grids()
-    !
   end subroutine ed_print_impD
 
 
 
-  !+------------------------------------------------------------------+
-  !                         PRINT CHI:
+
+
+
+
+
   !+------------------------------------------------------------------+  
-  subroutine ed_print_impChi
-    if(chispin_flag)call print_chi_spin
-    if(chidens_flag)call print_chi_dens
-    if(chipair_flag)call print_chi_pair
-    if(chiexct_flag)call print_chi_exct
-  end subroutine ed_print_impChi
-
-  !                         SPIN-SPIN
-  subroutine print_chi_spin
-    integer                               :: i,j,iorb,jorb
-    call allocate_grids()
-    do iorb=1,Norb
-       do jorb=1,Norb
-          call splot("spinChi_l"//str(iorb)//str(jorb)//"_tau"//reg(ed_file_suffix)//".ed",tau,spinChi_tau(iorb,jorb,0:))
-          call splot("spinChi_l"//str(iorb)//str(jorb)//"_realw"//reg(ed_file_suffix)//".ed",vr,spinChi_w(iorb,jorb,:))
-          call splot("spinChi_l"//str(iorb)//str(jorb)//"_iw"//reg(ed_file_suffix)//".ed",vm,spinChi_iv(iorb,jorb,:))
-       enddo
-    enddo
-    call deallocate_grids()
-  end subroutine print_chi_spin
-  !                     DENSITY-DENSITY
-  subroutine print_chi_dens
-    integer                               :: i,j,iorb,jorb
-    call allocate_grids()
-    do iorb=1,Norb
-       do jorb=1,Norb
-          call splot("densChi_l"//str(iorb)//str(jorb)//"_tau"//reg(ed_file_suffix)//".ed",tau,densChi_tau(iorb,jorb,0:))
-          call splot("densChi_l"//str(iorb)//str(jorb)//"_realw"//reg(ed_file_suffix)//".ed",vr,densChi_w(iorb,jorb,:))
-          call splot("densChi_l"//str(iorb)//str(jorb)//"_iw"//reg(ed_file_suffix)//".ed",vm,densChi_iv(iorb,jorb,:))
-       enddo
-    enddo
-    call deallocate_grids()
-  end subroutine print_chi_dens
-  !                     PAIR-PAIR
-  subroutine print_chi_pair
-    integer                               :: i,j,iorb,jorb
-    call allocate_grids()
-    do iorb=1,Norb
-       do jorb=1,Norb
-          call splot("pairChi_l"//str(iorb)//str(jorb)//"_tau"//reg(ed_file_suffix)//".ed",tau,pairChi_tau(iorb,jorb,0:))
-          call splot("pairChi_l"//str(iorb)//str(jorb)//"_realw"//reg(ed_file_suffix)//".ed",vr,pairChi_w(iorb,jorb,:))
-          call splot("pairChi_l"//str(iorb)//str(jorb)//"_iw"//reg(ed_file_suffix)//".ed",vm,pairChi_iv(iorb,jorb,:))
-       enddo
-    enddo
-    call deallocate_grids()
-  end subroutine print_chi_pair
-  !                     EXCITON
-  subroutine print_chi_exct
-    integer                               :: i,j,iorb,jorb
-    call allocate_grids()
-    do iorb=1,Norb
-       do jorb=iorb+1,Norb
-          call splot("exctChi_singlet_l"//str(iorb)//str(jorb)//"_tau"//reg(ed_file_suffix)//".ed",tau,exctChi_tau(0,iorb,jorb,0:))
-          call splot("exctChi_singlet_l"//str(iorb)//str(jorb)//"_realw"//reg(ed_file_suffix)//".ed",vr,exctChi_w(0,iorb,jorb,:))
-          call splot("exctChi_singlet_l"//str(iorb)//str(jorb)//"_iw"//reg(ed_file_suffix)//".ed",vm,exctChi_iv(0,iorb,jorb,:))
-       enddo
-    enddo
+  subroutine ed_write_func_NN(Func,fname,axis,zeta,iprint)
+    complex(8),dimension(:,:,:,:),intent(in) :: Func ![Nspin][Ns][Ns][Lfreq]
+    character(len=*),intent(in)              :: fname
+    character(len=*)                         :: axis
+    real(8),dimension(size(Func,3))          :: zeta
+    integer,optional                         :: iprint
     !
-    do iorb=1,Norb
-       do jorb=iorb+1,Norb
-          call splot("exctChi_tripletXY_l"//str(iorb)//str(jorb)//"_tau"//reg(ed_file_suffix)//".ed",tau,exctChi_tau(1,iorb,jorb,0:))
-          call splot("exctChi_tripletXY_l"//str(iorb)//str(jorb)//"_realw"//reg(ed_file_suffix)//".ed",vr,exctChi_w(1,iorb,jorb,:))
-          call splot("exctChi_tripletXY_l"//str(iorb)//str(jorb)//"_iw"//reg(ed_file_suffix)//".ed",vm,exctChi_iv(1,iorb,jorb,:))
-       enddo
-    enddo
+    integer                                  :: iprint_
+    integer                                  :: Lfreq,Nfunc   
+    integer                                  :: io,jo,ilat,jlat,iorb,jorb,ispin,jspin
     !
-    do iorb=1,Norb
-       do jorb=iorb+1,Norb
-          call splot("exctChi_tripletZ_l"//str(iorb)//str(jorb)//"_tau"//reg(ed_file_suffix)//".ed",tau,exctChi_tau(2,iorb,jorb,0:))
-          call splot("exctChi_tripletZ_l"//str(iorb)//str(jorb)//"_realw"//reg(ed_file_suffix)//".ed",vr,exctChi_w(2,iorb,jorb,:))
-          call splot("exctChi_tripletZ_l"//str(iorb)//str(jorb)//"_iw"//reg(ed_file_suffix)//".ed",vm,exctChi_iv(2,iorb,jorb,:))
-       enddo
-    enddo
+    iprint_=1;if(present(iprint))iprint_=iprint
     !
-    call deallocate_grids()
-  end subroutine print_chi_exct
+    select case(axis)
+    case default;stop "ed_write_func ERROR: axis undefined. axis=[matsubara,realaxis]"
+    case("matsubara","mats");w_suffix="_iw"
+    case("realaxis","real") ;w_suffix="_realw"
+    end select
+    !
+    !
+    Lfreq = size(zeta)
+    Nfunc = size(Func,1)
+    if(Nfunc /= Ns)stop "Ed_write_func ERROR: size(func,1) /= sum(Nsites)==Ns"
+    call assert_shape(Func,[Ns,Ns,Lfreq],"Ed_write_func","Func")
+    !
+    !
+    !1: diagonal lattice-spin-orbital
+    !2: all sites, diagonal spin-orbital
+    !3: all sites, all orb, same spins
+    !4: all sites, all orb, all spins
+    if(MpiMaster)then
+       select case(iprint_)
+       case default
+          write(*,"(A,1x,A)")reg(fname),"ed_write_func: not written on file."
+          !
+          !
+       case(1)
+          write(*,"(A,1x,A)") reg(fname),"ed_write_func: diagonal lattice-spin-orbital."
+          do ispin=1,Nspin
+             do iorb=1,Norb
+                do ilat=1,Nsites(iorb)
+                   io = pack_indices(ilat,iorb)
+                   !
+                   suffix=reg(fname)//&
+                        "_i"//str(ilat,site_indx_padding)//&
+                        "_l"//str(iorb)//&
+                        "_s"//str(ispin)//&
+                        str(w_suffix)//str(gf_suffix)
+                   call splot(reg(suffix),zeta,Func(ispin,io,io,:))
+                enddo
+             enddo
+          enddo
+          !
+          !
+       case(2)
+          write(*,"(A,1x,A)") reg(fname),"ed_write_func:  all sites, diagonal spin-orbital."
+          do ispin=1,Nspin
+             do iorb=1,Norb
+                do ilat=1,Nsites(iorb)
+                   do jlat=1,Nsites(iorb)
+                      io = pack_indices(ilat,iorb)
+                      jo = pack_indices(jlat,iorb)
+                      !
+                      suffix=reg(fname)//&
+                           "_i"//str(ilat,site_indx_padding)//"j"//str(jlat,site_indx_padding)//&
+                           "_l"//str(iorb)//&
+                           "_s"//str(ispin)//&
+                           str(w_suffix)//str(gf_suffix)
+                      call splot(reg(suffix),zeta,Func(ispin,io,jo,:))
+                   enddo
+                enddo
+             enddo
+          enddo
+          !
+          !
+       case(3)
+          write(*,"(A,1x,A)") reg(fname),"ed_write_func: all sites, all orb, same spins."
+          do ispin=1,Nspin
+             do iorb=1,Norb
+                do jorb=1,Norb
+                   do ilat=1,Nsites(iorb)
+                      do jlat=1,Nsites(jorb)
+                         io = pack_indices(ilat,iorb)
+                         jo = pack_indices(jlat,jorb)
+                         !
+                         suffix=reg(fname)//&
+                              "_i"//str(ilat,site_indx_padding)//"j"//str(jlat,site_indx_padding)//&
+                              "_l"//str(iorb)//"m"//str(jorb)//&
+                              "_s"//str(ispin)//&
+                              str(w_suffix)//reg(gf_suffix)
+                         call splot(reg(suffix),zeta,Func(ispin,io,jo,:))
+                      enddo
+                   enddo
+                enddo
+             enddo
+          enddo
+          !
+          !
+       end select
+    endif
+  end subroutine ed_write_func_NN
 
+  subroutine ed_write_func_N(Func,fname,axis,zeta,iprint)
+    complex(8),dimension(:,:,:),intent(in) :: Func ![Nspin][Ns][Lfreq]
+    character(len=*),intent(in)            :: fname
+    character(len=*)                       :: axis
+    real(8),dimension(size(Func,2))        :: zeta
+    integer,optional                       :: iprint
+    !
+    integer                                :: iprint_
+    integer                                :: Lfreq,Nfunc
+    character(len=128)                     :: suffix
+    character(len=128)                     :: gf_suffix='.ed'
+    character(len=8)                       :: w_suffix
+    integer                                :: io,ilat,iorb,ispin
+    !
+    !
+    iprint_=1;if(present(iprint))iprint_=iprint
+    !
+    select case(axis)
+    case default;stop "ed_write_func ERROR: axis undefined. axis=[matsubara,realaxis]"
+    case("matsubara","mats");w_suffix="_iw"
+    case("realaxis","real") ;w_suffix="_realw"
+    end select
+    !
+    !
+    Lfreq = size(zeta)
+    Nfunc = size(Func,1)
+    if(Nfunc /= Ns)stop "Ed_write_func ERROR: size(func,1) /= sum(Nsites)==Ns"
+    call assert_shape(Func,[Ns,Lfreq],"Ed_write_func","Func")
+    !
+    !
+    !1: diagonal lattice-spin-orbital
+    if(MpiMaster)then
+       select case(iprint_)
+       case default
+          write(*,"(A,1x,A)")reg(fname),"ed_write_func: not written on file."
+          !
+          !
+       case(1)
+          write(*,"(A,1x,A)") reg(fname),"ed_write_func: diagonal lattice-spin-orbital."
+          do ispin=1,Nspin
+             do iorb=1,Norb
+                do ilat=1,Nsites(iorb)
+                   io = pack_indices(ilat,iorb)
+                   !
+                   suffix=reg(fname)//&
+                        "_i"//str(ilat,site_indx_padding)//&
+                        "_l"//str(iorb)//&
+                        "_s"//str(ispin)//&
+                        str(w_suffix)//str(gf_suffix)
+                   call splot(reg(suffix),zeta,Func(ispin,io,:))
+                enddo
+             enddo
+          enddo
+       end select
+       !
+    endif
+  end subroutine ed_write_func_N
 
-
-
-
-
-
-
+  subroutine ed_write_func_0(Func,fname,axis,zeta,iprint)
+    complex(8),dimension(:),intent(in)   :: Func ![[Lfreq]
+    character(len=*),intent(in)            :: fname
+    character(len=*)                       :: axis
+    real(8),dimension(size(Func))        :: zeta
+    integer,optional                       :: iprint
+    !
+    integer                                :: iprint_
+    integer                                :: Lfreq,Nfunc
+    character(len=128)                     :: suffix
+    character(len=128)                     :: gf_suffix='.ed'
+    character(len=8)                       :: w_suffix
+    integer                                :: io,ilat,iorb,ispin
+    !
+    !
+    iprint_=1;if(present(iprint))iprint_=iprint
+    !
+    select case(axis)
+    case default;stop "ed_write_func ERROR: axis undefined. axis=[matsubara,realaxis]"
+    case("matsubara","mats");w_suffix="_iw"
+    case("realaxis","real") ;w_suffix="_realw"
+    end select
+    !
+    !
+    Lfreq = size(zeta)
+    !
+    !1: diagonal lattice-spin-orbital
+    if(MpiMaster)then
+       select case(iprint_)
+       case default
+          write(*,"(A,1x,A)")reg(fname),"ed_write_func: not written on file."
+          !
+          !
+       case(1)
+          write(*,"(A,1x,A)") reg(fname),"ed_write_func: diagonal lattice-spin-orbital."
+          suffix=reg(fname)//str(w_suffix)//str(gf_suffix)
+          call splot(reg(suffix),zeta,Func)
+       end select
+       !
+    endif
+  end subroutine ed_write_func_0
 
 
 

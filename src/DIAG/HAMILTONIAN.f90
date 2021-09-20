@@ -167,16 +167,16 @@ contains
 #ifdef _MPI
     if(MpiStatus)then
        call sp_delete_matrix(MpiComm,spH0d)
-       if(DimPh>1 .and. ph_type==1)call sp_delete_matrix(MpiComm,spH0e_eph)
+       if(DimPh>1)call sp_delete_matrix(MpiComm,spH0e_eph)
        if(Jhflag)call sp_delete_matrix(MpiComm,spH0nd)
     else
        call sp_delete_matrix(spH0d)
-       if(DimPh>1 .and. ph_type==1)call sp_delete_matrix(spH0e_eph)
+       if(DimPh>1)call sp_delete_matrix(spH0e_eph)
        if(Jhflag)call sp_delete_matrix(spH0nd)
     endif
 #else
     call sp_delete_matrix(spH0d)
-    if(DimPh>1 .and. ph_type==1)call sp_delete_matrix(spH0e_eph)
+    if(DimPh>1)call sp_delete_matrix(spH0e_eph)
     if(Jhflag)call sp_delete_matrix(spH0nd)
 #endif
     do iud=1,Ns_Ud
@@ -186,10 +186,6 @@ contains
     if(DimPh>1) then
        call sp_delete_matrix(spH0_ph)
        call sp_delete_matrix(spH0ph_eph)
-       if(ph_type==2) then
-          call sp_delete_matrix(spH0e_eph)
-          call sp_delete_matrix(spH0edw_eph)
-       endif
     endif
     !
     spHtimesV_p => null()

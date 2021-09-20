@@ -7,8 +7,6 @@ MODULE ED_GF_ELECTRON
   USE ED_VARS_GLOBAL
   USE ED_AUX_FUNX
   USE ED_EIGENSPACE
-  USE ED_BATH
-  USE ED_BATH_FUNCTIONS
   USE ED_SETUP
   USE ED_SECTOR
   USE ED_HAMILTONIAN
@@ -42,41 +40,43 @@ contains
   !+------------------------------------------------------------------+
   !PURPOSE  : Evaluate the Green's function of the impurity electrons
   subroutine build_gf_normal()
-    integer                                     :: iorb,jorb,ispin,jspin,i
-    logical                                     :: MaskBool
-    logical(8),dimension(Nspin,Nspin,Norb,Norb) :: Hmask
+    integer :: ispin,i
+    integer :: iorb,jorb
+    integer :: isite,jsite
+    integer :: io,jo
     !
 
     do ispin=1,Nspin
        do iorb=1,Norb
-          write(LOGfile,"(A)")"Get G_l"//str(iorb)//"_s"//str(ispin)
-          if(MPIMASTER)call start_timer
-          call lanc_build_gf_normal_diag(iorb,ispin)
-          if(MPIMASTER)call stop_timer(unit=LOGfile)
+          do isite=1,Nsites(iorb)
+             write(LOGfile,"(A)")"Get G:"//&
+                  " site I"//str(isite,site_indx_padding)//&
+                  " orb M"//str(iorb)//&
+                  " spin"//str(ispin)
+             if(MPIMASTER)call start_timer
+             call lanc_build_gf_normal_diag(isite,iorb,ispin)
+             if(MPIMASTER)call stop_timer(unit=LOGfile)
+          enddo
        enddo
     enddo
     !
-    if(offdiag_gf_flag)then
-       write(LOGfile,"(A)")""
-       write(LOGfile,"(A)")"Get mask(G):"
-       Hmask= .true.
-       if(.not.ed_all_g)Hmask=mask_hloc(impHloc,wdiag=.true.,uplo=.false.)
+    if(offdiag_gf_flag)then     
        do ispin=1,Nspin
           do iorb=1,Norb
-             write(LOGfile,*)((Hmask(ispin,jspin,iorb,jorb),jorb=1,Norb),jspin=1,Nspin)
-          enddo
-       enddo
-       do ispin=1,Nspin
-          do iorb=1,Norb
-             do jorb=iorb+1,Norb
-                MaskBool=.true.   
-                if(bath_type=="replica")MaskBool=Hmask(ispin,ispin,iorb,jorb)
-                if(.not.MaskBool)cycle
-                !
-                write(LOGfile,"(A)")"Get G_l"//str(iorb)//"_m"//str(jorb)//"_s"//str(ispin)
-                if(MPIMASTER)call start_timer
-                call lanc_build_gf_normal_mix(iorb,jorb,ispin)
-                if(MPIMASTER)call stop_timer(unit=LOGfile)
+             do jorb=1,Norb
+                do isite=1,Nsites(iorb)
+                   do jsite=1,Nsites(jorb)
+                      if(io==jo)cycle
+                      write(LOGfile,"(A)")"Get G:"//&
+                           " sites I"//str(isite,site_indx_padding)//&
+                           "J"//str(jsite,site_indx_padding)//&
+                           " orb M"//str(iorb)//"L"//str(jorb)//&
+                           " spin"//str(ispin)
+                      if(MPIMASTER)call start_timer
+                      call lanc_build_gf_normal_mix(isite,jsite,iorb,jorb,ispin)
+                      if(MPIMASTER)call stop_timer(unit=LOGfile)
+                   enddo
+                enddo
              enddo
           enddo
        enddo
@@ -84,19 +84,13 @@ contains
        !
        !Put here off-diagonal manipulation by symmetry:
        do ispin=1,Nspin
-          do iorb=1,Norb
-             do jorb=iorb+1,Norb
-                !if(hybrid)always T; if(replica)T iff following condition is T
-                MaskBool=.true.   
-                if(bath_type=="replica")MaskBool=Hmask(ispin,ispin,iorb,jorb)
-                !
-                if(.not.MaskBool)cycle
-                impGmats(ispin,ispin,iorb,jorb,:) = 0.5d0*(impGmats(ispin,ispin,iorb,jorb,:) &
-                     - impGmats(ispin,ispin,iorb,iorb,:) - impGmats(ispin,ispin,jorb,jorb,:))
-                impGreal(ispin,ispin,iorb,jorb,:) = 0.5d0*(impGreal(ispin,ispin,iorb,jorb,:) &
-                     - impGreal(ispin,ispin,iorb,iorb,:) - impGreal(ispin,ispin,jorb,jorb,:))
-                impGmats(ispin,ispin,jorb,iorb,:) = impGmats(ispin,ispin,iorb,jorb,:)
-                impGreal(ispin,ispin,jorb,iorb,:) = impGreal(ispin,ispin,iorb,jorb,:)
+          do io=1,Ns
+             do jo=1,Ns
+                if(io==jo)cycle
+                impGmats(ispin,io,jo,:) = 0.5d0*(impGmats(ispin,io,jo,:) - &
+                     impGmats(ispin,io,io,:) - impGmats(ispin,jo,jo,:))
+                impGreal(ispin,io,jo,:) = 0.5d0*(impGreal(ispin,io,jo,:) - &
+                     impGreal(ispin,io,io,:) - impGreal(ispin,jo,jo,:))
              enddo
           enddo
        enddo
@@ -118,17 +112,13 @@ contains
 
 
 
-  subroutine lanc_build_gf_normal_diag(iorb,ispin)
-    integer,intent(in)          :: iorb,ispin
-    type(sector)                :: sectorI,sectorJ
+  subroutine lanc_build_gf_normal_diag(isite,iorb,ispin)
+    integer,intent(in) :: isite,iorb,ispin
+    integer            :: io
+    type(sector)       :: sectorI,sectorJ
     !
-    if(ed_total_ud)then
-       ialfa = 1
-       ipos  = iorb
-    else
-       ialfa = iorb
-       ipos  = 1
-    endif
+    ialfa = 1
+    ipos  = pack_indices(isite,iorb)
     !
     !
     do istate=1,state_list%size
@@ -169,7 +159,7 @@ contains
           endif
           !
           call tridiag_Hv_sector(jsector,vvinit,alfa_,beta_,norm2)
-          call add_to_lanczos_gf_normal(one*norm2,state_e,alfa_,beta_,1,iorb,iorb,ispin)
+          call add_to_lanczos_gf_normal(one*norm2,state_e,alfa_,beta_,1,io,io,ispin)
           deallocate(alfa_,beta_)
           if(allocated(vvinit))deallocate(vvinit)
        endif
@@ -193,7 +183,7 @@ contains
           endif
           !
           call tridiag_Hv_sector(jsector,vvinit,alfa_,beta_,norm2)
-          call add_to_lanczos_gf_normal(one*norm2,state_e,alfa_,beta_,-1,iorb,iorb,ispin)
+          call add_to_lanczos_gf_normal(one*norm2,state_e,alfa_,beta_,-1,io,io,ispin)
           deallocate(alfa_,beta_)
           if(allocated(vvinit))deallocate(vvinit)
        endif
@@ -223,19 +213,15 @@ contains
 
 
 
-  subroutine lanc_build_gf_normal_mix(iorb,jorb,ispin)
-    integer                     :: iorb,jorb,ispin
-    type(sector)                :: sectorI,sectorJ
+  subroutine lanc_build_gf_normal_mix(isite,jsite,iorb,jorb,ispin)
+    integer      :: isite,jsite,iorb,jorb,ispin
+    integer      :: io,jo
+    type(sector) :: sectorI,sectorJ
     !
-    if(ed_total_ud)then
-       ialfa = 1
-       jalfa = ialfa               !this is the condition to evaluate G_ab: ialfa=jalfa
-       ipos  = iorb
-       jpos  = jorb
-    else
-       write(LOGfile,"(A)")"ED_GF_NORMAL warning: can not evaluate GF_ab with ed_total_ud=F"
-       return
-    endif
+    ialfa = 1
+    jalfa = ialfa
+    ipos  = pack_indices(isite,iorb)
+    jpos  = pack_indices(jsite,jorb)
     !
     do istate=1,state_list%size
        isector    =  es_return_sector(state_list,istate)
@@ -256,7 +242,7 @@ contains
                'From sector  :',isector,sectorI%Nups,sectorI%Ndws
        endif
        !
-       !EVALUATE (c^+_iorb + c^+_jorb)|gs>
+       !EVALUATE (c^+_io + c^+_jo)|gs>
        jsector = getCDGsector(ialfa,ispin,isector)
        if(jsector/=0)then
           if(MpiMaster)then
@@ -264,13 +250,13 @@ contains
              if(ed_verbose>=3)write(LOGfile,"(A,I6,20I4)")&
                   ' apply c^+_a,s + c^+_b,s:',jsector,sectorJ%Nups,sectorJ%Ndws
              allocate(vvinit(sectorJ%Dim)) ; vvinit=zero
-             !c^+_iorb|gs>
+             !c^+_io|gs>
              do i=1,sectorI%Dim
                 call apply_op_CDG(i,j,sgn,ipos,ialfa,ispin,sectorI,sectorJ)
                 if(sgn==0d0.OR.j==0)cycle
                 vvinit(j) = sgn*state_cvec(i)
              enddo
-             !+c^+_jorb|gs>
+             !+c^+_jo|gs>
              do i=1,sectorI%Dim
                 call apply_op_CDG(i,j,sgn,jpos,jalfa,ispin,sectorI,sectorJ)
                 if(sgn==0d0.OR.j==0)cycle
@@ -282,12 +268,12 @@ contains
           endif
           !
           call tridiag_Hv_sector(jsector,vvinit,alfa_,beta_,norm2)
-          call add_to_lanczos_gf_normal(one*norm2,state_e,alfa_,beta_,1,iorb,jorb,ispin)
+          call add_to_lanczos_gf_normal(one*norm2,state_e,alfa_,beta_,1,io,jo,ispin)
           deallocate(alfa_,beta_)
           if(allocated(vvinit))deallocate(vvinit)          
        endif
        !
-       !EVALUATE (c_iorb + c_jorb)|gs>
+       !EVALUATE (c_io + c_jo)|gs>
        jsector = getCsector(ialfa,ispin,isector)
        if(jsector/=0)then
           if(MpiMaster)then
@@ -295,13 +281,13 @@ contains
              if(ed_verbose>=3)write(LOGfile,"(A,I6,20I4)")&
                   '  apply c_a,s + c_b,s:',jsector,sectorJ%Nups,sectorJ%Ndws
              allocate(vvinit(sectorJ%Dim)) ; vvinit=zero
-             !c_iorb|gs>
+             !c_io|gs>
              do i=1,sectorI%Dim
                 call apply_op_C(i,j,sgn,ipos,ialfa,ispin,sectorI,sectorJ)
                 if(sgn==0d0.OR.j==0)cycle
                 vvinit(j) = sgn*state_cvec(i)
              enddo
-             !+c_jorb|gs>
+             !+c_jo|gs>
              do i=1,sectorI%Dim
                 call apply_op_C(i,j,sgn,jpos,jalfa,ispin,sectorI,sectorJ)
                 if(sgn==0d0.OR.j==0)cycle
@@ -313,7 +299,7 @@ contains
           endif
           !
           call tridiag_Hv_sector(jsector,vvinit,alfa_,beta_,norm2)
-          call add_to_lanczos_gf_normal(one*norm2,state_e,alfa_,beta_,-1,iorb,jorb,ispin)
+          call add_to_lanczos_gf_normal(one*norm2,state_e,alfa_,beta_,-1,io,jo,ispin)
           deallocate(alfa_,beta_)
           if(allocated(vvinit))deallocate(vvinit)          
        endif
@@ -343,13 +329,13 @@ contains
 
 
 
-  subroutine add_to_lanczos_gf_normal(vnorm2,Ei,alanc,blanc,isign,iorb,jorb,ispin)
+  subroutine add_to_lanczos_gf_normal(vnorm2,Ei,alanc,blanc,isign,io,jo,ispin)
     complex(8)                                 :: vnorm2,pesoBZ,peso
     real(8)                                    :: Ei,Egs,de
     integer                                    :: nlanc,itype
     real(8),dimension(:)                       :: alanc
     real(8),dimension(size(alanc))             :: blanc 
-    integer                                    :: isign,iorb,jorb,ispin
+    integer                                    :: isign,io,jo,ispin
     real(8),dimension(size(alanc),size(alanc)) :: Z
     real(8),dimension(size(alanc))             :: diag,subdiag
     integer                                    :: i,j,ierr
@@ -391,11 +377,11 @@ contains
        peso = pesoBZ*Z(1,j)*Z(1,j)
        do i=1,Lmats
           iw=xi*wm(i)
-          impGmats(ispin,ispin,iorb,jorb,i)=impGmats(ispin,ispin,iorb,jorb,i) + peso/(iw-isign*de)
+          impGmats(ispin,io,jo,i)=impGmats(ispin,io,jo,i) + peso/(iw-isign*de)
        enddo
        do i=1,Lreal
           iw=dcmplx(wr(i),eps)
-          impGreal(ispin,ispin,iorb,jorb,i)=impGreal(ispin,ispin,iorb,jorb,i) + peso/(iw-isign*de)
+          impGreal(ispin,io,jo,i)=impGreal(ispin,io,jo,i) + peso/(iw-isign*de)
        enddo
     enddo
   end subroutine add_to_lanczos_gf_normal
@@ -410,10 +396,10 @@ contains
 
 
   subroutine build_sigma_normal
-    integer                                           :: i,ispin,iorb
-    complex(8),dimension(Nspin,Nspin,Norb,Norb,Lmats) :: invG0mats,invGmats
-    complex(8),dimension(Nspin,Nspin,Norb,Norb,Lreal) :: invG0real,invGreal
-    complex(8),dimension(Norb,Norb)                   :: invGimp
+    integer                                 :: i,ispin,iorb
+    complex(8),dimension(Nspin,Ns,Ns,Lmats) :: invG0mats,invGmats
+    complex(8),dimension(Nspin,Ns,Ns,Lreal) :: invG0real,invGreal
+    complex(8),dimension(Ns,Ns)             :: Gtmp
     !
     invG0mats = zero
     invGmats  = zero
@@ -421,60 +407,34 @@ contains
     invGreal  = zero
     !
     !Get G0^-1
-    invG0mats(:,:,:,:,:) = invg0_bath_function(dcmplx(0d0,wm(:)),dmft_bath)
-    invG0real(:,:,:,:,:) = invg0_bath_function(dcmplx(wr(:),eps),dmft_bath)
+    call Hij_get_g0inv(dcmplx(0d0,wm(:)),invG0mats)
+    call Hij_get_g0inv(dcmplx(wr(:),eps),invG0real)
     !
-    select case(bath_type)
-    case default                !Diagonal in both spin and orbital
-       !
-       !Get Gimp^-1
-       do ispin=1,Nspin
-          do iorb=1,Norb
-             invGmats(ispin,ispin,iorb,iorb,:) = one/impGmats(ispin,ispin,iorb,iorb,:)
-             invGreal(ispin,ispin,iorb,iorb,:) = one/impGreal(ispin,ispin,iorb,iorb,:)
-          enddo
+
+    impSmats=zero
+    impSreal=zero
+    !Get Gimp^-1
+    do ispin=1,Nspin
+       do i=1,Lmats
+          Gtmp = impGmats(ispin,:,:,i)
+          call inv(Gtmp)
+          invGmats(ispin,:,:,i)=Gtmp
        enddo
+       !
+       do i=1,Lreal
+          Gtmp = impGreal(ispin,:,:,i)
+          call inv(Gtmp)
+          invGreal(ispin,:,:,i)=Gtmp
+       enddo
+       !
        !Get Sigma functions: Sigma= G0^-1 - G^-1
-       impSmats=zero
-       impSreal=zero
-       do ispin=1,Nspin
-          do iorb=1,Norb
-             impSmats(ispin,ispin,iorb,iorb,:) = invG0mats(ispin,ispin,iorb,iorb,:) - invGmats(ispin,ispin,iorb,iorb,:)
-             impSreal(ispin,ispin,iorb,iorb,:) = invG0real(ispin,ispin,iorb,iorb,:) - invGreal(ispin,ispin,iorb,iorb,:)
-          enddo
-       enddo
-       !
-    case ("hybrid","replica")   !Diagonal in spin only. Full Orbital structure
-       !
-       !Get Gimp^-1
-       do ispin=1,Nspin
-          do i=1,Lmats
-             invGimp = impGmats(ispin,ispin,:,:,i)
-             call inv(invGimp)
-             invGmats(ispin,ispin,:,:,i)=invGimp
-          enddo
-          !
-          do i=1,Lreal
-             invGimp = impGreal(ispin,ispin,:,:,i)
-             call inv(invGimp)
-             invGreal(ispin,ispin,:,:,i)=invGimp
-          enddo
-       enddo
-       !Get Sigma functions: Sigma= G0^-1 - G^-1
-       impSmats=zero
-       impSreal=zero
-       do ispin=1,Nspin
-          impSmats(ispin,ispin,:,:,:) = invG0mats(ispin,ispin,:,:,:) - invGmats(ispin,ispin,:,:,:)
-          !
-          impSreal(ispin,ispin,:,:,:) = invG0real(ispin,ispin,:,:,:) - invGreal(ispin,ispin,:,:,:)
-       enddo
-       !
-    end select
+       impSmats(ispin,:,:,:) = invG0mats(ispin,:,:,:) - invGmats(ispin,:,:,:)
+       impSreal(ispin,:,:,:) = invG0real(ispin,:,:,:) - invGreal(ispin,:,:,:)
+    enddo
     !
     !Get G0and:
-    impG0mats(:,:,:,:,:) = g0and_bath_function(dcmplx(0d0,wm(:)),dmft_bath)
-    impG0real(:,:,:,:,:) = g0and_bath_function(dcmplx(wr(:),eps),dmft_bath)
-    !!
+    call Hij_get_g0func(dcmplx(0d0,wm(:)),impG0mats)
+    call Hij_get_g0func(dcmplx(wr(:),eps),impG0real)
     !
   end subroutine build_sigma_normal
 

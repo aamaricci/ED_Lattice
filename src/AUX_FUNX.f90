@@ -9,7 +9,8 @@ MODULE ED_AUX_FUNX
   implicit none
   private
 
-
+  !PACK lattice-orbital-spin INDICES into a single one
+  public :: pack_indices
   !FERMIONIC OPERATORS IN BITWISE OPERATIONS
   public :: c,cdg
   !BIT DECOMPOSITION 
@@ -23,11 +24,6 @@ MODULE ED_AUX_FUNX
   public :: gather_vector_MPI
   public :: allgather_vector_MPI
 #endif
-  !AUX RESHAPE FUNCTIONS (internal use)
-  public :: lso2nnn_reshape
-  public :: so2nn_reshape
-  public :: nnn2lso_reshape
-  public :: nn2so_reshape
   !
   !SEARCH CHEMICAL POTENTIAL, this should go into DMFT_TOOLS I GUESS
   public :: ed_search_variable
@@ -35,40 +31,22 @@ MODULE ED_AUX_FUNX
   public :: allocate_grids
   public :: deallocate_grids
 
-  public :: ed_set_suffix
-  public :: ed_reset_suffix
-
-
-
-
-  interface lso2nnn_reshape
-     module procedure d_nlso2nnn
-     module procedure c_nlso2nnn
-  end interface lso2nnn_reshape
-
-  interface so2nn_reshape
-     module procedure d_nso2nn
-     module procedure c_nso2nn
-  end interface so2nn_reshape
-
-  interface nnn2lso_reshape
-     module procedure d_nnn2nlso
-     module procedure c_nnn2nlso
-  end interface nnn2lso_reshape
-
-  interface nn2so_reshape
-     module procedure d_nn2nso
-     module procedure c_nn2nso
-  end interface nn2so_reshape
-
-  interface ed_set_suffix
-     module procedure :: ed_set_suffix_i
-     module procedure :: ed_set_suffix_d
-     module procedure :: ed_set_suffix_c
-  end interface ed_set_suffix
-
 
 contains
+
+
+  function pack_indices(siteI,orbI,spinI) result(Indx)
+    integer,intent(in)          :: siteI,orbI
+    integer,intent(in),optional :: spinI
+    integer                     :: Indx
+    select case(orbI)
+    case(1)
+       Indx = siteI
+    case default
+       Indx = siteI + (orbI-1)*Nsites(orbI-1)
+    end select
+    if(present(spinI))Indx = Indx  + (spinI-1)*Ns
+  end function pack_indices
 
 
 
@@ -349,227 +327,6 @@ contains
 
 
 
-  subroutine ed_reset_suffix()
-    ed_file_suffix=''
-  end subroutine ed_reset_suffix
-
-  subroutine ed_set_suffix_i(indx)
-    integer :: indx
-    ed_file_suffix=reg(ineq_site_suffix)//str(indx,site_indx_padding)
-  end subroutine ed_set_suffix_i
-  subroutine ed_set_suffix_d(indx)
-    real(8) :: indx
-    ed_file_suffix=reg(ineq_site_suffix)//str(indx)
-  end subroutine ed_set_suffix_d
-  subroutine ed_set_suffix_c(indx)
-    character(len=*) :: indx
-    ed_file_suffix=reg(ineq_site_suffix)//str(indx)
-  end subroutine ed_set_suffix_c
-
-
-
-
-
-
-  !##################################################################
-  !                   RESHAPE ROUTINES
-  !##################################################################
-  !+-----------------------------------------------------------------------------+!
-  !PURPOSE: 
-  ! reshape a matrix from the [Nlso][Nlso] shape
-  ! from/to the [Nlat][Nspin][Nspin][Norb][Norb] shape.
-  ! _nlso2nnn : from [Nlso][Nlso] to [Nlat][Nspin][Nspin][Norb][Norb]  !
-  ! _nso2nn   : from [Nso][Nso]   to [Nspin][Nspin][Norb][Norb]
-  !+-----------------------------------------------------------------------------+!
-  function d_nlso2nnn(Hlso,Nlat,Nspin,Norb) result(Hnnn)
-    integer                                            :: Nlat,Nspin,Norb
-    real(8),dimension(Nlat*Nspin*Norb,Nlat*Nspin*Norb) :: Hlso
-    real(8),dimension(Nlat,Nspin,Nspin,Norb,Norb)      :: Hnnn
-    integer                                            :: iorb,ispin,ilat,is
-    integer                                            :: jorb,jspin,js
-    Hnnn=zero
-    do ilat=1,Nlat
-       do ispin=1,Nspin
-          do jspin=1,Nspin
-             do iorb=1,Norb
-                do jorb=1,Norb
-                   is = iorb + (ispin-1)*Norb + (ilat-1)*Norb*Nspin !lattice-spin-orbit stride
-                   js = jorb + (jspin-1)*Norb + (ilat-1)*Norb*Nspin !lattice-spin-orbit stride
-                   Hnnn(ilat,ispin,jspin,iorb,jorb) = Hlso(is,js)
-                enddo
-             enddo
-          enddo
-       enddo
-    enddo
-  end function d_nlso2nnn
-  function c_nlso2nnn(Hlso,Nlat,Nspin,Norb) result(Hnnn)
-    integer                                               :: Nlat,Nspin,Norb
-    complex(8),dimension(Nlat*Nspin*Norb,Nlat*Nspin*Norb) :: Hlso
-    complex(8),dimension(Nlat,Nspin,Nspin,Norb,Norb)      :: Hnnn
-    integer                                               :: iorb,ispin,ilat,is
-    integer                                               :: jorb,jspin,js
-    Hnnn=zero
-    do ilat=1,Nlat
-       do ispin=1,Nspin
-          do jspin=1,Nspin
-             do iorb=1,Norb
-                do jorb=1,Norb
-                   is = iorb + (ispin-1)*Norb + (ilat-1)*Norb*Nspin !lattice-spin-orbit stride
-                   js = jorb + (jspin-1)*Norb + (ilat-1)*Norb*Nspin !lattice-spin-orbit stride
-                   Hnnn(ilat,ispin,jspin,iorb,jorb) = Hlso(is,js)
-                enddo
-             enddo
-          enddo
-       enddo
-    enddo
-  end function c_nlso2nnn
-
-  function d_nso2nn(Hso,Nspin,Norb) result(Hnn)
-    integer                                  :: Nspin,Norb
-    real(8),dimension(Nspin*Norb,Nspin*Norb) :: Hso
-    real(8),dimension(Nspin,Nspin,Norb,Norb) :: Hnn
-    integer                                  :: iorb,ispin,is
-    integer                                  :: jorb,jspin,js
-    Hnn=zero
-    do ispin=1,Nspin
-       do jspin=1,Nspin
-          do iorb=1,Norb
-             do jorb=1,Norb
-                is = iorb + (ispin-1)*Norb  !spin-orbit stride
-                js = jorb + (jspin-1)*Norb  !spin-orbit stride
-                Hnn(ispin,jspin,iorb,jorb) = Hso(is,js)
-             enddo
-          enddo
-       enddo
-    enddo
-  end function d_nso2nn
-  function c_nso2nn(Hso,Nspin,Norb) result(Hnn)
-    integer                                     :: Nspin,Norb
-    complex(8),dimension(Nspin*Norb,Nspin*Norb) :: Hso
-    complex(8),dimension(Nspin,Nspin,Norb,Norb) :: Hnn
-    integer                                     :: iorb,ispin,is
-    integer                                     :: jorb,jspin,js
-    Hnn=zero
-    do ispin=1,Nspin
-       do jspin=1,Nspin
-          do iorb=1,Norb
-             do jorb=1,Norb
-                is = iorb + (ispin-1)*Norb  !spin-orbit stride
-                js = jorb + (jspin-1)*Norb  !spin-orbit stride
-                Hnn(ispin,jspin,iorb,jorb) = Hso(is,js)
-             enddo
-          enddo
-       enddo
-    enddo
-  end function c_nso2nn
-
-
-
-
-  !+-----------------------------------------------------------------------------+!
-  !PURPOSE: 
-  ! reshape a matrix from the [Nlat][Nspin][Nspin][Norb][Norb] shape
-  ! from/to the [Nlso][Nlso] shape.
-  ! _nnn2nlso : from [Nlat][Nspin][Nspin][Norb][Norb] to [Nlso][Nlso]
-  ! _nn2nso   : from [Nspin][Nspin][Norb][Norb]       to [Nso][Nso]
-  !+-----------------------------------------------------------------------------+!
-  function d_nnn2nlso(Hnnn,Nlat,Nspin,Norb) result(Hlso)
-    integer                                            :: Nlat,Nspin,Norb
-    real(8),dimension(Nlat,Nspin,Nspin,Norb,Norb)      :: Hnnn
-    real(8),dimension(Nlat*Nspin*Norb,Nlat*Nspin*Norb) :: Hlso
-    integer                                            :: iorb,ispin,ilat,is
-    integer                                            :: jorb,jspin,js
-    Hlso=zero
-    do ilat=1,Nlat
-       do ispin=1,Nspin
-          do jspin=1,Nspin
-             do iorb=1,Norb
-                do jorb=1,Norb
-                   is = iorb + (ispin-1)*Norb + (ilat-1)*Norb*Nspin !lattice-spin-orbit stride
-                   js = jorb + (jspin-1)*Norb + (ilat-1)*Norb*Nspin !lattice-spin-orbit stride
-                   Hlso(is,js) = Hnnn(ilat,ispin,jspin,iorb,jorb)
-                enddo
-             enddo
-          enddo
-       enddo
-    enddo
-  end function d_nnn2nlso
-
-  function c_nnn2nlso(Hnnn,Nlat,Nspin,Norb) result(Hlso)
-    integer                                            :: Nlat,Nspin,Norb
-    complex(8),dimension(Nlat,Nspin,Nspin,Norb,Norb)      :: Hnnn
-    complex(8),dimension(Nlat*Nspin*Norb,Nlat*Nspin*Norb) :: Hlso
-    integer                                               :: iorb,ispin,ilat,is
-    integer                                               :: jorb,jspin,js
-    Hlso=zero
-    do ilat=1,Nlat
-       do ispin=1,Nspin
-          do jspin=1,Nspin
-             do iorb=1,Norb
-                do jorb=1,Norb
-                   is = iorb + (ispin-1)*Norb + (ilat-1)*Norb*Nspin !lattice-spin-orbit stride
-                   js = jorb + (jspin-1)*Norb + (ilat-1)*Norb*Nspin !lattice-spin-orbit stride
-                   Hlso(is,js) = Hnnn(ilat,ispin,jspin,iorb,jorb)
-                enddo
-             enddo
-          enddo
-       enddo
-    enddo
-  end function c_nnn2nlso
-
-  function d_nn2nso(Hnn,Nspin,Norb) result(Hso)
-    integer                                  :: Nspin,Norb
-    real(8),dimension(Nspin,Nspin,Norb,Norb) :: Hnn
-    real(8),dimension(Nspin*Norb,Nspin*Norb) :: Hso
-    integer                                  :: iorb,ispin,is
-    integer                                  :: jorb,jspin,js
-    Hso=zero
-    do ispin=1,Nspin
-       do jspin=1,Nspin
-          do iorb=1,Norb
-             do jorb=1,Norb
-                is = iorb + (ispin-1)*Norb  !spin-orbit stride
-                js = jorb + (jspin-1)*Norb  !spin-orbit stride
-                Hso(is,js) = Hnn(ispin,jspin,iorb,jorb)
-             enddo
-          enddo
-       enddo
-    enddo
-  end function d_nn2nso
-
-  function c_nn2nso(Hnn,Nspin,Norb) result(Hso)
-    integer                                  :: Nspin,Norb
-    complex(8),dimension(Nspin,Nspin,Norb,Norb) :: Hnn
-    complex(8),dimension(Nspin*Norb,Nspin*Norb) :: Hso
-    integer                                     :: iorb,ispin,is
-    integer                                     :: jorb,jspin,js
-    Hso=zero
-    do ispin=1,Nspin
-       do jspin=1,Nspin
-          do iorb=1,Norb
-             do jorb=1,Norb
-                is = iorb + (ispin-1)*Norb  !spin-orbit stride
-                js = jorb + (jspin-1)*Norb  !spin-orbit stride
-                Hso(is,js) = Hnn(ispin,jspin,iorb,jorb)
-             enddo
-          enddo
-       enddo
-    enddo
-  end function c_nn2nso
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   !+------------------------------------------------------------------+
   !PURPOSE  : Allocate arrays and setup frequencies and times
   !+------------------------------------------------------------------+
@@ -695,7 +452,7 @@ contains
 
 
     !Save info about search variable iteration:
-    open(free_unit(unit),file="search_variable_iteration_info"//reg(ed_file_suffix)//".ed",position="append")
+    open(free_unit(unit),file="search_variable_iteration_info.ed",position="append")
     ! if(count==1)write(unit,*)"#var,ntmp,ndiff"
     write(unit,*)totcount,var,ntmp,ndiff
     close(unit)

@@ -19,43 +19,6 @@ MODULE ED_SETUP
 
 contains
 
-  subroutine ed_checks_global
-    if(Nspin>2)stop "ED ERROR: Nspin > 2 is currently not supported"
-    if(Norb>5)stop "ED ERROR: Norb > 5 is currently not supported"
-    !
-    if(Nspin>1.AND.(ed_twin))then
-       write(LOGfile,"(A)")"WARNING: using twin_sector with Nspin>1"
-    end if
-    !
-    if(lanc_method=="lanczos")then
-       if(lanc_nstates_total>1)stop "ED ERROR: lanc_method==lanczos available only for lanc_nstates_total==1, T=0"
-       if(lanc_nstates_sector>1)stop "ED ERROR: lanc_method==lanczos available only for lanc_nstates_sector==1, T=0"
-    endif
-    !
-    if(ed_finite_temp)then
-       if(lanc_nstates_total==1)stop "ED ERROR: ed_finite_temp=T *but* lanc_nstates_total==1 => T=0. Increase lanc_nstates_total"
-    else
-       if(lanc_nstates_total>1)print*, "ED WARNING: ed_finite_temp=F, T=0 *AND* lanc_nstates_total>1. re-Set lanc_nstates_total=1"
-       lanc_nstates_total=1
-    endif
-  end subroutine ed_checks_global
-
-
-  !+------------------------------------------------------------------+
-  !PURPOSE  : Setup Dimensions of the problem
-  !+------------------------------------------------------------------+
-  subroutine ed_setup_dimensions()
-    Ns = sum(Nsites(1:Norb))
-    !
-    Ns_Orb = Ns
-    Ns_Ud  = 1
-    !
-    DimPh = Nph+1
-    Nsectors = ((Ns_Orb+1)*(Ns_Orb+1))**Ns_Ud
-  end subroutine ed_setup_dimensions
-
-
-
   !+------------------------------------------------------------------+
   !PURPOSE  : Init ED structure and calculation
   !+------------------------------------------------------------------+
@@ -69,7 +32,13 @@ contains
     !
     call ed_checks_global
     !
-    call ed_setup_dimensions
+    !>Setup Dimensions of the problem
+    Ns = sum(Nsites(1:Norb))
+    !
+    Ns_Orb = Ns
+    Ns_Ud  = 1
+    DimPh  = Nph+1
+    Nsectors = ((Ns_Orb+1)*(Ns_Orb+1))**Ns_Ud
     !
     !
     allocate(DimUps(Ns_Ud))
@@ -137,52 +106,57 @@ contains
     !
     !
     !allocate functions
-    allocate(impSmats(Nspin,Nspin,Norb,Norb,Lmats))
-    allocate(impSreal(Nspin,Nspin,Norb,Norb,Lreal))
+    allocate(impSmats(Nspin,Ns,Ns,Lmats))
+    allocate(impSreal(Nspin,Ns,Ns,Lreal))
     impSmats=zero
     impSreal=zero
     !
-    allocate(impGmats(Nspin,Nspin,Norb,Norb,Lmats))
-    allocate(impGreal(Nspin,Nspin,Norb,Norb,Lreal))
+    allocate(impGmats(Nspin,Ns,Ns,Lmats))
+    allocate(impGreal(Nspin,Ns,Ns,Lreal))
     impGmats=zero
     impGreal=zero
     !
-    allocate(impG0mats(Nspin,Nspin,Norb,Norb,Lmats))
-    allocate(impG0real(Nspin,Nspin,Norb,Norb,Lreal))
+    allocate(impG0mats(Nspin,Ns,Ns,Lmats))
+    allocate(impG0real(Nspin,Ns,Ns,Lreal))
     impG0mats=zero
     impG0real=zero
     !
-    allocate(impDmats_ph(0:Lmats))
-    allocate(impDreal_ph(Lreal))
-    impDmats_ph=zero
-    impDreal_ph=zero
+    allocate(impDmats(0:Lmats))
+    allocate(impDreal(Lreal))
+    impDmats=zero
+    impDreal=zero
     !
     !allocate observables
-    allocate(ed_dens(Norb),ed_docc(Norb),ed_dens_up(Norb),ed_dens_dw(Norb),ed_mag(Norb))
+    allocate(ed_dens(Ns),ed_docc(Ns),ed_dens_up(Ns),ed_dens_dw(Ns),ed_mag(Ns))
     ed_dens=0d0
     ed_docc=0d0
     ed_dens_up=0d0
     ed_dens_dw=0d0
     ed_mag =0d0
     !
-    allocate(spinChi_tau(Norb,Norb,0:Ltau))
-    allocate(spinChi_w(Norb,Norb,Lreal))
-    allocate(spinChi_iv(Norb,Norb,0:Lmats))
-    !
-    allocate(densChi_tau(Norb,Norb,0:Ltau))
-    allocate(densChi_w(Norb,Norb,Lreal))
-    allocate(densChi_iv(Norb,Norb,0:Lmats))
-    !
-    allocate(pairChi_tau(Norb,Norb,0:Ltau))
-    allocate(pairChi_w(Norb,Norb,Lreal))
-    allocate(pairChi_iv(Norb,Norb,0:Lmats))
-    !
-    allocate(exctChi_tau(0:2,Norb,Norb,0:Ltau))
-    allocate(exctChi_w(0:2,Norb,Norb,Lreal))
-    allocate(exctChi_iv(0:2,Norb,Norb,0:Lmats))
-    !
   end subroutine init_ed_structure
 
+
+  subroutine ed_checks_global
+    if(Nspin>2)stop "ED ERROR: Nspin > 2 is currently not supported"
+    if(Norb>5)stop "ED ERROR: Norb > 5 is currently not supported"
+    !
+    if(Nspin>1.AND.(ed_twin))then
+       write(LOGfile,"(A)")"WARNING: using twin_sector with Nspin>1"
+    end if
+    !
+    if(lanc_method=="lanczos")then
+       if(lanc_nstates_total>1)stop "ED ERROR: lanc_method==lanczos available only for lanc_nstates_total==1, T=0"
+       if(lanc_nstates_sector>1)stop "ED ERROR: lanc_method==lanczos available only for lanc_nstates_sector==1, T=0"
+    endif
+    !
+    if(ed_finite_temp)then
+       if(lanc_nstates_total==1)stop "ED ERROR: ed_finite_temp=T *but* lanc_nstates_total==1 => T=0. Increase lanc_nstates_total"
+    else
+       if(lanc_nstates_total>1)print*, "ED WARNING: ed_finite_temp=F, T=0 *AND* lanc_nstates_total>1. re-Set lanc_nstates_total=1"
+       lanc_nstates_total=1
+    endif
+  end subroutine ed_checks_global
 
 
 
@@ -214,13 +188,13 @@ contains
     enddo
     !
     !
-    inquire(file="state_list"//reg(ed_file_suffix)//".restart",exist=IOfile)
+    inquire(file="state_list.restart",exist=IOfile)
     if(IOfile)then
        write(LOGfile,"(A)")"Restarting from a state_list file:"
-       list_len=file_length("state_list"//reg(ed_file_suffix)//".restart")
+       list_len=file_length("state_listrestart")
        allocate(list_sector(list_len))
        !
-       open(free_unit(unit),file="state_list"//reg(ed_file_suffix)//".restart",status="old")
+       open(free_unit(unit),file="state_list.restart",status="old")
        status=0
        do while(status>=0)
           read(unit,*,iostat=status)istate,isector,indices
