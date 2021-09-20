@@ -61,7 +61,6 @@ MODULE ED_VARS_GLOBAL
   integer,save                                     :: Nsectors !Number of sectors
   integer,save                                     :: Ns_orb
   integer,save                                     :: Ns_ud
-  integer,save                                     :: DimPh    !Number of phonon states
 
 
   !Some maps between sectors and full Hilbert space (pointers)
@@ -115,8 +114,6 @@ MODULE ED_VARS_GLOBAL
   complex(8),allocatable,dimension(:,:,:,:)        :: impGreal
   complex(8),allocatable,dimension(:,:,:,:)        :: impG0mats
   complex(8),allocatable,dimension(:,:,:,:)        :: impG0real
-  complex(8),allocatable,dimension(:)            :: impDmats
-  complex(8),allocatable,dimension(:)            :: impDreal
 
 
 

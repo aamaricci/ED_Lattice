@@ -24,7 +24,6 @@ MODULE ED_HAMILTONIAN_COMMON
   integer                               :: isector,jsector
   integer                               :: i,iup,idw
   integer                               :: j,jup,jdw
-  integer                               :: iph,i_el,j_el
   integer                               :: m,mup,mdw
   integer                               :: ms
   integer                               :: impi

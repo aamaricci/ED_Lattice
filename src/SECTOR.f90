@@ -83,7 +83,7 @@ contains
     call get_DimUp(isector,self%DimUps);self%DimUp=product(self%DimUps)
     call get_DimDw(isector,self%DimDws);self%DimDw=product(self%DimDws)
     self%DimEl=self%DimUp*self%DimDw
-    self%DimPh=Nph+1
+    self%DimPh=1
     self%Dim=self%DimEl*self%DimPh
     !
     call map_allocate(self%H,[self%DimUps,self%DimDws])
@@ -123,6 +123,8 @@ contains
     self%DimUp=0
     self%DimDw=0
     self%Dim=0
+    self%DimEl=0
+    self%DimPh=0
     self%Nup=0
     self%Ndw=0
     self%Nlanc=0
@@ -222,7 +224,6 @@ contains
     real(8),intent(out)        :: sgn
     integer                    :: ibeta
     integer                    :: r
-    integer                    :: iph,i_el
     integer,dimension(2*Ns_Ud) :: Indices
     integer,dimension(2*Ns_Ud) :: Jndices
     integer,dimension(Ns_Orb)  :: Nud
@@ -232,10 +233,8 @@ contains
     sgn=0d0
     !
     ibeta  = ialfa + (ispin-1)*Ns_Ud
-    iph = (i-1)/(sectorI%DimEl) + 1
-    i_el = mod(i-1,sectorI%DimEl) + 1
     !
-    call state2indices(i_el,[sectorI%DimUps,sectorI%DimDws],Indices)
+    call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
     iud = sectorI%H(ibeta)%map(Indices(ibeta))
     nud = Bdecomp(iud,Ns_Orb)
     if(nud(ipos)/=0)return
@@ -243,8 +242,6 @@ contains
     Jndices        = Indices
     Jndices(ibeta) = binary_search(sectorJ%H(ibeta)%map,r)
     call indices2state(Jndices,[sectorJ%DimUps,sectorJ%DimDws],j)
-    !
-    j = j + (iph-1)*sectorJ%DimEl
   end subroutine apply_op_CDG
 
 
@@ -252,7 +249,6 @@ contains
     integer, intent(in)         :: i,ipos,ialfa
     type(sector),intent(in)     :: sectorI
     real(8),intent(out)         :: sgn
-    integer                     :: iph,i_el
     integer,dimension(2*Ns_Ud)  :: Indices
     integer,dimension(2*Ns_Ud)  :: Jndices
     integer,dimension(2,Ns_Orb) :: Nud !Nbits(Ns_Orb)
@@ -260,10 +256,7 @@ contains
     !
     sgn=0d0
     !
-    iph = (i-1)/(sectorI%DimEl) + 1
-    i_el = mod(i-1,sectorI%DimEl) + 1
-    !
-    call state2indices(i_el,[sectorI%DimUps,sectorI%DimDws],Indices)
+    call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
     iud(1)   = sectorI%H(ialfa)%map(Indices(ialfa))
     iud(2)   = sectorI%H(ialfa+Ns_Ud)%map(Indices(ialfa+Ns_Ud))
     nud(1,:) = Bdecomp(iud(1),Ns_Orb)
@@ -279,7 +272,6 @@ contains
     integer, intent(in)         :: i,ipos,ialfa
     type(sector),intent(in)     :: sectorI
     real(8),intent(out)         :: sgn
-    integer                     :: iph,i_el
     integer,dimension(2*Ns_Ud)  :: Indices
     integer,dimension(2*Ns_Ud)  :: Jndices
     integer,dimension(2,Ns_Orb) :: Nud !Nbits(Ns_Orb)
@@ -287,10 +279,7 @@ contains
     !
     sgn=0d0
     !
-    iph = (i-1)/(sectorI%DimEl) + 1
-    i_el = mod(i-1,sectorI%DimEl) + 1
-    !
-    call state2indices(i_el,[sectorI%DimUps,sectorI%DimDws],Indices)
+    call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
     iud(1)   = sectorI%H(ialfa)%map(Indices(ialfa))
     iud(2)   = sectorI%H(ialfa+Ns_Ud)%map(Indices(ialfa+Ns_Ud))
     nud(1,:) = Bdecomp(iud(1),Ns_Orb)
@@ -310,14 +299,11 @@ contains
     integer,dimension(Ns_Ud,Ns_Orb) :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
     integer,dimension(2)            :: Iud
     !
-    iph = (i-1)/(sectorI%DimEl) + 1
-    i_el = mod(i-1,sectorI%DimEl) + 1
-    !
-    call state2indices(i_el,[sectorI%DimUps,sectorI%DimDws],Indices)
+    call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
     do ii=1,Ns_Ud
        iud(1) = sectorI%H(ii)%map(Indices(ii))
        iud(2) = sectorI%H(ii+Ns_Ud)%map(Indices(ii+Ns_ud))
-       Nups(ii,:) = Bdecomp(iud(1),Ns_Orb) ![Norb,1+Nbath]
+       Nups(ii,:) = Bdecomp(iud(1),Ns_Orb)
        Ndws(ii,:) = Bdecomp(iud(2),Ns_Orb)
     enddo
     Nup = Nups(1,:)!Breorder(Nups)
@@ -483,7 +469,7 @@ contains
     integer,dimension(2*Ns_Ud)          :: Indices,Istates
     integer,dimension(Ns_Ud)            :: DimUps,DimDws
     integer                             :: Dim,DimUp,DimDw
-    integer                             :: i,iud,iph,i_el
+    integer                             :: i,iud
     !
     Dim = GetDim(isector)
     if(size(Order)/=Dim)stop "twin_sector_order error: wrong dimensions of *order* array"
@@ -494,11 +480,9 @@ contains
     !
     call build_sector(isector,sectorH)
     do i=1,sectorH%Dim
-       iph = (i-1)/(sectorH%DimEl) + 1   !find number of phonons
-       i_el = mod(i-1,sectorH%DimEl) + 1 !electronic index
-       call state2indices(i_el,[sectorH%DimUps,sectorH%DimDws],Indices)
+       call state2indices(i,[sectorH%DimUps,sectorH%DimDws],Indices)
        forall(iud=1:2*Ns_Ud)Istates(iud) = sectorH%H(iud)%map(Indices(iud))
-       Order(i) = flip_state( Istates ) + (iph-1)*2**(2*Ns) !flipped electronic state (GLOBAL state number {1:2^2Ns}) + phononic contribution
+       Order(i) = flip_state( Istates )!flipped electronic state (GLOBAL state number {1:2^2Ns})
     enddo
     call delete_sector(sectorH)
     !

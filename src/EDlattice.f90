@@ -1,6 +1,7 @@
 MODULE EDIPACK
   USE ED_INPUT_VARS, only: &
        ed_read_input , &
+       Nsites        , &
        Norb          , &
        Nspin         , &
        Uloc          , &
@@ -18,7 +19,6 @@ MODULE EDIPACK
        nerr          , &
        Lmats         , &
        Lreal         , &
-       Lpos          , &
        Hfile         , &
        LOGfile   
 

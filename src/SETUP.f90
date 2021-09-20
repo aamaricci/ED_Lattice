@@ -37,7 +37,6 @@ contains
     !
     Ns_Orb = Ns
     Ns_Ud  = 1
-    DimPh  = Nph+1
     Nsectors = ((Ns_Orb+1)*(Ns_Orb+1))**Ns_Ud
     !
     !
@@ -57,9 +56,8 @@ contains
        write(LOGfile,"(A,I15)")'# of  sectors         = ',Nsectors
        write(LOGfile,"(A,I15)")'Ns_Orb                = ',Ns_Orb
        write(LOGfile,"(A,I15)")'Ns_Ud                 = ',Ns_Ud
-       write(LOGfile,"(A,I15)")'Nph                   = ',Nph
-       write(LOGfile,"(A,"//str(Ns_Ud)//"I8,2X,"//str(Ns_Ud)//"I8,I8,I20)")&
-            'Largest Sector(s)     = ',DimUps,DimDws,DimPh,product(DimUps)*product(DimDws)*DimPh
+       write(LOGfile,"(A,"//str(Ns_Ud)//"I8,2X,"//str(Ns_Ud)//"I8,I20)")&
+            'Largest Sector(s)     = ',DimUps,DimDws,product(DimUps)*product(DimDws)
        write(LOGfile,"(A)")"--------------------------------------------"
     endif
     call sleep(1)
@@ -121,11 +119,6 @@ contains
     impG0mats=zero
     impG0real=zero
     !
-    allocate(impDmats(0:Lmats))
-    allocate(impDreal(Lreal))
-    impDmats=zero
-    impDreal=zero
-    !
     !allocate observables
     allocate(ed_dens(Ns),ed_docc(Ns),ed_dens_up(Ns),ed_dens_dw(Ns),ed_mag(Ns))
     ed_dens=0d0
@@ -184,7 +177,7 @@ contains
        call get_DimDw(isector,DimDws)
        DimUp = product(DimUps)
        DimDw = product(DimDws)  
-       getDim(isector)  = DimUp*DimDw*DimPh
+       getDim(isector)  = DimUp*DimDw
     enddo
     !
     !

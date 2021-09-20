@@ -25,7 +25,6 @@ MODULE ED_GF_ELECTRON
   integer                               :: ialfa,jalfa
   integer                               :: ipos,jpos
   integer                               :: i,j
-  integer                               :: iph,i_el
   real(8)                               :: sgn,norm2
   real(8),dimension(:),pointer          :: state_cvec
   real(8)                               :: state_e

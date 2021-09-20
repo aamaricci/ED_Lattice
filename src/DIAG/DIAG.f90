@@ -107,16 +107,16 @@ contains
                 write(LOGfile,"(1X,I9,A,I9,A6,"&
                      //str(Ns_Ud)//"I3,A6,"&
                      //str(Ns_Ud)//"I3,A7,"&
-                     //str(Ns_Ud)//"I6,"//str(Ns_Ud)//"I6,I6,I20,A12,3I6)")&
+                     //str(Ns_Ud)//"I6,"//str(Ns_Ud)//"I6,I20,A12,3I6)")&
                      iter,"-Solving sector:",isector,", nup:",nups,", ndw:",ndws,", dims=",&
-                     DimUps,DimDws,DimPh,getdim(isector),", Lanc Info:",Neigen,Nitermax,Nblock
+                     DimUps,DimDws,getdim(isector),", Lanc Info:",Neigen,Nitermax,Nblock
              else
                 write(LOGfile,"(1X,I9,A,I9,A6,"&
                      //str(Ns_Ud)//"I3,A6,"&
                      //str(Ns_Ud)//"I3,A7,"&
-                     //str(Ns_Ud)//"I6,"//str(Ns_Ud)//"I6,I6,I20)")&
+                     //str(Ns_Ud)//"I6,"//str(Ns_Ud)//"I6,I20)")&
                      iter,"-Solving sector:",isector,", nup:",nups,", ndw:",ndws,", dims=",&
-                     DimUps,DimDws,DimPh,getdim(isector)
+                     DimUps,DimDws,getdim(isector)
              endif
           elseif(ed_verbose<=2)then
              call eta(iter,count(twin_mask),LOGfile)

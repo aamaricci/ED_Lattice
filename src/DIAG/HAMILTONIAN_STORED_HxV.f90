@@ -22,8 +22,6 @@ contains
     real(8),dimension(:,:),optional    :: Hmat
     integer                            :: isector,ispin
     real(8),dimension(:,:),allocatable :: Htmp_up,Htmp_dw,Hrdx,Hmat_tmp
-    real(8),dimension(:,:),allocatable :: Htmp_ph,Htmp_eph_e,Htmp_eph_ph
-    real(8),dimension(:,:),allocatable :: Htmp_eph_eup,Htmp_eph_edw
     integer,dimension(2*Ns_Ud)         :: Indices    ![2-2*Norb]
     integer,dimension(Ns_Ud,Ns_Orb)    :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
     integer,dimension(Ns)              :: Nup,Ndw    ![Ns]
@@ -50,31 +48,20 @@ contains
     if(MpiStatus)then
        call sp_set_mpi_matrix(MpiComm,spH0d,mpiIstart,mpiIend,mpiIshift)
        call sp_init_matrix(MpiComm,spH0d,DimUp*DimDw)
-       if(DimPh>1) then
-          call sp_set_mpi_matrix(MpiComm,spH0e_eph,mpiIstart,mpiIend,mpiIshift)
-          call sp_init_matrix(MpiComm,spH0e_eph,DimUp*DimDw)
-       endif
-       !
        if(Jhflag)then
           call sp_set_mpi_matrix(MpiComm,spH0nd,mpiIstart,mpiIend,mpiIshift)
           call sp_init_matrix(MpiComm,spH0nd,DimUp*DimDw)
        endif
     else
        call sp_init_matrix(spH0d,DimUp*DimDw)
-       if(DimPh>1) call sp_init_matrix(spH0e_eph,DimUp*DimDw)
        if(Jhflag)call sp_init_matrix(spH0nd,DimUp*DimDw)
     endif
 #else
     call sp_init_matrix(spH0d,DimUp*DimDw)
-    if(DimPh>1) call sp_init_matrix(spH0e_eph,DimUp*DimDw)
     if(Jhflag)call sp_init_matrix(spH0nd,DimUp*DimDw)
 #endif
     call sp_init_matrix(spH0dws(1),DimDw)
     call sp_init_matrix(spH0ups(1),DimUp)
-    if(DimPh>1) then
-       call sp_init_matrix(spH0_ph,DimPh)
-       call sp_init_matrix(spH0ph_eph,DimPh)
-    end if
     !
     !-----------------------------------------------!
     !LOCAL HAMILTONIAN TERMS
@@ -91,15 +78,7 @@ contains
     !DW TERMS
     include "stored/H_dw.f90"
     !
-    if(DimPh>1) then
-       !PHONON TERMS
-       include "stored/H_ph.f90"
-       !
-       !ELECTRON-PHONON TERMS
-       include "stored/H_e_ph.f90"
-    endif
     !-----------------------------------------------!
-    !
     if(present(Hmat))then
        Hmat = 0d0
        allocate(Htmp_up(DimUp,DimUp));Htmp_up=0d0
@@ -136,32 +115,7 @@ contains
        Hmat_tmp = Hmat_tmp + kronecker_product(Htmp_dw,eye(DimUp))
        Hmat_tmp = Hmat_tmp + kronecker_product(eye(DimDw),Htmp_up)
        !
-       if(DimPh>1) then
-          allocate(Htmp_ph(DimPh,DimPh));Htmp_ph=0d0
-          allocate(Htmp_eph_ph(DimPh,DimPh));Htmp_eph_ph=0d0
-          allocate(Htmp_eph_e(DimUp*DimDw,DimUp*DimDw));Htmp_eph_e=0d0
-          !
-          call sp_dump_matrix(spH0_ph,Htmp_ph)
-#ifdef _MPI
-          if(MpiStatus)then
-             call sp_dump_matrix(MpiComm,spH0e_eph,Htmp_eph_e)
-          else
-             call sp_dump_matrix(spH0e_eph,Htmp_eph_e)
-          endif
-#else
-          call sp_dump_matrix(spH0e_eph,Htmp_eph_e)
-#endif
-          !
-          call sp_dump_matrix(spH0ph_eph,Htmp_eph_ph)
-          !
-          Hmat = kronecker_product(eye(Dimph),Hmat_tmp) +     &
-               kronecker_product(Htmp_ph,eye(DimUp*DimDw)) +&
-               kronecker_product(Htmp_eph_ph,Htmp_eph_e)
-          !
-          deallocate(Htmp_ph,Htmp_eph_e,Htmp_eph_ph)
-       else
-          Hmat = Hmat_tmp
-       endif
+       Hmat = Hmat_tmp
        !
        deallocate(Htmp_up,Htmp_dw,Hmat_tmp)
     endif
@@ -199,95 +153,58 @@ contains
     real(8),dimension(Nloc)         :: v
     real(8),dimension(Nloc)         :: Hv
     real(8)                         :: val
-    integer                         :: i,iup,idw,j,jup,jdw,jj,i_el,j_el
+    integer                         :: i,iup,idw,j,jup,jdw,jj
     !
     !
     Hv=0d0
     !
     !Local:
     do i = 1,Nloc
-       iph = (i-1)/(DimUp*DimDw) + 1   !phonon index [1:DimPh]
-       i_el = mod(i-1,DimUp*DimDw) + 1 !electron index [1:DimUp*DimDw]
-       do j_el=1,spH0d%row(i_el)%Size
-          val = spH0d%row(i_el)%vals(j_el)
-          j = spH0d%row(i_el)%cols(j_el) + (iph-1)*DimUp*DimDw
+       do jj=1,spH0d%row(i)%Size
+          val = spH0d%row(i)%vals(jj)
+          j = spH0d%row(i)%cols(jj)
           Hv(i) = Hv(i) + val*v(j)
        enddo
     enddo
     !
-    do iph = 1,DimPh
-       !DW:
-       do iup=1,DimUp
-          !
-          do idw=1,DimDw
-             i = iup + (idw-1)*DimUp + (iph-1)*DimUp*DimDw
-             do jj=1,spH0dws(1)%row(idw)%Size
-                jup = iup
-                jdw = spH0dws(1)%row(idw)%cols(jj)
-                val = spH0dws(1)%row(idw)%vals(jj)
-                j     = jup +  (jdw-1)*DimUp + (iph-1)*DimUp*DimDw
-                Hv(i) = Hv(i) + val*V(j)
-             enddo
-          enddo
-          !
-       enddo
-       !
-       !UP:
+    !DW:
+    do iup=1,DimUp
        do idw=1,DimDw
-          !
-          do iup=1,DimUp
-             i = iup + (idw-1)*DimUp + (iph-1)*DimUp*DimDw
-             do jj=1,spH0ups(1)%row(iup)%Size
-                jup = spH0ups(1)%row(iup)%cols(jj)
-                jdw = idw
-                val = spH0ups(1)%row(iup)%vals(jj)
-                j =  jup + (jdw-1)*DimUp + (iph-1)*DimUp*DimDw
-                Hv(i) = Hv(i) + val*V(j)
-             enddo
+          i = iup + (idw-1)*DimUp
+          do jj=1,spH0dws(1)%row(idw)%Size
+             jup = iup
+             jdw = spH0dws(1)%row(idw)%cols(jj)
+             val = spH0dws(1)%row(idw)%vals(jj)
+             j     = jup +  (jdw-1)*DimUp
+             Hv(i) = Hv(i) + val*V(j)
           enddo
-          !
        enddo
-       !
-       if(DimPh>1) then
-          do i_el = 1,DimUp*DimDw
-             i = i_el + (iph-1)*DimUp*DimDw
-             !
-             !PHONON
-             do jj = 1,spH0_ph%row(iph)%Size
-                val = spH0_ph%row(iph)%vals(jj)
-                j = i_el + (spH0_ph%row(iph)%cols(jj)-1)*DimUp*DimDw
-                Hv(i) = Hv(i) + val*v(j)
-             enddo
-          enddo
-          !
-          !ELECTRON-PHONON
-          do i_el = 1,DimUp*DimDw
-             i = i_el + (iph-1)*DimUp*DimDw
-             !
-             do j_el = 1,spH0e_eph%row(i_el)%Size
-                do jj = 1,spH0ph_eph%row(iph)%Size
-                   val = spH0e_eph%row(i_el)%vals(j_el)*&
-                        spH0ph_eph%row(iph)%vals(jj)
-                   j = spH0e_eph%row(i_el)%cols(j_el) +&
-                        (spH0ph_eph%row(iph)%cols(jj)-1)*DimUp*DimDw
-                   Hv(i) = Hv(i) + val*v(j)
-                enddo
-             enddo
-             !
-          enddo
-          !
-       endif
        !
     enddo
     !
+    !UP:
+    do idw=1,DimDw
+       !
+       do iup=1,DimUp
+          i = iup + (idw-1)*DimUp
+          do jj=1,spH0ups(1)%row(iup)%Size
+             jup = spH0ups(1)%row(iup)%cols(jj)
+             jdw = idw
+             val = spH0ups(1)%row(iup)%vals(jj)
+             j =  jup + (jdw-1)*DimUp
+             Hv(i) = Hv(i) + val*V(j)
+          enddo
+       enddo
+       !
+    enddo
+    !
+
     !Non-Local:
     if(jhflag)then
-       do i = 1,Nloc
-          iph = (i-1)/(DimUp*DimDw) + 1
-          i_el = mod(i-1,DimUp*DimDw) + 1
-          do j_el=1,spH0nd%row(i_el)%Size
-             val = spH0nd%row(i_el)%vals(j_el)
-             j = spH0nd%row(i_el)%cols(j_el) + (iph-1)*DimUp*DimDw
+       do i = 1,Nloc         
+          do jj=1,spH0nd%row(i)%Size
+             val = spH0nd%row(i)%vals(jj)
+             j = spH0nd%row(i)%cols(jj)
              Hv(i) = Hv(i) + val*v(j)
           enddo
        enddo
@@ -308,9 +225,6 @@ contains
     real(8),dimension(:),allocatable :: vin
     real(8)                          :: val
     integer                          :: i,iup,idw,j,jup,jdw,jj
-    integer                          :: i_el,j_el
-    integer                          :: i_start,i_end,i_start2,i_end2
-    !local MPI
     integer                          :: irank
     !
     ! if(MpiComm==Mpi_Comm_Null)return
@@ -320,28 +234,25 @@ contains
     !Evaluate the local contribution: Hv_loc = Hloc*v
     Hv=0d0
     do i=1,Nloc                 !==spH0%Nrow
-       i_el = mod(i-1,DimUp*MpiQdw) + 1
-       do j_el=1,spH0d%row(i_el)%Size
-          val = spH0d%row(i_el)%vals(j_el)
+       do jj=1,spH0d%row(i)%Size
+          val = spH0d%row(i)%vals(jj)
           Hv(i) = Hv(i) + val*v(i)
        enddo
     end do
     !
     !Non-local terms.
     !UP part: contiguous in memory.
-    do iph=1,DimPh
-       do idw=1,MpiQdw
-          do iup=1,DimUp
-             i = iup + (idw-1)*DimUp + (iph-1)*DimUp*MpiQdw
-             hxv_up: do jj=1,spH0ups(1)%row(iup)%Size
-                jup = spH0ups(1)%row(iup)%cols(jj)
-                jdw = idw
-                val = spH0ups(1)%row(iup)%vals(jj)
-                j   = jup + (idw-1)*DimUp + (iph-1)*DimUp*MpiQdw
-                Hv(i) = Hv(i) + val*v(j)
-             end do hxv_up
-          enddo
-       end do
+    do idw=1,MpiQdw
+       do iup=1,DimUp
+          i = iup + (idw-1)*DimUp
+          hxv_up: do jj=1,spH0ups(1)%row(iup)%Size
+             jup = spH0ups(1)%row(iup)%cols(jj)
+             jdw = idw
+             val = spH0ups(1)%row(iup)%vals(jj)
+             j   = jup + (idw-1)*DimUp
+             Hv(i) = Hv(i) + val*v(j)
+          end do hxv_up
+       enddo
     end do
     !
     !DW part: non-contiguous in memory -> MPI transposition
@@ -349,64 +260,28 @@ contains
     mpiQup=DimUp/MpiSize
     if(MpiRank<mod(DimUp,MpiSize))MpiQup=MpiQup+1
     !
-    do iph=1,DimPh
-       allocate(vt(mpiQup*DimDw))
-       allocate(Hvt(mpiQup*DimDw))
-       vt=0d0
-       Hvt=0d0
-       i_start = 1 + (iph-1)*DimUp*MpiQdw
-       i_end = iph*DimUp*MpiQdw
-       call vector_transpose_MPI(DimUp,MpiQdw,v(i_start:i_end),DimDw,MpiQup,vt)
-       do idw=1,MpiQup             !<= Transposed order:  column-wise DW <--> UP  
-          do iup=1,DimDw           !<= Transposed order:  column-wise DW <--> UP
-             i = iup + (idw-1)*DimDw
-             hxv_dw: do jj=1,spH0dws(1)%row(iup)%Size
-                jup = spH0dws(1)%row(iup)%cols(jj)
-                jdw = idw             
-                j   = jup + (jdw-1)*DimDw
-                val = spH0dws(1)%row(iup)%vals(jj)
-                Hvt(i) = Hvt(i) + val*vt(j)
-             end do hxv_dw
-          enddo
-       end do
-       deallocate(vt) ; allocate(vt(DimUp*mpiQdw)) ; vt=0d0
-       call vector_transpose_MPI(DimDw,mpiQup,Hvt,DimUp,mpiQdw,vt)
-       Hv(i_start:i_end) = Hv(i_start:i_end) + Vt
-       deallocate(vt,Hvt)
+    allocate(vt(mpiQup*DimDw))
+    allocate(Hvt(mpiQup*DimDw))
+    vt=0d0
+    Hvt=0d0
+    call vector_transpose_MPI(DimUp,MpiQdw,v(1:DimUp*MpiQdw),DimDw,MpiQup,vt)
+    do idw=1,MpiQup             !<= Transposed order:  column-wise DW <--> UP  
+       do iup=1,DimDw           !<= Transposed order:  column-wise DW <--> UP
+          i = iup + (idw-1)*DimDw
+          hxv_dw: do jj=1,spH0dws(1)%row(iup)%Size
+             jup = spH0dws(1)%row(iup)%cols(jj)
+             jdw = idw             
+             j   = jup + (jdw-1)*DimDw
+             val = spH0dws(1)%row(iup)%vals(jj)
+             Hvt(i) = Hvt(i) + val*vt(j)
+          end do hxv_dw
+       enddo
     end do
+    deallocate(vt) ; allocate(vt(DimUp*mpiQdw)) ; vt=0d0
+    call vector_transpose_MPI(DimDw,mpiQup,Hvt,DimUp,mpiQdw,vt)
+    Hv(1:DimUp*MpiQdw) = Hv(1:DimUp*MpiQdw) + Vt
+    deallocate(vt,Hvt)
     !
-    if(DimPh>1)then
-       do iph=1,DimPh
-          do i_el = 1,DimUp*MpiQdw
-             i = i_el + (iph-1)*DimUp*MpiQdw
-             !
-             !PHONON
-             do jj = 1,spH0_ph%row(iph)%Size
-                val = spH0_ph%row(iph)%vals(jj)
-                j = i_el + (spH0_ph%row(iph)%cols(jj)-1)*DimUp*MpiQdw
-                Hv(i) = Hv(i) + val*v(j)
-             enddo
-          enddo
-       enddo
-       !
-       !ELECTRON-PHONON
-       do iph=1,DimPh
-          do i_el = 1,DimUp*MpiQdw
-             i = i_el + (iph-1)*DimUp*MpiQdw
-             !
-             do j_el = 1,spH0e_eph%row(i_el)%Size
-                do jj = 1,spH0ph_eph%row(iph)%Size
-                   val = spH0e_eph%row(i_el)%vals(j_el)*&
-                        spH0ph_eph%row(iph)%vals(jj)
-                   !interaction is diag from the electron point of view (coupling to the density)
-                   j = i_el + (spH0ph_eph%row(iph)%cols(jj)-1)*DimUp*MpiQdw
-                   Hv(i) = Hv(i) + val*v(j)
-                enddo
-             enddo
-             !
-          enddo
-       enddo
-    end if
     !
     !Non-Local:
     if(jhflag)then
@@ -417,11 +292,9 @@ contains
        call allgather_vector_MPI(MpiComm,v,vt)
        !
        do i=1,Nloc
-          iph = (i-1)/(DimUp*MpiQdw) + 1
-          i_el = mod(i-1,DimUp*MpiQdw) + 1
-          matmul: do j_el=1,spH0nd%row(i_el)%Size
-             val = spH0nd%row(i_el)%vals(j_el)
-             j = spH0nd%row(i_el)%cols(j_el) + (iph-1)*DimUp*MpiQdw
+          matmul: do jj=1,spH0nd%row(i)%Size
+             val = spH0nd%row(i)%vals(jj)
+             j = spH0nd%row(i)%cols(jj)
              Hv(i) = Hv(i) + val*Vt(j)
           enddo matmul
        enddo

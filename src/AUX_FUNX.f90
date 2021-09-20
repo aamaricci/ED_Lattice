@@ -154,7 +154,7 @@ contains
     integer                          :: MpiComm
     real(8),dimension(:)             :: v    !size[N]
     real(8),dimension(:)             :: vloc !size[Nloc]
-    integer                          :: i,iph,irank,Nloc,N
+    integer                          :: i,irank,Nloc,N
     integer                          :: v_start,v_end,vloc_start,vloc_end
     integer,dimension(:),allocatable :: Counts,Offset
     integer                          :: MpiSize,MpiIerr
@@ -175,7 +175,7 @@ contains
     allocate(Offset(0:MpiSize-1)) ; Offset=0
     !
     !Get Counts;
-    call MPI_AllGather(Nloc/Dimph,1,MPI_INTEGER,Counts,1,MPI_INTEGER,MpiComm,MpiIerr)
+    call MPI_AllGather(Nloc,1,MPI_INTEGER,Counts,1,MPI_INTEGER,MpiComm,MpiIerr)
     !
     !Get Offset:
     Offset(0)=0
@@ -184,19 +184,12 @@ contains
     enddo
     !
     Vloc=0d0
-    do iph=1,Dimph
-       if(MpiMaster)then
-          v_start = 1 + (iph-1)*(N/Dimph)
-          v_end = iph*(N/Dimph)
-       else
-          v_start = 1
-          v_end = 1
-       endif
-       vloc_start = 1 + (iph-1)*(Nloc/Dimph)
-       vloc_end = iph*(Nloc/Dimph)
-       call MPI_Scatterv(V(v_start:v_end),Counts,Offset,MPI_DOUBLE_PRECISION,&
-            Vloc(vloc_start:vloc_end),Nloc/DimPh,MPI_DOUBLE_PRECISION,0,MpiComm,MpiIerr)
-    enddo
+    v_start = 1
+    v_end   = 1 ; if(MpiMaster)v_end = N
+    vloc_start = 1
+    vloc_end   = Nloc
+    call MPI_Scatterv(V(v_start:v_end),Counts,Offset,MPI_DOUBLE_PRECISION,&
+         Vloc(vloc_start:vloc_end),Nloc,MPI_DOUBLE_PRECISION,0,MpiComm,MpiIerr)
     !
     return
   end subroutine scatter_vector_MPI
@@ -225,7 +218,7 @@ contains
     integer                          :: MpiComm
     real(8),dimension(:)             :: vloc !size[Nloc]
     real(8),dimension(:)             :: v    !size[N]
-    integer                          :: i,iph,irank,Nloc,N
+    integer                          :: i,irank,Nloc,N
     integer                          :: v_start,v_end,vloc_start,vloc_end
     integer,dimension(:),allocatable :: Counts,Offset
     integer                          :: MpiSize,MpiIerr
@@ -246,7 +239,7 @@ contains
     allocate(Offset(0:MpiSize-1)) ; Offset=0
     !
     !Get Counts;
-    call MPI_AllGather(Nloc/Dimph,1,MPI_INTEGER,Counts,1,MPI_INTEGER,MpiComm,MpiIerr)
+    call MPI_AllGather(Nloc,1,MPI_INTEGER,Counts,1,MPI_INTEGER,MpiComm,MpiIerr)
     !
     !Get Offset:
     Offset(0)=0
@@ -254,20 +247,12 @@ contains
        Offset(i) = Offset(i-1) + Counts(i-1)
     enddo
     !
-    do iph=1,Dimph
-       if(MpiMaster)then
-          v_start = 1 + (iph-1)*(N/Dimph)
-          v_end = iph*(N/Dimph)
-       else
-          v_start = 1
-          v_end = 1
-       endif
-       vloc_start = 1 + (iph-1)*(Nloc/Dimph)
-       vloc_end = iph*(Nloc/Dimph)
-       !
-       call MPI_Gatherv(Vloc(vloc_start:vloc_end),Nloc/DimPh,MPI_DOUBLE_PRECISION,&
-            V(v_start:v_end),Counts,Offset,MPI_DOUBLE_PRECISION,0,MpiComm,MpiIerr)
-    enddo
+    v_start = 1
+    v_end   = 1 ; if(MpiMaster)v_end = N
+    vloc_start = 1
+    vloc_end   = Nloc
+    call MPI_Gatherv(Vloc(vloc_start:vloc_end),Nloc,MPI_DOUBLE_PRECISION,&
+         V(v_start:v_end),Counts,Offset,MPI_DOUBLE_PRECISION,0,MpiComm,MpiIerr)
     !
     return
   end subroutine gather_vector_MPI
@@ -299,7 +284,7 @@ contains
     allocate(Offset(0:MpiSize-1)) ; Offset=0
     !
     !Get Counts;
-    call MPI_AllGather(Nloc/Dimph,1,MPI_INTEGER,Counts,1,MPI_INTEGER,MpiComm,MpiIerr)
+    call MPI_AllGather(Nloc,1,MPI_INTEGER,Counts,1,MPI_INTEGER,MpiComm,MpiIerr)
     !
     !Get Offset:
     Offset(0)=0
@@ -308,14 +293,12 @@ contains
     enddo
     !
     V = 0d0
-    do iph=1,Dimph
-       v_start = 1 + (iph-1)*(N/Dimph)
-       v_end = iph*(N/Dimph)
-       vloc_start = 1 + (iph-1)*(Nloc/Dimph)
-       vloc_end = iph*(Nloc/Dimph)
-       call MPI_AllGatherv(Vloc(vloc_start:vloc_end),Nloc/DimPh,MPI_DOUBLE_PRECISION,&
-            V(v_start:v_end),Counts,Offset,MPI_DOUBLE_PRECISION,MpiComm,MpiIerr)
-    enddo
+    v_start = 1
+    v_end   = N
+    vloc_start = 1
+    vloc_end   = Nloc
+    call MPI_AllGatherv(Vloc(vloc_start:vloc_end),Nloc,MPI_DOUBLE_PRECISION,&
+         V(v_start:v_end),Counts,Offset,MPI_DOUBLE_PRECISION,MpiComm,MpiIerr)
     !
     return
   end subroutine Allgather_vector_MPI

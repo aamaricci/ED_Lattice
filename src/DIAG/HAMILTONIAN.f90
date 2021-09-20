@@ -167,26 +167,19 @@ contains
 #ifdef _MPI
     if(MpiStatus)then
        call sp_delete_matrix(MpiComm,spH0d)
-       if(DimPh>1)call sp_delete_matrix(MpiComm,spH0e_eph)
        if(Jhflag)call sp_delete_matrix(MpiComm,spH0nd)
     else
        call sp_delete_matrix(spH0d)
-       if(DimPh>1)call sp_delete_matrix(spH0e_eph)
        if(Jhflag)call sp_delete_matrix(spH0nd)
     endif
 #else
     call sp_delete_matrix(spH0d)
-    if(DimPh>1)call sp_delete_matrix(spH0e_eph)
     if(Jhflag)call sp_delete_matrix(spH0nd)
 #endif
     do iud=1,Ns_Ud
        call sp_delete_matrix(spH0ups(iud))
        call sp_delete_matrix(spH0dws(iud))
     enddo
-    if(DimPh>1) then
-       call sp_delete_matrix(spH0_ph)
-       call sp_delete_matrix(spH0ph_eph)
-    endif
     !
     spHtimesV_p => null()
     !
@@ -238,7 +231,7 @@ contains
     mpiQdw = DimDw
 #endif
     !
-    vecDim=DimUp*mpiQdw*DimPh
+    vecDim=DimUp*mpiQdw
     !
   end function vecDim_Hv_sector
 

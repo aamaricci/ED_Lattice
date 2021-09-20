@@ -12,7 +12,6 @@ MODULE ED_GREENS_FUNCTIONS
   USE ED_AUX_FUNX
   !
   USE ED_GF_ELECTRON
-  USE ED_GF_PHONON
   !
   implicit none
   private 
@@ -38,20 +37,13 @@ contains
     impG0mats=zero
     impG0real=zero
     !
-    impDmats=zero
-    impDreal=zero
-    !
     write(LOGfile,"(A)")"Get impurity Greens functions:"
     call build_gf_normal()
-    if(DimPh>1) call build_gf_phonon()
     call build_sigma_normal()
     !
     if(MPIMASTER)then
        if(ed_print_Sigma)call ed_print_impSigma()
-       if(ed_print_G) then
-          call ed_print_impG()
-          if(DimPh>1)call ed_print_impD()
-       endif
+       if(ed_print_G) call ed_print_impG()
        if(ed_print_G0)call ed_print_impG0()
     endif
     !

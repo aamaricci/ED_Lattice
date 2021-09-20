@@ -1,9 +1,6 @@
   do j=1,Nloc
-     j_el = mod(j-1,DimUp*MpiQdw) + 1
-     iph = (j-1)/(DimUp*MpiQdw) + 1
-     !
-     jup = iup_index(j_el+mpiIshift,DimUp)
-     jdw = idw_index(j_el+mpiIshift,DimUp)
+     jup = iup_index(j+mpiIshift,DimUp)
+     jdw = idw_index(j+mpiIshift,DimUp)
      !
      mup = Hsector%H(1)%map(jup)
      mdw = Hsector%H(2)%map(jdw)
@@ -39,7 +36,7 @@
                        call cdg(io,k3,k4,sg4) !UP
                        iup=binary_search(Hsector%H(1)%map,k4)
                        htmp = Jx*sg1*sg2*sg3*sg4
-                       i = iup + (idw-1)*dimup + (iph-1)*DimUp*MpiQdw
+                       i = iup + (idw-1)*DimUp
                        !
                        Hv(j) = Hv(j) + htmp*vt(i)
                        !
@@ -74,7 +71,7 @@
                        call cdg(io,k3,k4,sg4)      !c^+_iorb_up
                        iup = binary_search(Hsector%H(1)%map,k4)
                        htmp = Jp*sg1*sg2*sg3*sg4
-                       i = iup + (idw-1)*dimup + (iph-1)*DimUp*MpiQdw
+                       i = iup + (idw-1)*DimUp
                        !
                        Hv(j) = Hv(j) + htmp*vt(i)
                        !

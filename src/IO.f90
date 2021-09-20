@@ -3,11 +3,10 @@ MODULE ED_IO
   USE ED_VARS_GLOBAL
   USE ED_AUX_FUNX
   USE SF_LINALG
-  USE SF_ARRAYS, only: linspace,arange
+  USE SF_ARRAYS,  only: linspace,arange
   USE SF_IOTOOLS, only: str,reg,free_unit,splot,sread
   implicit none
   private
-
 
   public :: ed_get_sigma_matsubara
   public :: ed_get_sigma_realaxis
@@ -23,18 +22,12 @@ MODULE ED_IO
   public :: ed_print_impSigma
   public :: ed_print_impG
   public :: ed_print_impG0
-  public :: ed_print_impD
 
 
-  character(len=128)   :: suffix
+  character(len=128) :: suffix
   character(len=128) :: gf_suffix='.ed'
   character(len=8)   :: w_suffix
 
-  interface ed_write_func
-     module procedure :: ed_write_func_NN
-     module procedure :: ed_write_func_N
-     module procedure :: ed_write_func_0
-  end interface ed_write_func
 
 
 
@@ -138,12 +131,6 @@ contains
     call deallocate_grids()
   end subroutine ed_print_impG0
 
-  subroutine ed_print_impD
-    call allocate_grids()
-    call ed_write_func(impDmats,"D",'mats',wm,1)
-    call ed_write_func(impDreal,"D",'real',vr,1)
-    call deallocate_grids()
-  end subroutine ed_print_impD
 
 
 
@@ -153,7 +140,7 @@ contains
 
 
   !+------------------------------------------------------------------+  
-  subroutine ed_write_func_NN(Func,fname,axis,zeta,iprint)
+  subroutine ed_write_func(Func,fname,axis,zeta,iprint)
     complex(8),dimension(:,:,:,:),intent(in) :: Func ![Nspin][Ns][Ns][Lfreq]
     character(len=*),intent(in)              :: fname
     character(len=*)                         :: axis
@@ -253,109 +240,7 @@ contains
           !
        end select
     endif
-  end subroutine ed_write_func_NN
-
-  subroutine ed_write_func_N(Func,fname,axis,zeta,iprint)
-    complex(8),dimension(:,:,:),intent(in) :: Func ![Nspin][Ns][Lfreq]
-    character(len=*),intent(in)            :: fname
-    character(len=*)                       :: axis
-    real(8),dimension(size(Func,2))        :: zeta
-    integer,optional                       :: iprint
-    !
-    integer                                :: iprint_
-    integer                                :: Lfreq,Nfunc
-    character(len=128)                     :: suffix
-    character(len=128)                     :: gf_suffix='.ed'
-    character(len=8)                       :: w_suffix
-    integer                                :: io,ilat,iorb,ispin
-    !
-    !
-    iprint_=1;if(present(iprint))iprint_=iprint
-    !
-    select case(axis)
-    case default;stop "ed_write_func ERROR: axis undefined. axis=[matsubara,realaxis]"
-    case("matsubara","mats");w_suffix="_iw"
-    case("realaxis","real") ;w_suffix="_realw"
-    end select
-    !
-    !
-    Lfreq = size(zeta)
-    Nfunc = size(Func,1)
-    if(Nfunc /= Ns)stop "Ed_write_func ERROR: size(func,1) /= sum(Nsites)==Ns"
-    call assert_shape(Func,[Ns,Lfreq],"Ed_write_func","Func")
-    !
-    !
-    !1: diagonal lattice-spin-orbital
-    if(MpiMaster)then
-       select case(iprint_)
-       case default
-          write(*,"(A,1x,A)")reg(fname),"ed_write_func: not written on file."
-          !
-          !
-       case(1)
-          write(*,"(A,1x,A)") reg(fname),"ed_write_func: diagonal lattice-spin-orbital."
-          do ispin=1,Nspin
-             do iorb=1,Norb
-                do ilat=1,Nsites(iorb)
-                   io = pack_indices(ilat,iorb)
-                   !
-                   suffix=reg(fname)//&
-                        "_i"//str(ilat,site_indx_padding)//&
-                        "_l"//str(iorb)//&
-                        "_s"//str(ispin)//&
-                        str(w_suffix)//str(gf_suffix)
-                   call splot(reg(suffix),zeta,Func(ispin,io,:))
-                enddo
-             enddo
-          enddo
-       end select
-       !
-    endif
-  end subroutine ed_write_func_N
-
-  subroutine ed_write_func_0(Func,fname,axis,zeta,iprint)
-    complex(8),dimension(:),intent(in)   :: Func ![[Lfreq]
-    character(len=*),intent(in)            :: fname
-    character(len=*)                       :: axis
-    real(8),dimension(size(Func))        :: zeta
-    integer,optional                       :: iprint
-    !
-    integer                                :: iprint_
-    integer                                :: Lfreq,Nfunc
-    character(len=128)                     :: suffix
-    character(len=128)                     :: gf_suffix='.ed'
-    character(len=8)                       :: w_suffix
-    integer                                :: io,ilat,iorb,ispin
-    !
-    !
-    iprint_=1;if(present(iprint))iprint_=iprint
-    !
-    select case(axis)
-    case default;stop "ed_write_func ERROR: axis undefined. axis=[matsubara,realaxis]"
-    case("matsubara","mats");w_suffix="_iw"
-    case("realaxis","real") ;w_suffix="_realw"
-    end select
-    !
-    !
-    Lfreq = size(zeta)
-    !
-    !1: diagonal lattice-spin-orbital
-    if(MpiMaster)then
-       select case(iprint_)
-       case default
-          write(*,"(A,1x,A)")reg(fname),"ed_write_func: not written on file."
-          !
-          !
-       case(1)
-          write(*,"(A,1x,A)") reg(fname),"ed_write_func: diagonal lattice-spin-orbital."
-          suffix=reg(fname)//str(w_suffix)//str(gf_suffix)
-          call splot(reg(suffix),zeta,Func)
-       end select
-       !
-    endif
-  end subroutine ed_write_func_0
-
-
+  end subroutine ed_write_func
 
 
 END MODULE ED_IO

@@ -1,8 +1,7 @@
   do i=1,Nloc
-     i_el = mod(i-1,DimUp*DimDw) + 1 !electronic index
      !
-     iup = iup_index(i_el,DimUp)
-     idw = idw_index(i_el,DimUp)
+     iup = iup_index(i,DimUp)
+     idw = idw_index(i,DimUp)
      !
      mup = Hsector%H(1)%map(iup)
      mdw = Hsector%H(2)%map(idw)
