@@ -1,8 +1,8 @@
-# EDlattice: A *parallel* Exact Diagonalization algorithm for interacting electrons (and phonons) on a lattice. 
+# EDlattice: A *parallel* Exact Diagonalization algorithm for interacting electrons on a lattice. 
 
 This is a beta version softwware.
 
-A Lanczos based solver for interacting electrons on a lattice exploiting distributed memory MPI parallelisation. This software focuses on the *normal* case (as opposed to superconducting or spin non-conserving cases) including long range magnetic ordering and arbitrary unit cells. 
+A Lanczos based solver for interacting electrons on a lattice exploiting distributed memory MPI parallelisation. This software focuses on the *normal* case (as opposed to superconducting or spin non-conserving cases) including long range magnetic ordering and arbitrary lattices. 
 
 ### Dependencies
 
@@ -31,7 +31,7 @@ and from the just created directory make a standard out-of-source CMake compilat
 
 The `CMake` compilation can be controlled using the following additional variables, default values between `< >`:   
 
-* `-DPREFIX=prefix directory <~/opt/edlat/PLAT/[VERSION]>` 
+* `-DPREFIX=prefix directory <~/opt/>` 
 * `-DUSE_MPI=<yes>/no`  
 * `-DVERBOSE=yes/<no> `  
 * `-DBUILD_TYPE=<RELEASE>/TESTING/DEBUG`  
@@ -40,18 +40,10 @@ The `CMake` compilation can be controlled using the following additional variabl
 
 The library can be loaded into the operative system using one of the following, automatically generated, methods:    
 
-* environment module file `~/.modules.d/edlattice/<PLAT>`  
-* homebrew `bash` script `<PREFIX>/bin/edlattice_configvars.sh`
+* environment module file `~/.modules.d/edlat/<PLAT>`  
+* homebrew `bash` script `<PREFIX>/etc/config_edlat.sh`
 * pkg-config file in `~/.pkg-config.d/edlattice.pc`
 
-### Python binding
-
-Python binding (API) through module `edlatpy` can be  installed, once the library is successfully loaded in the OS, using the conventional toolchain:
-
-`export F90=mpif90` (required if library has been compiled and installed with MPI support)  
-
-1. `python setup.py install`
-2. `pip install .`
 
 Method 2. has the advantage of making `uninstall` operation feasible. 
 
