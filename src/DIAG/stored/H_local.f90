@@ -21,8 +21,8 @@
      !density-density interaction: same orbital, opposite spins:
      ! = \sum_\a U_\a*(n_{\a,up}*n_{\a,dw})
      do iorb=1,Norb
-        do isite=1,Nsites(iorb)          
-           io = pack_indices(iorb,isite)
+        do isite=1,Nsites(iorb) 
+           io = pack_indices(isite,iorb)
            htmp = htmp + Uloc(iorb)*nup(io)*ndw(io)
         enddo
      enddo
@@ -36,8 +36,8 @@
               do isite=1,Nsites(iorb)
                  do jsite=1,Nsites(jorb)
                     if(isite/=jsite)cycle !local interaction only:
-                    io = pack_indices(iorb,isite)
-                    jo = pack_indices(jorb,isite)
+                    io = pack_indices(isite,iorb)
+                    jo = pack_indices(isite,jorb)
                     htmp = htmp + Ust*(nup(io)*ndw(jo) + nup(jo)*ndw(io))
                  enddo
               enddo
@@ -51,8 +51,8 @@
               do isite=1,Nsites(iorb)
                  do jsite=1,Nsites(jorb)
                     if(isite/=jsite)cycle !local interaction only:
-                    io = pack_indices(iorb,isite)
-                    jo = pack_indices(jorb,isite)
+                    io = pack_indices(isite,iorb)
+                    jo = pack_indices(isite,jorb)
                     htmp = htmp + (Ust-Jh)*(nup(io)*nup(jo) + ndw(io)*ndw(jo))
                  enddo
               enddo
@@ -64,7 +64,7 @@
      if(hfmode)then
         do iorb=1,Norb
            do isite=1,Nsites(iorb)          
-              io = pack_indices(iorb,isite)
+              io = pack_indices(isite,iorb)
               htmp = htmp - 0.5d0*Uloc(iorb)*(nup(io)+ndw(io)) + 0.25d0*Uloc(iorb)
            enddo
         enddo
@@ -74,8 +74,8 @@
                  do isite=1,Nsites(iorb)
                     do jsite=1,Nsites(jorb)
                        if(isite/=jsite)cycle !local interaction only:
-                       io = pack_indices(iorb,isite)
-                       jo = pack_indices(jorb,isite)
+                       io = pack_indices(isite,iorb)
+                       jo = pack_indices(isite,jorb)
                        htmp=htmp-0.5d0*Ust*(nup(io)+ndw(io)+nup(jo)+ndw(jo))+0.25d0*Ust
                        htmp=htmp-0.5d0*(Ust-Jh)*(nup(io)+ndw(io)+nup(jo)+ndw(jo))+0.25d0*(Ust-Jh)
                     enddo

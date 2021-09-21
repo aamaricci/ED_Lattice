@@ -200,36 +200,43 @@ SET(USER $ENV{USER})
 STRING(TOLOWER "${CMAKE_Fortran_COMPILER_ID}" FC_ID)
 STRING(TOLOWER "${CMAKE_BUILD_TYPE}" BUILD_TYPE)
 
-#default prefix is $HOME/opt/<dmft_tools>/<fc_id>/[<git_branch>[/<debug>]]/<version>
+#default prefix is $HOME/opt/<libname>/<fc_id>/[<git_branch>[/<debug>]]/<version>
 SET(PREFIX_DEF_LOC "$ENV{HOME}/opt")
 SET(PREFIX_PROJ "${PROJECT_NAME}")
 SET(PREFIX_PATH "${FC_ID}")
+
+#user can change the default location of the library but not the remaining naming conventions 
+SET(PREFIX  "${PREFIX_DEF_LOC}" CACHE PATH "Prefix prepended to install directories")
+
+#if prefix has not be changed use default module name conventions
+IF(PREFIX STREQUAL "${PREFIX_DEF_LOC}")
+  SET(USE_DEFAULT_MODULE_NAME TRUE)
+ENDIF()
+
 #if not master branch, include simplified branch name
 IF( (NOT GIT_BRANCH MATCHES "master") )
     SET(PREFIX_PATH  "${PREFIX_PATH}/${GIT_BRANCH}")
 ENDIF()
 
 #If DEBUG, add /debug to 
-IF("${CMAKE_BUILD_TYPE}" MATCHES "DEBUG")
+IF("${BUILD_TYPE}" MATCHES "debug")
   SET(PREFIX_PATH  "${PREFIX_PATH}/${BUILD_TYPE}")
 ENDIF()
 
 #set default prefix:
 SET(FULL_VER "${PREFIX_PATH}/${VERSION}")
 SET(VERSION_PATH "${PREFIX_PROJ}/${PREFIX_PATH}")
-SET(DEFAULT_PREFIX "${PREFIX_DEF_LOC}/${PREFIX_PROJ}/${PREFIX_PATH}/${VERSION}")
-SET(PREFIX  "${DEFAULT_PREFIX}" CACHE PATH "Prefix prepended to install directories")
-SET(CMAKE_INSTALL_PREFIX "${PREFIX}" CACHE INTERNAL "Prefix prepended to install directories" FORCE)
+SET(DEFAULT_PREFIX "${PREFIX}/${PREFIX_PROJ}/${PREFIX_PATH}/${VERSION}")
+SET(CMAKE_INSTALL_PREFIX "${DEFAULT_PREFIX}" CACHE INTERNAL "Prefix prepended to install directories" FORCE)
 
 #Now set module name corresponding to given prefix:
 #if prefix is default nothing to be done.
 #if user defined prefix prepend
-IF(PREFIX STREQUAL "${DEFAULT_PREFIX}")
+IF(USE_DEFAULT_MODULE_NAME)
   SET(MODULE_NAME "${PREFIX_PROJ}/${PREFIX_PATH}/${VERSION}")
 ELSE()
   SET(MODULE_NAME "${PREFIX_PROJ}/user_prefix/${PREFIX_PATH}/${VERSION}")
 ENDIF()
-
 
 
 # Define some directories
@@ -281,13 +288,6 @@ SET(PERMISSION_777
   GROUP_WRITE GROUP_READ GROUP_EXECUTE
   WORLD_WRITE WORLD_READ WORLD_EXECUTE)
 
-
-# SET(LIB_VERSION_FILE ${LIB_SRC}/${PROJECT_NAME}_version_current_sha1.inc)
-# ADD_CUSTOM_COMMAND(OUTPUT ${LIB_VERSION_FILE}
-#   COMMAND ${CMAKE_COMMAND} -E echo "character(len=41),parameter,public :: ${PROJECT_NAME}_version_sha1 = \"${GIT_SHA1}\"" > ${LIB_VERSION_FILE}
-#   COMMENT "${Yellow}Creating ${LIB_VERSION_FILE}: ${ColourReset}"
-#   VERBATIM)
-# ADD_CUSTOM_TARGET(LIB_VERSION_SHA1 DEPENDS ${LIB_VERSION_FILE})
 
 
 #Build the EDLAT module for environment modules
@@ -382,33 +382,6 @@ ${Yellow}Method ADMIN: Add this line to the system shell configuration file, e.g
 ")
 
 
-
-
-MESSAGE( STATUS "${Red}Library version:${ColourReset} ${VERSION}")
-MESSAGE( STATUS "${Red}Library will be installed in:${ColourReset} ${CMAKE_INSTALL_PREFIX}")
-MESSAGE( STATUS "
->> ${Red}TO CONCLUDE INSTALLATION${ColourReset} <<
-Compile with:
-$ make
-Install with:
-$ make install
-
-Uninstall with:
-$ make uninstall
-
-Add library to your OS: 
-pick ONE method below  [add it in your bash profile to make it permanent (e.g. ~/.bashrc)]:
-${Yellow}Method 1: use the provided ${PROJECT_NAME} environment module${ColourReset}:
-   $ module use $HOME/.modules.d
-   $ module load ${PROJECT_NAME}/${FC_PLAT}
-
-${Yellow}Method 2: source the config script${ColourReset}:
-   $ source ${LIB_TARGET_ETC}/${CONFIG_SCRIPT}
-
-${Yellow}Method 3: use pkg-config with the provided ${PROJECT_NAME}.pc${ColourReset}:
-   $ export PKG_CONFIG_PATH=${LIB_TARGET_ETC}/:$PKG_CONFIG_PATH
-   $ pkg-config --cflags --libs ${PROJECT_NAME} (to get lib info)
-")
 
 
 # Add a distclean target to the Makefile

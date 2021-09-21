@@ -1,4 +1,4 @@
-MODULE EDIPACK
+MODULE EDLAT
   USE ED_INPUT_VARS, only: &
        ed_read_input , &
        Nsites        , &
@@ -23,11 +23,12 @@ MODULE EDIPACK
        LOGfile   
 
   USE ED_GRAPH_MATRIX, only: &
-       ed_Hij_info     => Hij_info     , &
+       ed_Hij_init     => Hij_init     , &
        ed_Hij_add_link => Hij_add_link , &
        ed_Hij_read     => Hij_read     , &
        ed_Hij_get      => Hij_get      , &
        ed_Hij_local    => Hij_local    , &
+       ed_Hij_info     => Hij_info     , &
        ed_Hij_write    => Hij_write
 
   USE ED_AUX_FUNX, only: ed_search_variable
@@ -50,5 +51,5 @@ MODULE EDIPACK
        ed_solve
 
 
-END MODULE EDIPACK
+END MODULE EDLAT
 

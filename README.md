@@ -31,7 +31,7 @@ and from the just created directory make a standard out-of-source CMake compilat
 
 The `CMake` compilation can be controlled using the following additional variables, default values between `< >`:   
 
-* `-DPREFIX=prefix directory <~/opt/edipack/PLAT/[VERSION]>` 
+* `-DPREFIX=prefix directory <~/opt/edlat/PLAT/[VERSION]>` 
 * `-DUSE_MPI=<yes>/no`  
 * `-DVERBOSE=yes/<no> `  
 * `-DBUILD_TYPE=<RELEASE>/TESTING/DEBUG`  

@@ -3,6 +3,7 @@ MODULE ED_IO
   USE ED_VARS_GLOBAL
   USE ED_AUX_FUNX
   USE SF_LINALG
+  USE SF_MISC,    only: assert_shape
   USE SF_ARRAYS,  only: linspace,arange
   USE SF_IOTOOLS, only: str,reg,free_unit,splot,sread
   implicit none
@@ -144,7 +145,7 @@ contains
     complex(8),dimension(:,:,:,:),intent(in) :: Func ![Nspin][Ns][Ns][Lfreq]
     character(len=*),intent(in)              :: fname
     character(len=*)                         :: axis
-    real(8),dimension(size(Func,3))          :: zeta
+    real(8),dimension(:)                     :: zeta
     integer,optional                         :: iprint
     !
     integer                                  :: iprint_
@@ -161,9 +162,9 @@ contains
     !
     !
     Lfreq = size(zeta)
-    Nfunc = size(Func,1)
+    Nfunc = size(Func,2)
     if(Nfunc /= Ns)stop "Ed_write_func ERROR: size(func,1) /= sum(Nsites)==Ns"
-    call assert_shape(Func,[Ns,Ns,Lfreq],"Ed_write_func","Func")
+    call assert_shape(Func,[Nspin,Ns,Ns,Lfreq],"Ed_write_func","Func")
     !
     !
     !1: diagonal lattice-spin-orbital

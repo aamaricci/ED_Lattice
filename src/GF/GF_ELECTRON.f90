@@ -23,7 +23,6 @@ MODULE ED_GF_ELECTRON
   real(8),allocatable                   :: vvinit(:)
   real(8),allocatable                   :: alfa_(:),beta_(:)
   integer                               :: ialfa,jalfa
-  integer                               :: ipos,jpos
   integer                               :: i,j
   real(8)                               :: sgn,norm2
   real(8),dimension(:),pointer          :: state_cvec
@@ -117,7 +116,7 @@ contains
     type(sector)       :: sectorI,sectorJ
     !
     ialfa = 1
-    ipos  = pack_indices(isite,iorb)
+    io    = pack_indices(isite,iorb)
     !
     !
     do istate=1,state_list%size
@@ -148,7 +147,7 @@ contains
                   ' apply c^+_a,s:',jsector,sectorJ%Nups,sectorJ%Ndws
              allocate(vvinit(sectorJ%Dim)) ; vvinit=zero
              do i=1,sectorI%Dim
-                call apply_op_CDG(i,j,sgn,ipos,ialfa,ispin,sectorI,sectorJ)
+                call apply_op_CDG(i,j,sgn,io,ialfa,ispin,sectorI,sectorJ)
                 if(sgn==0d0.OR.j==0)cycle
                 vvinit(j) = sgn*state_cvec(i)
              enddo
@@ -172,7 +171,7 @@ contains
                   ' apply c_a,s:',jsector,sectorJ%Nups,sectorJ%Ndws
              allocate(vvinit(sectorJ%Dim)) ; vvinit=zero
              do i=1,sectorI%Dim
-                call apply_op_C(i,j,sgn,ipos,ialfa,ispin,sectorI,sectorJ)
+                call apply_op_C(i,j,sgn,io,ialfa,ispin,sectorI,sectorJ)
                 if(sgn==0d0.OR.j==0)cycle
                 vvinit(j) = sgn*state_cvec(i)
              enddo
@@ -219,8 +218,8 @@ contains
     !
     ialfa = 1
     jalfa = ialfa
-    ipos  = pack_indices(isite,iorb)
-    jpos  = pack_indices(jsite,jorb)
+    io  = pack_indices(isite,iorb)
+    jo  = pack_indices(jsite,jorb)
     !
     do istate=1,state_list%size
        isector    =  es_return_sector(state_list,istate)
@@ -251,13 +250,13 @@ contains
              allocate(vvinit(sectorJ%Dim)) ; vvinit=zero
              !c^+_io|gs>
              do i=1,sectorI%Dim
-                call apply_op_CDG(i,j,sgn,ipos,ialfa,ispin,sectorI,sectorJ)
+                call apply_op_CDG(i,j,sgn,io,ialfa,ispin,sectorI,sectorJ)
                 if(sgn==0d0.OR.j==0)cycle
                 vvinit(j) = sgn*state_cvec(i)
              enddo
              !+c^+_jo|gs>
              do i=1,sectorI%Dim
-                call apply_op_CDG(i,j,sgn,jpos,jalfa,ispin,sectorI,sectorJ)
+                call apply_op_CDG(i,j,sgn,jo,jalfa,ispin,sectorI,sectorJ)
                 if(sgn==0d0.OR.j==0)cycle
                 vvinit(j) = vvinit(j) + sgn*state_cvec(i)
              enddo
@@ -282,13 +281,13 @@ contains
              allocate(vvinit(sectorJ%Dim)) ; vvinit=zero
              !c_io|gs>
              do i=1,sectorI%Dim
-                call apply_op_C(i,j,sgn,ipos,ialfa,ispin,sectorI,sectorJ)
+                call apply_op_C(i,j,sgn,io,ialfa,ispin,sectorI,sectorJ)
                 if(sgn==0d0.OR.j==0)cycle
                 vvinit(j) = sgn*state_cvec(i)
              enddo
              !+c_jo|gs>
              do i=1,sectorI%Dim
-                call apply_op_C(i,j,sgn,jpos,jalfa,ispin,sectorI,sectorJ)
+                call apply_op_C(i,j,sgn,jo,jalfa,ispin,sectorI,sectorJ)
                 if(sgn==0d0.OR.j==0)cycle
                 vvinit(j) = vvinit(j) + sgn*state_cvec(i)
              enddo

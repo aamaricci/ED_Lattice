@@ -3,10 +3,10 @@ exec_prefix=${prefix}/bin
 includedir=${prefix}/include
 libdir=${prefix}/lib
 
-Name: EDIpack
-Description: The EDIpack library
+Name: EDlat
+Description: The EDlat library
 Cflags: -I${includedir}
-Libs: -L${libdir} -ledipack
+Libs: -L${libdir} -ledlat
 Version:@VERSION@
 
 	

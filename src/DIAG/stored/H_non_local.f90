@@ -24,8 +24,8 @@
               do isite=1,Nsites(iorb)
                  do jsite=1,Nsites(jorb)
                     if(isite/=jsite)cycle !local interaction only:
-                    io = pack_indices(iorb,isite)
-                    jo = pack_indices(jorb,isite)
+                    io = pack_indices(isite,iorb)
+                    jo = pack_indices(isite,jorb)
                     Jcondition=(&
                          (io/=jo).AND.&
                          (nup(jo)==1).AND.&
@@ -65,8 +65,8 @@
               do isite=1,Nsites(iorb)
                  do jsite=1,Nsites(jorb)
                     if(isite/=jsite)cycle !local interaction only:
-                    io = pack_indices(iorb,isite)
-                    jo = pack_indices(jorb,isite)
+                    io = pack_indices(isite,iorb)
+                    jo = pack_indices(isite,jorb)
 
                     Jcondition=(&
                          (nup(jo)==1).AND.&

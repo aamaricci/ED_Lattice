@@ -38,7 +38,7 @@ MODULE ED_OBSERVABLES
   integer                            :: iup,idw
   integer                            :: jup,jdw
   integer                            :: mup,mdw
-  integer                            :: iph,i_el,isectorDim
+  integer                            :: isectorDim
   real(8)                            :: sgn,sgn1,sgn2,sg1,sg2,sg3,sg4
   real(8)                            :: gs_weight
   !
@@ -105,9 +105,9 @@ contains
           call build_sector(isector,sectorI)
           do i = 1,sectorI%Dim
              gs_weight=peso*abs(state_cvec(i))**2
-             call build_op_Ns(i,Nud(1,:),Nud(2,:),sectorI)
-             nup = Nud(1,1:Norb)
-             ndw = Nud(2,1:Norb)
+             call build_op_Ns(i,IbUp,Ibdw,sectorI)
+             nup= dble(IbUp)
+             ndw= dble(IbDw)
              sz = (nup-ndw)/2d0
              nt =  nup+ndw
              !
@@ -202,8 +202,6 @@ contains
                          Jndices(1+(ispin-1)*Ns_Ud) = &
                               binary_search(sectorI%H(1+(ispin-1)*Ns_Ud)%map,k)
                          call indices2state(Jndices,[sectorI%DimUps,sectorI%DimDws],j)
-                         !
-                         j = j + (iph-1)*sectorI%DimEl
                          !
                          imp_density_matrix(ispin,is,js) = imp_density_matrix(ispin,is,js) + &
                               peso*sgn1*state_cvec(i)*sgn2*(state_cvec(j))
@@ -339,8 +337,8 @@ contains
                    do isite=1,Nsites(iorb)
                       do jsite=1,Nsites(jorb)
                          if(isite/=jsite)cycle !local terms only:
-                         io = pack_indices(iorb,isite)
-                         jo = pack_indices(jorb,isite)
+                         io = pack_indices(isite,iorb)
+                         jo = pack_indices(isite,jorb)
                          Jcondition = &
                               (Hij(1,io,jo)/=zero) .AND. &
                               (Nup(jo)==1) .AND. (Nup(io)==0)
@@ -365,8 +363,8 @@ contains
                    do isite=1,Nsites(iorb)
                       do jsite=1,Nsites(jorb)
                          if(isite/=jsite)cycle !local terms only:
-                         io = pack_indices(iorb,isite)
-                         jo = pack_indices(jorb,isite)
+                         io = pack_indices(isite,iorb)
+                         jo = pack_indices(isite,jorb)
                          Jcondition = &
                               (Hij(Nspin,io,jo)/=zero) .AND. &
                               (Ndw(jo)==1) .AND. (Ndw(io)==0)
@@ -391,8 +389,8 @@ contains
                       do isite=1,Nsites(iorb)
                          do jsite=1,Nsites(jorb)
                             if(isite/=jsite)cycle !local interaction only:
-                            io = pack_indices(iorb,isite)
-                            jo = pack_indices(jorb,isite)
+                            io = pack_indices(isite,iorb)
+                            jo = pack_indices(isite,jorb)
                             Jcondition=(&
                                  (io/=jo).AND.&
                                  (nup(jo)==1).AND.&
@@ -425,8 +423,8 @@ contains
                       do isite=1,Nsites(iorb)
                          do jsite=1,Nsites(jorb)
                             if(isite/=jsite)cycle !local interaction only:
-                            io = pack_indices(iorb,isite)
-                            jo = pack_indices(jorb,isite)
+                            io = pack_indices(isite,iorb)
+                            jo = pack_indices(isite,jorb)
 
                             Jcondition=(&
                                  (nup(jo)==1).AND.&
@@ -459,7 +457,7 @@ contains
              !ed_Epot = ed_Epot + dot_product(uloc,nup*ndw)*gs_weight
              do iorb=1,Norb
                 do isite=1,Nsites(iorb)          
-                   io = pack_indices(iorb,isite)
+                   io = pack_indices(isite,iorb)
                    ed_Epot = ed_Epot + Uloc(iorb)*nup(io)*ndw(io)*gs_weight
                 enddo
              enddo
@@ -473,8 +471,8 @@ contains
                       do isite=1,Nsites(iorb)
                          do jsite=1,Nsites(jorb)
                             if(isite/=jsite)cycle !local interaction only:
-                            io = pack_indices(iorb,isite)
-                            jo = pack_indices(jorb,isite)
+                            io = pack_indices(isite,iorb)
+                            jo = pack_indices(isite,jorb)
                             ed_Epot = ed_Epot + Ust*(nup(io)*ndw(jo) + nup(jo)*ndw(io))*gs_weight
                             ed_Dust = ed_Dust + (nup(io)*ndw(jo) + nup(jo)*ndw(io))*gs_weight
                          enddo
@@ -493,8 +491,8 @@ contains
                       do isite=1,Nsites(iorb)
                          do jsite=1,Nsites(jorb)
                             if(isite/=jsite)cycle !local interaction only:
-                            io = pack_indices(iorb,isite)
-                            jo = pack_indices(jorb,isite)
+                            io = pack_indices(isite,iorb)
+                            jo = pack_indices(isite,jorb)
                             ed_Epot = ed_Epot + (Ust-Jh)*(nup(io)*nup(jo) + ndw(io)*ndw(jo))*gs_weight
                             ed_Dund = ed_Dund + (nup(io)*nup(jo) + ndw(io)*ndw(jo))*gs_weight
                          enddo
@@ -508,7 +506,7 @@ contains
                 !ed_Ehartree=ed_Ehartree - 0.5d0*dot_product(uloc,nup+ndw)*gs_weight + 0.25d0*sum(uloc)*gs_weight
                 do iorb=1,Norb
                    do isite=1,Nsites(iorb)          
-                      io = pack_indices(iorb,isite)
+                      io = pack_indices(isite,iorb)
                       ed_Ehartree=ed_Ehartree - 0.5d0*Uloc(iorb)*(nup(io)+ndw(io))*gs_weight + 0.25d0*uloc(iorb)*gs_weight
                    enddo
                 enddo
@@ -519,8 +517,8 @@ contains
                          do isite=1,Nsites(iorb)
                             do jsite=1,Nsites(jorb)
                                if(isite/=jsite)cycle !local interaction only:
-                               io = pack_indices(iorb,isite)
-                               jo = pack_indices(jorb,isite)
+                               io = pack_indices(isite,iorb)
+                               jo = pack_indices(isite,jorb)
                                ed_Ehartree=ed_Ehartree - 0.5d0*Ust*(nup(io)+ndw(io)+nup(jo)+ndw(jo))*gs_weight
                                ed_Ehartree=ed_Ehartree + 0.25d0*Ust*gs_weight
                                ed_Ehartree=ed_Ehartree - 0.5d0*(Ust-Jh)*(nup(io)+ndw(io)+nup(jo)+ndw(jo))*gs_weight
