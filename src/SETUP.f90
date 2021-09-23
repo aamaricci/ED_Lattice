@@ -60,7 +60,6 @@ contains
             'Largest Sector(s)     = ',DimUps,DimDws,product(DimUps)*product(DimDws)
        write(LOGfile,"(A)")"--------------------------------------------"
     endif
-    call sleep(1)
     !
     !
     allocate(spH0ups(Ns_Ud))
@@ -92,10 +91,8 @@ contains
        write(LOGfile,"(A,I3)")"Nstates   Total  = ", lanc_nstates_total
        !
        write(LOGfile,"(A)")"Lanczos FINITE temperature calculation:"
-       call sleep(1)
     else
        write(LOGfile,"(A)")"Lanczos ZERO temperature calculation:"
-       call sleep(1)
     endif
     !
     !
@@ -217,7 +214,6 @@ contains
           if(any(Nups < Ndws))twin_mask(isector)=.false.
        enddo
        write(LOGfile,"(A,I6,A,I9)")"Looking into ",count(twin_mask)," sectors out of ",Nsectors
-       call sleep(1)
     endif
     !
     !
