@@ -23,7 +23,7 @@ MODULE ED_IO
   public :: ed_print_impSigma
   public :: ed_print_impG
   public :: ed_print_impG0
-
+  public :: ed_print_impChi
 
   character(len=128) :: suffix
   character(len=128) :: gf_suffix='.ed'
@@ -132,6 +132,27 @@ contains
     call deallocate_grids()
   end subroutine ed_print_impG0
 
+
+  !+------------------------------------------------------------------+
+  !                         PRINT CHI:
+  !+------------------------------------------------------------------+  
+  subroutine ed_print_impChi
+    if(chispin_flag)call print_chi_spin
+  end subroutine ed_print_impChi
+
+  !                         SPIN-SPIN
+  subroutine print_chi_spin
+    integer :: io,jo
+    call allocate_grids()
+    do io=1,Ns
+       do jo=1,Ns
+          call splot("spinChi_l"//str(io)//str(io)//"_tau.ed",tau,spinChi_tau(io,jo,0:))
+          call splot("spinChi_l"//str(io)//str(jo)//"_realw.ed",vr,spinChi_w(io,jo,:))
+          call splot("spinChi_l"//str(io)//str(io)//"_iv.ed",vm,spinChi_iv(io,jo,:))
+       enddo
+    enddo
+    call deallocate_grids()
+  end subroutine print_chi_spin
 
 
 

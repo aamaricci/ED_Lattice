@@ -116,6 +116,32 @@ MODULE ED_VARS_GLOBAL
   complex(8),allocatable,dimension(:,:,:,:)        :: impG0real
 
 
+  !Spin Susceptibilities
+  !=========================================================
+  real(8),allocatable,dimension(:,:,:)               :: spinChi_tau
+  complex(8),allocatable,dimension(:,:,:)            :: spinChi_w
+  complex(8),allocatable,dimension(:,:,:)            :: spinChi_iv
+
+
+  ! !Diagonal/Off-diagonal charge-charge Susceptibilities
+  ! !=========================================================  
+  ! real(8),allocatable,dimension(:,:,:)               :: densChi_tau
+  ! complex(8),allocatable,dimension(:,:,:)            :: densChi_w
+  ! complex(8),allocatable,dimension(:,:,:)            :: densChi_iv
+
+  ! !Pair-Pair Susceptibilities
+  ! !=========================================================
+  ! real(8),allocatable,dimension(:,:,:)               :: pairChi_tau
+  ! complex(8),allocatable,dimension(:,:,:)            :: pairChi_w
+  ! complex(8),allocatable,dimension(:,:,:)            :: pairChi_iv
+
+  ! !Exciton Susceptibilities
+  ! !=========================================================
+  ! real(8),allocatable,dimension(:,:,:,:)             :: exctChi_tau ![0:4,:]
+  ! complex(8),allocatable,dimension(:,:,:,:)          :: exctChi_w
+  ! complex(8),allocatable,dimension(:,:,:,:)          :: exctChi_iv
+
+
 
   !Density and double occupancy
   !PRIVATE (now public but accessible thru routines)

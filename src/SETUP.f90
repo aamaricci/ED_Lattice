@@ -78,22 +78,36 @@ contains
     !
     finiteT = ed_finite_temp
     !
-    if(finiteT)then
-       if(mod(lanc_nstates_sector,2)/=0)then
-          lanc_nstates_sector=lanc_nstates_sector+1
-          write(LOGfile,"(A,I10)")"Increased Lanc_nstates_sector:",lanc_nstates_sector
+    select case(ed_method)
+    case default
+       if(finiteT)then
+          if(mod(lanc_nstates_sector,2)/=0)then
+             lanc_nstates_sector=lanc_nstates_sector+1
+             write(LOGfile,"(A,I10)")"Increased Lanc_nstates_sector:",lanc_nstates_sector
+          endif
+          if(mod(lanc_nstates_total,2)/=0)then
+             lanc_nstates_total=lanc_nstates_total+1
+             write(LOGfile,"(A,I10)")"Increased Lanc_nstates_total:",lanc_nstates_total
+          endif
+          write(LOGfile,"(A,I3)")"Nstates x Sector = ", lanc_nstates_sector
+          write(LOGfile,"(A,I3)")"Nstates   Total  = ", lanc_nstates_total
+          !
+          write(LOGfile,"(A)")"Lanczos FINITE temperature calculation:"
+       else
+          write(LOGfile,"(A)")"Lanczos ZERO temperature calculation:"
        endif
-       if(mod(lanc_nstates_total,2)/=0)then
-          lanc_nstates_total=lanc_nstates_total+1
-          write(LOGfile,"(A,I10)")"Increased Lanc_nstates_total:",lanc_nstates_total
-       endif
-       write(LOGfile,"(A,I3)")"Nstates x Sector = ", lanc_nstates_sector
-       write(LOGfile,"(A,I3)")"Nstates   Total  = ", lanc_nstates_total
+    case('lapack','full')
        !
-       write(LOGfile,"(A)")"Lanczos FINITE temperature calculation:"
-    else
-       write(LOGfile,"(A)")"Lanczos ZERO temperature calculation:"
-    endif
+       if(finiteT)then
+          write(LOGfile,"(A)")"Full ED finite T calculation"
+       else
+          ed_method='lanczos'
+          lanc_nstates_total=1
+          lanc_dim_threshold=product(DimUps)*product(DimDws)
+          write(LOGfile,"(A)")"Full ED T=0 calculation. Set LANC_DIM_THRESHOLD to "//str(lanc_dim_threshold)
+          if(lanc_dim_threshold>2**13)stop "Full ED T=0: LANC_DIM_THRESHOLD > 2**13=8192!"
+       endif
+    end select
     !
     !
     offdiag_gf_flag=ed_solve_offdiag_gf
@@ -116,6 +130,22 @@ contains
     impG0mats=zero
     impG0real=zero
     !
+    allocate(spinChi_tau(Ns,Ns,0:Ltau))
+    allocate(spinChi_w(Ns,Ns,Lreal))
+    allocate(spinChi_iv(Ns,Ns,0:Lmats))
+    !
+    ! allocate(densChi_tau(Ns,Ns,0:Ltau))
+    ! allocate(densChi_w(Ns,Ns,Lreal))
+    ! allocate(densChi_iv(Ns,Ns,0:Lmats))
+    ! !
+    ! allocate(pairChi_tau(Ns,Ns,0:Ltau))
+    ! allocate(pairChi_w(Ns,Ns,Lreal))
+    ! allocate(pairChi_iv(Ns,Ns,0:Lmats))
+    ! !
+    ! allocate(exctChi_tau(0:2,Ns,Ns,0:Ltau))
+    ! allocate(exctChi_w(0:2,Ns,Ns,Lreal))
+    ! allocate(exctChi_iv(0:2,Ns,Ns,0:Lmats))
+    !
     !allocate observables
     allocate(ed_dens(Ns),ed_docc(Ns),ed_dens_up(Ns),ed_dens_dw(Ns),ed_mag(Ns))
     ed_dens=0d0
@@ -135,17 +165,23 @@ contains
        write(LOGfile,"(A)")"WARNING: using twin_sector with Nspin>1"
     end if
     !
-    if(lanc_method=="lanczos")then
-       if(lanc_nstates_total>1)stop "ED ERROR: lanc_method==lanczos available only for lanc_nstates_total==1, T=0"
-       if(lanc_nstates_sector>1)stop "ED ERROR: lanc_method==lanczos available only for lanc_nstates_sector==1, T=0"
-    endif
-    !
-    if(ed_finite_temp)then
-       if(lanc_nstates_total==1)stop "ED ERROR: ed_finite_temp=T *but* lanc_nstates_total==1 => T=0. Increase lanc_nstates_total"
-    else
-       if(lanc_nstates_total>1)print*, "ED WARNING: ed_finite_temp=F, T=0 *AND* lanc_nstates_total>1. re-Set lanc_nstates_total=1"
-       lanc_nstates_total=1
-    endif
+    select case(ed_method)
+    case default
+       if(lanc_method=="lanczos")then
+          if(lanc_nstates_total>1)stop "ED ERROR: lanc_method==lanczos available only for lanc_nstates_total==1, T=0"
+          if(lanc_nstates_sector>1)stop "ED ERROR: lanc_method==lanczos available only for lanc_nstates_sector==1, T=0"
+       endif
+       !
+       if(ed_finite_temp)then
+          if(lanc_nstates_total==1)stop "ED ERROR: ed_finite_temp=T *but* lanc_nstates_total==1 => T=0. Increase lanc_nstates_total"
+       else
+          if(lanc_nstates_total>1)print*, "ED WARNING: ed_finite_temp=F, T=0 *AND* lanc_nstates_total>1. re-Set lanc_nstates_total=1"
+          lanc_nstates_total=1
+       endif
+       !
+    case('lapack','full')
+       if(MpiStatus.AND.mpiSIZE>1)stop "ED ERROR: ed_diag_type=FULL + MPIsize>1: not possible at the moment"
+    end select
   end subroutine ed_checks_global
 
 

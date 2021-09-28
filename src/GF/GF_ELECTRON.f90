@@ -52,7 +52,12 @@ contains
                   " orb M"//str(iorb)//&
                   " spin"//str(ispin)
              if(MPIMASTER)call start_timer
-             call lanc_build_gf_normal_diag(isite,iorb,ispin)
+             select case(ed_method)
+             case default
+                call lanc_build_gf_normal_diag(isite,iorb,ispin)
+             case ('lapack','full')
+                call full_build_gf_normal_diag(isite,iorb,ispin)
+             end select
              if(MPIMASTER)call stop_timer(unit=LOGfile)
           enddo
        enddo
@@ -64,6 +69,8 @@ contains
              do jorb=1,Norb
                 do isite=1,Nsites(iorb)
                    do jsite=1,Nsites(jorb)
+                      io  = pack_indices(isite,iorb)
+                      jo  = pack_indices(jsite,jorb)
                       if(io==jo)cycle
                       write(LOGfile,"(A)")"Get G:"//&
                            " sites I"//str(isite,site_indx_padding)//&
@@ -71,7 +78,12 @@ contains
                            " orb M"//str(iorb)//"L"//str(jorb)//&
                            " spin"//str(ispin)
                       if(MPIMASTER)call start_timer
-                      call lanc_build_gf_normal_mix(isite,jsite,iorb,jorb,ispin)
+                      select case(ed_method)
+                      case default
+                         call lanc_build_gf_normal_mix(isite,jsite,iorb,jorb,ispin)
+                      case ('lapack','full')
+                         call full_build_gf_normal_mix(isite,jsite,iorb,jorb,ispin)
+                      end select
                       if(MPIMASTER)call stop_timer(unit=LOGfile)
                    enddo
                 enddo
@@ -81,17 +93,22 @@ contains
        !
        !
        !Put here off-diagonal manipulation by symmetry:
-       do ispin=1,Nspin
-          do io=1,Ns
-             do jo=1,Ns
-                if(io==jo)cycle
-                impGmats(ispin,io,jo,:) = 0.5d0*(impGmats(ispin,io,jo,:) - &
-                     impGmats(ispin,io,io,:) - impGmats(ispin,jo,jo,:))
-                impGreal(ispin,io,jo,:) = 0.5d0*(impGreal(ispin,io,jo,:) - &
-                     impGreal(ispin,io,io,:) - impGreal(ispin,jo,jo,:))
+       select case(ed_method)
+       case default
+          do ispin=1,Nspin
+             do io=1,Ns
+                do jo=1,Ns
+                   if(io==jo)cycle
+                   impGmats(ispin,io,jo,:) = 0.5d0*(impGmats(ispin,io,jo,:) - &
+                        impGmats(ispin,io,io,:) - impGmats(ispin,jo,jo,:))
+                   impGreal(ispin,io,jo,:) = 0.5d0*(impGreal(ispin,io,jo,:) - &
+                        impGreal(ispin,io,io,:) - impGreal(ispin,jo,jo,:))
+                enddo
              enddo
           enddo
-       enddo
+       case ('lapack','full')
+          continue
+       end select
     end if
     !
   end subroutine build_gf_normal
@@ -385,6 +402,175 @@ contains
   end subroutine add_to_lanczos_gf_normal
 
 
+
+
+
+
+  !############################################################################################
+  !############################################################################################
+  !############################################################################################
+  !############################################################################################
+  !############################################################################################
+  !############################################################################################
+
+
+
+
+
+
+  subroutine full_build_gf_normal_diag(isite,iorb,ispin)
+    integer,intent(in) :: isite,iorb,ispin
+    integer            :: io
+    type(sector)       :: sectorI,sectorJ
+    real(8)            :: op_mat(2)
+    real(8)            :: spectral_weight
+    real(8)            :: sgn_cdg,sgn_c
+    integer            :: m,i,j,li,rj
+    real(8)            :: Ei,Ej
+    real(8)            :: expterm,peso,de,w0
+    complex(8)         :: iw
+    !    
+    !
+    ialfa = 1
+    io    = pack_indices(isite,iorb)
+    !
+    do isector=1,Nsectors
+       jsector=getCDGsector(ialfa,ispin,isector)
+       if(jsector==0)cycle
+       !
+       call build_sector(isector,sectorI)
+       call build_sector(jsector,sectorJ)
+       !
+       do i=1,sectorI%Dim          !loop over the states in the i-th sect.
+          do j=1,sectorJ%Dim       !loop over the states in the j-th sect.
+             !
+             expterm=exp(-beta*espace(isector)%e(i))+exp(-beta*espace(jsector)%e(j))
+             if(expterm < cutoff)cycle
+             !
+             op_mat=0d0
+             !
+             do li=1,sectorI%Dim              !loop over the component of |I> (IN state!)
+                call apply_op_CDG(li,rj,sgn_cdg,io,ialfa,ispin,sectorI,sectorJ)
+                if(sgn_cdg==0d0.OR.rj==0)cycle
+                !
+                op_mat(1)=op_mat(1) + (espace(jsector)%M(rj,j))*sgn_cdg*espace(isector)%M(li,i)
+             enddo
+             !
+             do rj=1,sectorJ%Dim
+                call apply_op_C(rj,li,sgn_c,io,ialfa,ispin,sectorJ,sectorI)
+                if(sgn_c==0d0.OR.li==0)cycle
+                !
+                op_mat(2)=op_mat(2) + (espace(isector)%M(li,i))*sgn_c*espace(jsector)%M(rj,j)
+             enddo
+             !
+             Ei=espace(isector)%e(i)
+             Ej=espace(jsector)%e(j)
+             de=Ej-Ei
+             peso=expterm/zeta_function
+             spectral_weight=peso*product(op_mat)
+             !
+             do m=1,Lmats
+                iw=xi*wm(m)
+                impGmats(ispin,io,io,m)=impGmats(ispin,io,io,m)+spectral_weight/(iw-de)
+             enddo
+             !
+             do m=1,Lreal
+                w0=wr(m);iw=cmplx(w0,eps)
+                impGreal(ispin,io,io,m)=impGreal(ispin,io,io,m)+spectral_weight/(iw-de)
+             enddo
+             !
+          enddo
+       enddo
+       call delete_sector(sectorI)
+       call delete_sector(sectorJ)
+    enddo
+  end subroutine full_build_gf_normal_diag
+
+
+
+
+
+  subroutine full_build_gf_normal_mix(isite,jsite,iorb,jorb,ispin)
+    integer      :: isite,jsite,iorb,jorb,ispin
+    integer      :: io,jo
+    type(sector) :: sectorI,sectorJ
+    complex(8)   :: op_mat(2)
+    complex(8)   :: spectral_weight
+    real(8)      :: sgn_cdg,sgn_c
+    integer      :: m,i,j,li,rj
+    real(8)      :: Ei,Ej
+    real(8)      :: expterm,peso,de,w0
+    complex(8)   :: iw
+    !
+    ialfa = 1
+    jalfa = ialfa
+    io  = pack_indices(isite,iorb)
+    jo  = pack_indices(jsite,jorb)
+    !
+    do isector=1,Nsectors
+       jsector=getCDGsector(ialfa,ispin,isector)
+       if(jsector==0)cycle
+       !
+       call build_sector(isector,sectorI)
+       call build_sector(jsector,sectorJ)
+       !
+       !
+       do i=1,sectorI%Dim          !loop over the states in the i-th sect.
+          do j=1,sectorJ%Dim       !loop over the states in the j-th sect.
+             !
+             expterm=exp(-beta*espace(isector)%e(i))+exp(-beta*espace(jsector)%e(j))
+             if(expterm < cutoff)cycle
+             !
+             op_mat=0d0
+             !
+             do li=1,sectorI%Dim              !loop over the component of |I> (IN state!)
+                call apply_op_CDG(li,rj,sgn_cdg,io,ialfa,ispin,sectorI,sectorJ)
+                if(sgn_cdg==0d0.OR.rj==0)cycle
+                !
+                op_mat(1)=op_mat(1) + (espace(jsector)%M(rj,j))*sgn_cdg*espace(isector)%M(li,i)
+             enddo
+             !
+             do rj=1,sectorJ%Dim
+                call apply_op_C(rj,li,sgn_c,jo,jalfa,ispin,sectorJ,sectorI)
+                if(sgn_c==0d0.OR.li==0)cycle
+                !
+                op_mat(2)=op_mat(2) + (espace(isector)%M(li,i))*sgn_c*espace(jsector)%M(rj,j)
+             enddo
+             !
+             Ei=espace(isector)%e(i)
+             Ej=espace(jsector)%e(j)
+             de=Ej-Ei
+             peso=expterm/zeta_function
+             spectral_weight=peso*product(op_mat)
+             !
+             do m=1,Lmats
+                iw=xi*wm(m)
+                impGmats(ispin,io,jo,m)=impGmats(ispin,io,jo,m)+spectral_weight/(iw-de)
+             enddo
+             !
+             do m=1,Lreal
+                w0=wr(m);iw=cmplx(w0,eps)
+                impGreal(ispin,io,jo,m)=impGreal(ispin,io,jo,m)+spectral_weight/(iw-de)
+             enddo
+             !
+          enddo
+       enddo
+       call delete_sector(sectorI)
+       call delete_sector(sectorJ)
+    enddo
+  end subroutine full_build_gf_normal_mix
+
+
+
+
+
+
+  !############################################################################################
+  !############################################################################################
+  !############################################################################################
+  !############################################################################################
+  !############################################################################################
+  !############################################################################################
 
 
 

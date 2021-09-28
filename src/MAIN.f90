@@ -3,11 +3,12 @@ module ED_MAIN
   USE SF_TIMER,only: start_timer,stop_timer
   USE ED_INPUT_VARS
   USE ED_VARS_GLOBAL
-  USE ED_EIGENSPACE, only: state_list,es_delete_espace
+  USE ED_EIGENSPACE, only: state_list,es_delete_espace,delete_eigenspace
   USE ED_AUX_FUNX
   USE ED_SETUP
   USE ED_HAMILTONIAN
   USE ED_GREENS_FUNCTIONS
+  USE ED_CHI_FUNCTIONS
   USE ED_OBSERVABLES
   USE ED_DIAG
 
@@ -107,12 +108,18 @@ contains
     call diagonalize_impurity()         !find target states by digonalization of Hamiltonian
     if(iflag)then
        call buildgf_impurity()             !build the one-particle impurity Green's functions  & Self-energy
-       ! call buildchi_impurity()            !build the local susceptibilities (spin [todo charge])
+       call buildchi_impurity()            !build the local susceptibilities (spin [todo charge])
     endif
     call observables_impurity()         !obtain impurity observables as thermal averages.          
     call local_energy_impurity()        !obtain the local energy of the effective impurity problem
     !
-    call es_delete_espace(state_list)
+    select case(ed_method)
+    case default
+       call es_delete_espace(state_list)
+    case("lapack","full")
+       call delete_eigenspace()
+    end select
+    !
     nullify(spHtimesV_p)
     return
   end subroutine ed_solve_single
@@ -139,12 +146,17 @@ contains
     call diagonalize_impurity()         !find target states by digonalization of Hamiltonian
     if(iflag)then
        call buildgf_impurity()             !build the one-particle impurity Green's functions  & Self-energy
-       ! call buildchi_impurity() !build the local susceptibilities (spin [todo charge])
+       call buildchi_impurity()            !build the local susceptibilities (spin [todo charge])
     endif
     call observables_impurity()         !obtain impurity observables as thermal averages.
     call local_energy_impurity()        !obtain the local energy of the effective impurity problem
     !
-    call es_delete_espace(state_list)
+    select case(ed_method)
+    case default
+       call es_delete_espace(state_list)
+    case("lapack","full")
+       call delete_eigenspace()
+    end select
     !
     !DELETE THE LOCAL MPI COMMUNICATOR:
     call ed_del_MpiComm()

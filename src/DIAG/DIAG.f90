@@ -35,8 +35,13 @@ contains
   !+------------------------------------------------------------------+
   subroutine diagonalize_impurity()
     call ed_pre_diag
-    call ed_diag_d
-    call ed_post_diag
+    select case(ed_method)
+    case default
+       call ed_diag_d
+       call ed_post_diag
+    case('lapack','full')
+       call ed_full_d
+    end select
   end subroutine diagonalize_impurity
 
 
@@ -252,6 +257,135 @@ contains
     if(MPIMASTER)call stop_timer(unit=LOGfile)
   end subroutine ed_diag_d
 
+
+
+
+  !+-------------------------------------------------------------------+
+  !PURPOSE  : diagonalize the Hamiltonian in each sector and find the 
+  ! spectrum DOUBLE PRECISION
+  !+------------------------------------------------------------------+
+  subroutine ed_full_d
+    integer                     :: isector,Dim,istate
+    integer                     :: DimUps(Ns_Ud),DimUp
+    integer                     :: DimDws(Ns_Ud),DimDw
+    integer                     :: Nups(Ns_Ud)
+    integer                     :: Ndws(Ns_Ud)
+    integer                     :: i,j,iter,unit,vecDim,PvecDim,Nprint
+    integer                     :: Nitermax,Neigen,Nblock
+    real(8)                     :: oldzero,enemin,Ei,egs
+    real(8),dimension(Nsectors) :: e0
+    logical                     :: lanc_solve,Tflag,lanc_verbose,bool
+    !
+    if(state_list%status)call es_delete_espace(state_list)
+    state_list=es_init_espace()
+    call setup_eigenspace()
+    !
+    e0=1000.d0
+    oldzero=1000.d0
+    if(MPIMASTER)then
+       write(LOGfile,"(A)")"Diagonalize H:"
+       call start_timer()
+    endif
+    !
+    iter=0
+    sector: do isector=1,Nsectors
+       if(.not.sectors_mask(isector))cycle sector
+       if(.not.twin_mask(isector))cycle sector
+       iter=iter+1
+       call get_Nup(isector,nups)
+       call get_Ndw(isector,ndws)
+       Tflag = twin_mask(isector).AND.ed_twin
+       Tflag = Tflag.AND.(any(nups/=ndws))
+       !
+       Dim      = getdim(isector)
+       !
+       !
+       lanc_solve  = .true.
+       if(Neigen==dim)lanc_solve=.false.
+       if(dim<=max(lanc_dim_threshold,MPISIZE))lanc_solve=.false.
+       !
+       if(MPIMASTER)then
+          if(ed_verbose>2)then
+             call get_DimUp(isector,DimUps) ; DimUp = product(DimUps)
+             call get_DimDw(isector,DimDws) ; DimDw = product(DimDws)
+             write(LOGfile,"(1X,I9,A,I9,A6,"&
+                  //str(Ns_Ud)//"I3,A6,"&
+                  //str(Ns_Ud)//"I3,A7,"&
+                  //str(Ns_Ud)//"I6,"//str(Ns_Ud)//"I6,I20)")&
+                  iter,"-Solving sector:",isector,", nup:",nups,", ndw:",ndws,", dims=",&
+                  DimUps,DimDws,getdim(isector)
+          elseif(ed_verbose<=2)then
+             call eta(iter,count(twin_mask),LOGfile)
+          endif
+       endif
+       !
+       Nprint=min(dim,lanc_nstates_sector)
+       !
+       if(ed_verbose>=3.AND.MPIMASTER)call start_timer()
+       call build_Hv_sector(isector,espace(isector)%M)
+       if(MpiMaster)call eigh(espace(isector)%M, espace(isector)%e)
+       if(dim==1)espace(isector)%M=1d0
+       call delete_Hv_sector()
+       if(ed_verbose>=3.AND.MPIMASTER)call stop_timer(unit=LOGfile)
+       !
+       if(ed_verbose>=4)then
+          write(LOGfile,*)"EigValues: ",espace(isector)%e(:Nprint)
+          write(LOGfile,*)""
+          write(LOGfile,*)""
+       endif
+       !
+       if(MPIMASTER)then
+          unit=free_unit()
+          open(unit,file="eigenvalues_list.ed",position='append',action='write')
+          call print_eigenvalues_list(isector,espace(isector)%e(1:Nprint),unit,.false.,.true.)
+          close(unit)
+       endif
+       !
+       e0(isector)= minval(espace(isector)%e)
+       !
+       enemin     = e0(isector)
+       if (enemin < oldzero-10.d0*gs_threshold)then
+          oldzero=enemin
+          call es_free_espace(state_list)
+          call es_add_state(state_list,enemin,espace(isector)%M(:,1),isector)
+       elseif(abs(enemin-oldzero) <= gs_threshold)then
+          oldzero=min(oldzero,enemin)
+          call es_add_state(state_list,enemin,espace(isector)%M(:,1),isector)
+       endif
+       !
+    enddo sector
+    if(MPIMASTER)call stop_timer(unit=LOGfile)
+    !
+    !Get the ground state energy and rescale energies
+    egs=minval(e0)
+    gs_energy=egs
+    forall(isector=1:Nsectors)espace(isector)%e = espace(isector)%e - egs
+    !
+    !Get the partition function Z
+    zeta_function=0d0
+    do isector=1,Nsectors
+       dim=getdim(isector)
+       do i=1,dim
+          zeta_function=zeta_function+exp(-beta*espace(isector)%e(i))
+       enddo
+    enddo
+    !
+    write(LOGfile,"(A)")"DIAG resume:"
+    open(free_unit(unit),file='egs.ed',position='append')
+    do istate=1,state_list%size
+       isector = es_return_sector(state_list,istate)
+       Ei      = es_return_energy(state_list,istate)
+       call get_Nup(isector,Nups)
+       call get_Ndw(isector,Ndws)
+       write(LOGfile,"(A,F20.12,"//str(Ns_Ud)//"I4,"//str(Ns_Ud)//"I4)")'Egs =',Ei,nups,ndws
+       write(unit,"(A,F20.12,"//str(Ns_Ud)//"I4,"//str(Ns_Ud)//"I4)")'Egs =',Ei,nups,ndws
+    enddo
+    close(unit)
+    write(LOGfile,"(A,F20.12)")'Z   =',zeta_function
+    if(state_list%status)call es_delete_espace(state_list)
+    return
+    !
+  end subroutine ed_full_d
 
 
 
