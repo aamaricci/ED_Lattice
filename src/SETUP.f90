@@ -214,33 +214,10 @@ contains
     enddo
     !
     !
-    inquire(file="state_list.restart",exist=IOfile)
-    if(IOfile)then
-       write(LOGfile,"(A)")"Restarting from a state_list file:"
-       list_len=file_length("state_listrestart")
-       allocate(list_sector(list_len))
-       !
-       open(free_unit(unit),file="state_list.restart",status="old")
-       status=0
-       do while(status>=0)
-          read(unit,*,iostat=status)istate,isector,indices
-          list_sector(istate)=isector
-          call get_Nup(isector,Nups)
-          call get_Ndw(isector,Ndws)
-          if(any(Indices /= [Nups,Ndws]))&
-               stop "setup_global error: nups!=nups(isector).OR.ndws!=ndws(isector)"
-       enddo
-       close(unit)
-       !
-       lanc_nstates_total = list_len
-       do isector=1,Nsectors
-          neigen_sector(isector) = max(1,count(list_sector==isector))
-       enddo
-    else
-       do isector=1,Nsectors
-          neigen_sector(isector) = min(getDim(isector),lanc_nstates_sector) !init every sector to required eigenstates
-       enddo
-    endif
+    do isector=1,Nsectors
+       neigen_sector(isector) = min(getDim(isector),lanc_nstates_sector) !init every sector to required eigenstates
+    enddo
+    !
     !
     twin_mask=.true.
     if(ed_twin)then

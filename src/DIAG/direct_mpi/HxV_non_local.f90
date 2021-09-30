@@ -83,9 +83,9 @@
      ! KONDO COUPLING - non-local (in memory) part of the Kondo coupling
      ! Sa.Sb--> 1/2[Sa^+ Sb^- + Sa^-Sb^+] + {Sa^z Sb^z--> local}
      ! Jk: cdg_a.up c_a.dw cdg_b.dw c_b.up + cdg_a.dw c_a.up cdg_b.up c_b.dw
-     ! Jk: (-1)**[2+1]  [cdg_a.up c_b.up] [cdg_b.dw c_a.dw] +
-     !   : (-1)**[2+1] [cdg_a.dw c_b.dw] [cdg_b.up c_a.up ]
-     !   : (-Jk) {[cdg_a c_b]_up [cdg_b c_a]_dw + [cdg_b c_a]_up [cdg_a c_b]_dw }
+     ! Jk: -(-1)**[2+1]  [cdg_a.up c_b.up] [cdg_b.dw c_a.dw] +
+     !   : -(-1)**[2+1] [cdg_a.dw c_b.dw] [cdg_b.up c_a.up ]
+     !   : (Jk)* {[cdg_a c_b]_up [cdg_b c_a]_dw + [cdg_b c_a]_up [cdg_a c_b]_dw }
      if(Jhflag.AND.Jk/=0d0)then
         do iorb=1,Norb
            do jorb=1,Norb
@@ -108,7 +108,7 @@
                        call c(jo,mup,k3,sg3)       !c_jo.up
                        call cdg(io,k3,k4,sg4)      !c^+_io.up
                        iup = binary_search(Hsector%H(1)%map,k4)
-                       htmp = -Jk*sg1*sg2*sg3*sg4
+                       htmp = Jk*sg1*sg2*sg3*sg4
                        i = iup + (idw-1)*DimUp
                        !
                        Hv(i) = Hv(i) + htmp*vin(j)
@@ -128,7 +128,7 @@
                        call c(io,mup,k3,sg3)       !c_io.up
                        call cdg(jo,k3,k4,sg4)      !c^+_jo.up
                        iup = binary_search(Hsector%H(1)%map,k4)
-                       htmp = -Jk*sg1*sg2*sg3*sg4
+                       htmp = Jk*sg1*sg2*sg3*sg4
                        i = iup + (idw-1)*DimUp
                        !
                        Hv(i) = Hv(i) + htmp*vin(j)

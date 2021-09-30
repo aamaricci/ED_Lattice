@@ -427,6 +427,7 @@ contains
     ed_Dund    = 0.d0
     ed_Dse     = 0.d0
     ed_Dph     = 0.d0
+    ed_Dk      = 0.d0
     !
     call Hij_get(Hij)
     call Hij_get(Hloc)
@@ -473,8 +474,8 @@ contains
                 ed_Eknot = ed_Eknot + Hdiag(1,io)*Nup(io)*gs_weight
                 ed_Eknot = ed_Eknot + Hdiag(Nspin,io)*Ndw(io)*gs_weight
              enddo
-             !> H_imp: Off-diagonal elements, i.e. non-local part.
              !
+             !> H_imp: Off-diagonal elements, i.e. non-local part.
              !UP - hopping
              iup = Indices(1)
              mup = sectorI%H(1)%map(iup)
@@ -595,8 +596,60 @@ contains
                 enddo
              endif
              !
+             if(Jhflag.AND.Jk/=0d0)then
+                do iorb=1,Norb
+                   do jorb=1,Norb
+                      do isite=1,Nsites(iorb)
+                         do jsite=1,Nsites(jorb)
+                            if(isite/=jsite)cycle !local interaction only:
+                            io = pack_indices(isite,iorb)!a
+                            jo = pack_indices(isite,jorb)!b
+                            !
+                            ![cdg_io c_jo]_up [cdg_jo c_io]_dw
+                            Jcondition=(&
+                                 (ndw(io)==1).AND.&
+                                 (ndw(jo)==0).AND.&
+                                 (nup(jo)==1).AND.&
+                                 (nup(io)==0))
+                            if(Jcondition)then
+                               call c(io,mdw,k1,sg1)       !c_io.dw
+                               call cdg(jo,k1,k2,sg2)      !c^+_jo.dw
+                               jdw = binary_search(sectorI%H(2)%map,k2)
+                               call c(jo,mup,k3,sg3)       !c_jo.up
+                               call cdg(io,k3,k4,sg4)      !c^+_io.up
+                               jup = binary_search(sectorI%H(1)%map,k4)
+                               j = jup + (jdw-1)*sectorI%DimUp
+                               !
+                               ed_Epot = ed_Epot + Jk*sg1*sg2*sg3*sg4*state_cvec(i)*state_cvec(j)*peso
+                               ed_Dk = ed_Dk + sg1*sg2*sg3*sg4*state_cvec(i)*state_cvec(j)*peso
+                            endif
+                            !
+                            ![cdg_jo c_io]_up [cdg_io c_jo]_dw
+                            Jcondition=(&
+                                 (ndw(jo)==1).AND.&
+                                 (ndw(io)==0).AND.&
+                                 (nup(io)==1).AND.&
+                                 (nup(jo)==0))
+                            if(Jcondition)then
+                               call c(jo,mdw,k1,sg1)       !c_jo.dw
+                               call cdg(io,k1,k2,sg2)      !c^+_io.dw
+                               jdw = binary_search(sectorI%H(2)%map,k2)
+                               call c(io,mup,k3,sg3)       !c_io.up
+                               call cdg(jo,k3,k4,sg4)      !c^+_jo.up
+                               jup = binary_search(sectorI%H(1)%map,k4)
+                               j = jup + (jdw-1)*sectorI%DimUp
+                               !
+                               ed_Epot = ed_Epot + Jk*sg1*sg2*sg3*sg4*state_cvec(i)*state_cvec(j)*peso
+                               ed_Dk = ed_Dk + sg1*sg2*sg3*sg4*state_cvec(i)*state_cvec(j)*peso
+                            endif
+                            !
+                         enddo
+                      enddo
+                   enddo
+                enddo
+             endif
              !
-             !DENSITY-DENSITY INTERACTION: SAME ORBITAL, OPPOSITE SPINS
+             !
              !Euloc=\sum=i U_i*(n_u*n_d)_i
              !ed_Epot = ed_Epot + dot_product(uloc,nup*ndw)*gs_weight
              do iorb=1,Norb
@@ -606,26 +659,9 @@ contains
                 enddo
              enddo
              !
-             !DENSITY-DENSITY INTERACTION: DIFFERENT ORBITALS, OPPOSITE SPINS
              !Eust=\sum_ij Ust*(n_up_i*n_dn_j + n_up_j*n_dn_i)
              !    "="\sum_ij (Uloc - 2*Jh)*(n_up_i*n_dn_j + n_up_j*n_dn_i)
-             if(Norb>1)then
-                do iorb=1,Norb
-                   do jorb=iorb+1,Norb
-                      do isite=1,Nsites(iorb)
-                         do jsite=1,Nsites(jorb)
-                            if(isite/=jsite)cycle !local interaction only:
-                            io = pack_indices(isite,iorb)
-                            jo = pack_indices(isite,jorb)
-                            ed_Epot = ed_Epot + Ust*(nup(io)*ndw(jo) + nup(jo)*ndw(io))*gs_weight
-                            ed_Dust = ed_Dust + (nup(io)*ndw(jo) + nup(jo)*ndw(io))*gs_weight
-                         enddo
-                      enddo
-                   enddo
-                enddo
-             endif
              !
-             !DENSITY-DENSITY INTERACTION: DIFFERENT ORBITALS, PARALLEL SPINS
              !Eund = \sum_ij Und*(n_up_i*n_up_j + n_dn_i*n_dn_j)
              !    "="\sum_ij (Ust-Jh)*(n_up_i*n_up_j + n_dn_i*n_dn_j)
              !    "="\sum_ij (Uloc-3*Jh)*(n_up_i*n_up_j + n_dn_i*n_dn_j)
@@ -637,6 +673,9 @@ contains
                             if(isite/=jsite)cycle !local interaction only:
                             io = pack_indices(isite,iorb)
                             jo = pack_indices(isite,jorb)
+                            ed_Epot = ed_Epot + Ust*(nup(io)*ndw(jo) + nup(jo)*ndw(io))*gs_weight
+                            ed_Dust = ed_Dust + (nup(io)*ndw(jo) + nup(jo)*ndw(io))*gs_weight
+                            !
                             ed_Epot = ed_Epot + (Ust-Jh)*(nup(io)*nup(jo) + ndw(io)*ndw(jo))*gs_weight
                             ed_Dund = ed_Dund + (nup(io)*nup(jo) + ndw(io)*ndw(jo))*gs_weight
                          enddo
@@ -645,13 +684,26 @@ contains
                 enddo
              endif
              !
+             !
+             if(Jhflag.AND.Jk/=0d0)then
+                do iorb=1,Norb
+                   do jorb=iorb+1,Norb
+                      do isite=1,Nsites(iorb)
+                         do jsite=1,Nsites(jorb)
+                            ed_Epot = ed_Epot - Jk*(Nup(io)-Ndw(io))*(Nup(jo)-Ndw(jo))*gs_weight
+                            ed_Dk = ed_Dk + (Nup(io)-Ndw(io))*(Nup(jo)-Ndw(jo))*gs_weight
+                         enddo
+                      enddo
+                   enddo
+                enddo
+             endif
+             !
              !HARTREE-TERMS CONTRIBUTION:
              if(hfmode)then
-                !ed_Ehartree=ed_Ehartree - 0.5d0*dot_product(uloc,nup+ndw)*gs_weight + 0.25d0*sum(uloc)*gs_weight
                 do iorb=1,Norb
                    do isite=1,Nsites(iorb)          
                       io = pack_indices(isite,iorb)
-                      ed_Ehartree=ed_Ehartree - 0.5d0*Uloc(iorb)*(nup(io)+ndw(io))*gs_weight + 0.25d0*uloc(iorb)*gs_weight
+                      ed_Ehartree=ed_Ehartree - 0.5d0*Uloc(iorb)*(nup(io)+ndw(io))*gs_weight !+ 0.25d0*uloc(iorb)*gs_weight
                    enddo
                 enddo
                 !
@@ -664,9 +716,9 @@ contains
                                io = pack_indices(isite,iorb)
                                jo = pack_indices(isite,jorb)
                                ed_Ehartree=ed_Ehartree - 0.5d0*Ust*(nup(io)+ndw(io)+nup(jo)+ndw(jo))*gs_weight
-                               ed_Ehartree=ed_Ehartree + 0.25d0*Ust*gs_weight
+                               !ed_Ehartree=ed_Ehartree + 0.25d0*Ust*gs_weight
                                ed_Ehartree=ed_Ehartree - 0.5d0*(Ust-Jh)*(nup(io)+ndw(io)+nup(jo)+ndw(jo))*gs_weight
-                               ed_Ehartree=ed_Ehartree + 0.25d0*(Ust-Jh)*gs_weight
+                               !ed_Ehartree=ed_Ehartree + 0.25d0*(Ust-Jh)*gs_weight
                             enddo
                          enddo
                       enddo
@@ -703,13 +755,14 @@ contains
     !
     ed_Epot = ed_Epot + ed_Ehartree
     !
-    if(ed_verbose==3)then
+    if(ed_verbose>2)then
        write(LOGfile,"(A,10f18.12)")"<Hint>  =",ed_Epot
        write(LOGfile,"(A,10f18.12)")"<V>     =",ed_Epot-ed_Ehartree
        write(LOGfile,"(A,10f18.12)")"<E0>    =",ed_Eknot
        write(LOGfile,"(A,10f18.12)")"<Ehf>   =",ed_Ehartree    
        write(LOGfile,"(A,10f18.12)")"Dust    =",ed_Dust
        write(LOGfile,"(A,10f18.12)")"Dund    =",ed_Dund
+       write(LOGfile,"(A,10f18.12)")"Dk      =",ed_Dk
     endif
     !
     if(MPIMASTER)then
@@ -753,6 +806,7 @@ contains
     ed_Dund    = 0.d0
     ed_Dse     = 0.d0
     ed_Dph     = 0.d0
+    ed_Dk      = 0.d0
     !
     call Hij_get(Hij)
     call Hij_get(Hloc)
@@ -918,8 +972,60 @@ contains
                 enddo
              endif
              !
+             if(Jhflag.AND.Jk/=0d0)then
+                do iorb=1,Norb
+                   do jorb=1,Norb
+                      do isite=1,Nsites(iorb)
+                         do jsite=1,Nsites(jorb)
+                            if(isite/=jsite)cycle !local interaction only:
+                            io = pack_indices(isite,iorb)!a
+                            jo = pack_indices(isite,jorb)!b
+                            !
+                            ![cdg_io c_jo]_up [cdg_jo c_io]_dw
+                            Jcondition=(&
+                                 (ndw(io)==1).AND.&
+                                 (ndw(jo)==0).AND.&
+                                 (nup(jo)==1).AND.&
+                                 (nup(io)==0))
+                            if(Jcondition)then
+                               call c(io,mdw,k1,sg1)       !c_io.dw
+                               call cdg(jo,k1,k2,sg2)      !c^+_jo.dw
+                               jdw = binary_search(sectorI%H(2)%map,k2)
+                               call c(jo,mup,k3,sg3)       !c_jo.up
+                               call cdg(io,k3,k4,sg4)      !c^+_io.up
+                               jup = binary_search(sectorI%H(1)%map,k4)
+                               j = jup + (jdw-1)*sectorI%DimUp
+                               !
+                               ed_Epot = ed_Epot + Jk*sg1*sg2*sg3*sg4*evec(i)*evec(j)*peso
+                               ed_Dk = ed_Dk + sg1*sg2*sg3*sg4*evec(i)*evec(j)*peso
+                            endif
+                            !
+                            ![cdg_jo c_io]_up [cdg_io c_jo]_dw
+                            Jcondition=(&
+                                 (ndw(jo)==1).AND.&
+                                 (ndw(io)==0).AND.&
+                                 (nup(io)==1).AND.&
+                                 (nup(jo)==0))
+                            if(Jcondition)then
+                               call c(jo,mdw,k1,sg1)       !c_jo.dw
+                               call cdg(io,k1,k2,sg2)      !c^+_io.dw
+                               jdw = binary_search(sectorI%H(2)%map,k2)
+                               call c(io,mup,k3,sg3)       !c_io.up
+                               call cdg(jo,k3,k4,sg4)      !c^+_jo.up
+                               jup = binary_search(sectorI%H(1)%map,k4)
+                               j = jup + (jdw-1)*sectorI%DimUp
+                               !
+                               ed_Epot = ed_Epot + Jk*sg1*sg2*sg3*sg4*evec(i)*evec(j)*peso
+                               ed_Dk = ed_Dk + sg1*sg2*sg3*sg4*evec(i)*evec(j)*peso
+                            endif
+                            !
+                         enddo
+                      enddo
+                   enddo
+                enddo
+             endif
              !
-             !DENSITY-DENSITY INTERACTION: SAME ORBITAL, OPPOSITE SPINS
+             !
              !Euloc=\sum=i U_i*(n_u*n_d)_i
              !ed_Epot = ed_Epot + dot_product(uloc,nup*ndw)*state_weight
              do iorb=1,Norb
@@ -929,26 +1035,9 @@ contains
                 enddo
              enddo
              !
-             !DENSITY-DENSITY INTERACTION: DIFFERENT ORBITALS, OPPOSITE SPINS
              !Eust=\sum_ij Ust*(n_up_i*n_dn_j + n_up_j*n_dn_i)
              !    "="\sum_ij (Uloc - 2*Jh)*(n_up_i*n_dn_j + n_up_j*n_dn_i)
-             if(Norb>1)then
-                do iorb=1,Norb
-                   do jorb=iorb+1,Norb
-                      do isite=1,Nsites(iorb)
-                         do jsite=1,Nsites(jorb)
-                            if(isite/=jsite)cycle !local interaction only:
-                            io = pack_indices(isite,iorb)
-                            jo = pack_indices(isite,jorb)
-                            ed_Epot = ed_Epot + Ust*(nup(io)*ndw(jo) + nup(jo)*ndw(io))*state_weight
-                            ed_Dust = ed_Dust + (nup(io)*ndw(jo) + nup(jo)*ndw(io))*state_weight
-                         enddo
-                      enddo
-                   enddo
-                enddo
-             endif
              !
-             !DENSITY-DENSITY INTERACTION: DIFFERENT ORBITALS, PARALLEL SPINS
              !Eund = \sum_ij Und*(n_up_i*n_up_j + n_dn_i*n_dn_j)
              !    "="\sum_ij (Ust-Jh)*(n_up_i*n_up_j + n_dn_i*n_dn_j)
              !    "="\sum_ij (Uloc-3*Jh)*(n_up_i*n_up_j + n_dn_i*n_dn_j)
@@ -960,6 +1049,8 @@ contains
                             if(isite/=jsite)cycle !local interaction only:
                             io = pack_indices(isite,iorb)
                             jo = pack_indices(isite,jorb)
+                            ed_Epot = ed_Epot + Ust*(nup(io)*ndw(jo) + nup(jo)*ndw(io))*state_weight
+                            ed_Dust = ed_Dust + (nup(io)*ndw(jo) + nup(jo)*ndw(io))*state_weight
                             ed_Epot = ed_Epot + (Ust-Jh)*(nup(io)*nup(jo) + ndw(io)*ndw(jo))*state_weight
                             ed_Dund = ed_Dund + (nup(io)*nup(jo) + ndw(io)*ndw(jo))*state_weight
                          enddo
@@ -968,9 +1059,21 @@ contains
                 enddo
              endif
              !
+             if(Jhflag.AND.Jk/=0d0)then
+                do iorb=1,Norb
+                   do jorb=iorb+1,Norb
+                      do isite=1,Nsites(iorb)
+                         do jsite=1,Nsites(jorb)
+                            ed_Epot = ed_Epot - Jk*(Nup(io)-Ndw(io))*(Nup(jo)-Ndw(jo))*state_weight
+                            ed_Dk = ed_Dk + (Nup(io)-Ndw(io))*(Nup(jo)-Ndw(jo))*state_weight
+                         enddo
+                      enddo
+                   enddo
+                enddo
+             endif
+             !
              !HARTREE-TERMS CONTRIBUTION:
              if(hfmode)then
-                !ed_Ehartree=ed_Ehartree - 0.5d0*dot_product(uloc,nup+ndw)*state_weight + 0.25d0*sum(uloc)*state_weight
                 do iorb=1,Norb
                    do isite=1,Nsites(iorb)          
                       io = pack_indices(isite,iorb)
@@ -1006,13 +1109,14 @@ contains
     enddo
     ed_Epot = ed_Epot + ed_Ehartree
     !
-    if(ed_verbose==3)then
+    if(ed_verbose>2)then
        write(LOGfile,"(A,10f18.12)")"<Hint>  =",ed_Epot
        write(LOGfile,"(A,10f18.12)")"<V>     =",ed_Epot-ed_Ehartree
        write(LOGfile,"(A,10f18.12)")"<E0>    =",ed_Eknot
        write(LOGfile,"(A,10f18.12)")"<Ehf>   =",ed_Ehartree    
        write(LOGfile,"(A,10f18.12)")"Dust    =",ed_Dust
        write(LOGfile,"(A,10f18.12)")"Dund    =",ed_Dund
+       write(LOGfile,"(A,10f18.12)")"Dk      =",ed_Dk
     endif
     call write_energy_info()
     call write_energy()
@@ -1088,7 +1192,10 @@ contains
          reg(txtfy(3))//"<Eloc>",&
          reg(txtfy(4))//"<Ehf>",&
          reg(txtfy(5))//"<Dst>",&
-         reg(txtfy(6))//"<Dnd>"
+         reg(txtfy(6))//"<Dnd>",&
+         reg(txtfy(7))//"<Dse>",&
+         reg(txtfy(8))//"<Dph>",&
+         reg(txtfy(9))//"<Dk>"
     close(unit)
   end subroutine write_energy_info
 
@@ -1141,7 +1248,7 @@ contains
     integer :: unit
     unit = free_unit()
     open(unit,file="energy_last.ed")
-    write(unit,"(90F15.9)")ed_Epot,ed_Epot-ed_Ehartree,ed_Eknot,ed_Ehartree,ed_Dust,ed_Dund,ed_Dse,ed_Dph
+    write(unit,"(90F15.9)")ed_Epot,ed_Epot-ed_Ehartree,ed_Eknot,ed_Ehartree,ed_Dust,ed_Dund,ed_Dse,ed_Dph,ed_Dk
     close(unit)
   end subroutine write_energy
 

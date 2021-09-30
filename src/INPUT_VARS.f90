@@ -32,6 +32,7 @@ MODULE ED_INPUT_VARS
   logical              :: chipair_flag        !evaluate pair susceptibility
   logical              :: chiexct_flag        !evaluate excitonic susceptibility
   !
+  integer              :: ed_filling          !Total number of allowed electrons 
   logical              :: ed_finite_temp      !flag to select finite temperature method. note that if T then lanc_nstates_total must be > 1 
   logical              :: ed_sparse_H         !flag to select  storage of sparse matrix H (mem--, cpu++) if TRUE, or direct on-the-fly H*v product (mem++, cpu--
   character(len=12)    :: ed_method           !select the diagonalization method: lanczos (see lanc_method then) or lapack (full diagonalization)
@@ -41,8 +42,6 @@ MODULE ED_INPUT_VARS
   logical              :: ed_print_G0         !flag to print impurity non-interacting Green`s functions
   logical              :: ed_all_G            !flag to evaluate all the components of the impurity Green`s functions irrespective of the symmetries
   logical              :: ed_twin             !flag to reduce (T) or not (F,default) the number of visited sector using twin symmetry.
-  logical              :: ed_sectors          !flag to reduce sector scan for the spectrum to specific sectors +/- ed_sectors_shift
-  integer              :: ed_sectors_shift    !shift to the ed_sectors scan
   integer              :: ed_verbose          !
 
   !
@@ -122,10 +121,10 @@ contains
     call parse_input_variable(sb_field,"SB_FIELD",INPUTunit,default=0.1d0,comment="Value of a symmetry breaking field for magnetic solutions.")
     !
     call parse_input_variable(ed_method,"ED_METHOD",INPUTunit,default="lanczos",comment="select the diagonalization method: lanczos (see lanc_method then) or lapack (full diagonalization)")
+
+    call parse_input_variable(ed_filling,"ED_FILLING",INPUTunit,default=0,comment="Total number of allowed electrons")
     call parse_input_variable(ed_finite_temp,"ED_FINITE_TEMP",INPUTunit,default=.false.,comment="flag to select finite temperature method. note that if T then lanc_nstates_total must be > 1")
     call parse_input_variable(ed_twin,"ED_TWIN",INPUTunit,default=.false.,comment="flag to reduce (T) or not (F,default) the number of visited sector using twin symmetry.")
-    call parse_input_variable(ed_sectors,"ED_SECTORS",INPUTunit,default=.false.,comment="flag to reduce sector scan for the spectrum to specific sectors +/- ed_sectors_shift.")
-    call parse_input_variable(ed_sectors_shift,"ED_SECTORS_SHIFT",INPUTunit,1,comment="shift to ed_sectors")
     call parse_input_variable(ed_sparse_H,"ED_SPARSE_H",INPUTunit,default=.true.,comment="flag to select  storage of sparse matrix H (mem--, cpu++) if TRUE, or direct on-the-fly H*v product (mem++, cpu--) if FALSE ")
     call parse_input_variable(ed_solve_offdiag_gf,"ED_SOLVE_OFFDIAG_GF",INPUTunit,default=.false.,comment="flag to select the calculation of the off-diagonal impurity GF. this is T by default if bath_type/=normal") 
     call parse_input_variable(ed_print_Sigma,"ED_PRINT_SIGMA",INPUTunit,default=.true.,comment="flag to print impurity Self-energies")
@@ -167,7 +166,6 @@ contains
     call parse_input_variable(lanc_tolerance,"LANC_TOLERANCE",INPUTunit,default=1d-18,comment="Tolerance for the Lanczos iterations as used in Arpack and plain lanczos.")
     call parse_input_variable(lanc_dim_threshold,"LANC_DIM_THRESHOLD",INPUTunit,default=1024,comment="Min dimension threshold to use Lanczos determination of the spectrum rather than Lapack based exact diagonalization.")
     !
-    call parse_input_variable(SectorFile,"SectorFile",INPUTunit,default="sectors",comment="File conintaing the sectors to address to determine the spectrum.")
     call parse_input_variable(Hfile,"Hfile",INPUTunit,default="hmatrix",comment="File containing the Hamiltonian matrix, ie setting the Hamiltonian problem")
     call parse_input_variable(LOGfile,"LOGFILE",INPUTunit,default=6,comment="LOG unit.")
 

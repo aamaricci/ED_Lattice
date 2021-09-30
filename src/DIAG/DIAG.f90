@@ -3,7 +3,6 @@ module ED_DIAG
   USE SF_LINALG, only: eigh
   USE SF_TIMER,  only: start_timer,stop_timer,eta
   USE SF_IOTOOLS, only:reg,free_unit,file_length
-  USE SF_STAT
   USE SF_SP_LINALG
   !
   USE ED_INPUT_VARS
@@ -34,7 +33,6 @@ contains
   ! GS, build the Green's functions calling all the necessary routines
   !+------------------------------------------------------------------+
   subroutine diagonalize_impurity()
-    call ed_pre_diag
     select case(ed_method)
     case default
        call ed_diag_d
@@ -79,13 +77,16 @@ contains
     !
     iter=0
     sector: do isector=1,Nsectors
-       if(.not.sectors_mask(isector))cycle sector
-       if(.not.twin_mask(isector))cycle sector
-       iter=iter+1
        call get_Nup(isector,nups)
        call get_Ndw(isector,ndws)
+       !
+       if(ed_filling/=0 .AND. (sum(Nups)+sum(Ndws)/=ed_filling) )cycle sector
+       if(.not.twin_mask(isector))cycle sector
+       iter=iter+1
+       !
        Tflag = twin_mask(isector).AND.ed_twin
        Tflag = Tflag.AND.(any(nups/=ndws))
+       !
        !
        Dim      = getdim(isector)
        !
@@ -289,11 +290,13 @@ contains
     !
     iter=0
     sector: do isector=1,Nsectors
-       if(.not.sectors_mask(isector))cycle sector
-       if(.not.twin_mask(isector))cycle sector
-       iter=iter+1
        call get_Nup(isector,nups)
        call get_Ndw(isector,ndws)
+       !
+       if(ed_filling/=0 .AND. (sum(Nups)+sum(Ndws)/=ed_filling) )cycle sector
+       if(.not.twin_mask(isector))cycle sector
+       iter=iter+1
+       !
        Tflag = twin_mask(isector).AND.ed_twin
        Tflag = Tflag.AND.(any(nups/=ndws))
        !
@@ -394,60 +397,6 @@ contains
 
 
 
-  !###########################################################################################
-  !
-  !    PRE-PROCESSING ROUTINES
-  !
-  !###########################################################################################
-  subroutine ed_pre_diag
-    integer                          :: Indices(2*Ns_Ud),Jndices(2*Ns_Ud)
-    integer                          :: Nups(Ns_ud),Ndws(Ns_ud)
-    integer                          :: Jups(Ns_ud),Jdws(Ns_ud)
-    integer                          :: i,iud,iorb
-    integer                          :: isector,jsector
-    integer                          :: unit,unit2,status,istate,ishift,isign
-    logical                          :: IOfile
-    integer                          :: list_len
-    integer,dimension(:),allocatable :: list_sector
-    !
-    sectors_mask=.true.
-    !
-    if(ed_sectors)then
-       inquire(file=reg(SectorFile)//".restart",exist=IOfile)
-       if(IOfile)then
-          sectors_mask=.false.
-          write(LOGfile,"(A)")"Analysing sectors_list to reduce sectors scan:"
-          list_len=file_length(reg(SectorFile)//".restart")
-          !
-          open(free_unit(unit),file=reg(SectorFile)//".restart",status="old")
-          open(free_unit(unit2),file="list_of_sectors"//".ed")
-          do istate=1,list_len
-             read(unit,*,iostat=status)Indices
-             call get_Sector(Indices,Ns_Orb,isector)
-             sectors_mask(isector)=.true.
-             write(unit2,*)isector,sectors_mask(isector),Indices
-             !
-             do i=1,2*Ns_Ud
-                do ishift=1,ed_sectors_shift
-                   do isign=-1,1,2
-                      Jndices    = Indices
-                      Jndices(i) = Indices(i) + isign*ishift
-                      call get_Sector(Jndices,Ns_Orb,jsector)
-                      sectors_mask(jsector)=.true.
-                      write(unit2,*)jsector,sectors_mask(jsector),Jndices
-                   enddo
-                enddo
-             enddo
-             !
-          enddo
-          close(unit)
-          close(unit2)
-          !
-       endif
-    endif
-    !
-  end subroutine ed_pre_diag
-
 
 
 
@@ -468,9 +417,6 @@ contains
     integer             :: Nsize,NtoBremoved,nstates_below_cutoff
     integer             :: numgs
     real(8)             :: Egs,Ei,Ec,Etmp
-    type(histogram)     :: hist
-    real(8)             :: hist_a,hist_b,hist_w
-    integer             :: hist_n
     integer,allocatable :: list_sector(:),count_sector(:)    
     !POST PROCESSING:
     if(MPIMASTER)then
@@ -507,36 +453,7 @@ contains
     !
     !
     !
-    if(.not.finiteT)then
-       !generate a sector_list to be reused in case we want to reduce sectors scan
-       open(free_unit(unit),file=reg(SectorFile)//".restart")       
-       do istate=1,state_list%size
-          isector = es_return_sector(state_list,istate)
-          call get_QuantumNumbers(isector,Ns_Orb,Indices)
-          write(unit,*)Indices
-       enddo
-       close(unit)
-    else
-       !get histogram distribution of the sector contributing to the evaluated spectrum:
-       !go through states list and update the neigen_sector(isector) sector-by-sector
-       if(MPIMASTER)then
-          unit=free_unit()
-          open(unit,file="histogram_states.ed",position='append')
-          hist_n = Nsectors
-          hist_a = 1d0
-          hist_b = dble(Nsectors)
-          hist_w = 1d0
-          hist = histogram_allocate(hist_n)
-          call histogram_set_range_uniform(hist,hist_a,hist_b)
-          do i=1,state_list%size
-             isector = es_return_sector(state_list,i)
-             call histogram_accumulate(hist,dble(isector),hist_w)
-          enddo
-          call histogram_print(hist,unit)
-          write(unit,*)""
-          close(unit)
-       endif
-       !
+    if(finiteT)then
        !
        !
        allocate(list_sector(state_list%size),count_sector(Nsectors))
@@ -571,8 +488,7 @@ contains
        Ec   = state_list%emax
        Nsize= state_list%size
        if(exp(-beta*(Ec-Egs)) > cutoff)then
-          lanc_nstates_total=lanc_nstates_total + lanc_nstates_step
-          if(MPIMASTER)write(LOGfile,"(A,I4)")"Increasing lanc_nstates_total:",lanc_nstates_total
+          if(MPIMASTER)write(LOGfile,"(A,I4)")"Must Increase lanc_nstates_total:",lanc_nstates_total
        else
           ! !Find the energy level beyond which cutoff condition is verified & cut the list to that size
           write(LOGfile,*)

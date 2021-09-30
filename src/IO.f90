@@ -86,8 +86,8 @@ contains
   end subroutine ed_get_docc
 
   subroutine ed_get_doubles(docc)
-    real(8),dimension(4) :: docc
-    docc = [ed_Dust,ed_Dund,ed_Dse,ed_Dph]
+    real(8),dimension(5) :: docc
+    docc = [ed_Dust,ed_Dund,ed_Dse,ed_Dph,ed_Dk]
   end subroutine ed_get_doubles
 
   subroutine ed_get_elocal(eimp)

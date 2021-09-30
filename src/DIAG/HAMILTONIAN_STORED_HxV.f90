@@ -66,6 +66,9 @@ contains
     !-----------------------------------------------!
     !LOCAL HAMILTONIAN TERMS
     include "stored/H_local.f90"
+    if(ed_filling==0)then
+       include "stored/H_muhf.f90"
+    endif
     !
     !NON-LOCAL HAMILTONIAN TERMS
     if(jhflag)then
