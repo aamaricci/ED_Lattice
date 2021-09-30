@@ -18,12 +18,10 @@ MODULE ED_OBSERVABLES
 
 
 
-  logical,save                       :: iolegend=.true.
   real(8),dimension(:),allocatable   :: dens,dens_up,dens_dw
   real(8),dimension(:),allocatable   :: docc
   real(8),dimension(:),allocatable   :: magz
   real(8),dimension(:,:),allocatable :: sz2,n2
-  real(8),dimension(:,:),allocatable :: zimp,simp
   real(8)                            :: dens_ph
   real(8)                            :: s2tot
   real(8)                            :: Egs
@@ -96,7 +94,6 @@ contains
     allocate(dens(Ns),dens_up(Ns),dens_dw(Ns))
     allocate(docc(Ns))
     allocate(magz(Ns),sz2(Ns,Ns),n2(Ns,Ns))
-    allocate(simp(Nspin,Ns),zimp(Nspin,Ns))
     !
     Egs     = state_list%emin
     dens    = 0.d0
@@ -253,8 +250,6 @@ contains
     !
     !
     if(MPIMASTER)then
-       call get_szr
-       if(iolegend)call write_legend
        call write_observables()
        write(LOGfile,"(A,10f18.12,f18.12)")&
             "dens=",(dens(is),is=1,Ns),sum(dens)
@@ -280,7 +275,6 @@ contains
 #endif
     !
     deallocate(dens,docc,dens_up,dens_dw,magz,sz2,n2)
-    deallocate(simp,zimp)
   end subroutine lanc_observables
 
 
@@ -313,7 +307,6 @@ contains
     allocate(dens(Norb),dens_up(Norb),dens_dw(Norb))
     allocate(docc(Norb))
     allocate(magz(Norb),sz2(Norb,Norb),n2(Norb,Norb))
-    allocate(simp(Norb,Nspin),zimp(Norb,Nspin))
     !
     egs     = gs_energy
     dens    = 0.d0
@@ -379,8 +372,6 @@ contains
        if(associated(evec))nullify(evec)
     enddo
     !
-    call get_szr
-    if(iolegend)call write_legend
     call write_observables()
     write(LOGfile,"(A,10f18.12,f18.12)")&
          "dens=",(dens(is),is=1,Ns),sum(dens)
@@ -397,7 +388,6 @@ contains
     ed_mag     = dens_up-dens_dw
     !
     deallocate(dens,docc,dens_up,dens_dw,magz,sz2,n2)
-    deallocate(simp,zimp)    
   end subroutine full_observables
 
 
@@ -620,7 +610,7 @@ contains
                                jup = binary_search(sectorI%H(1)%map,k4)
                                j = jup + (jdw-1)*sectorI%DimUp
                                !
-                               ed_Epot = ed_Epot + Jk*sg1*sg2*sg3*sg4*state_cvec(i)*state_cvec(j)*peso
+                               ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*state_cvec(i)*state_cvec(j)*peso
                                ed_Dk = ed_Dk + sg1*sg2*sg3*sg4*state_cvec(i)*state_cvec(j)*peso
                             endif
                             !
@@ -639,7 +629,7 @@ contains
                                jup = binary_search(sectorI%H(1)%map,k4)
                                j = jup + (jdw-1)*sectorI%DimUp
                                !
-                               ed_Epot = ed_Epot + Jk*sg1*sg2*sg3*sg4*state_cvec(i)*state_cvec(j)*peso
+                               ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*state_cvec(i)*state_cvec(j)*peso
                                ed_Dk = ed_Dk + sg1*sg2*sg3*sg4*state_cvec(i)*state_cvec(j)*peso
                             endif
                             !
@@ -690,7 +680,7 @@ contains
                    do jorb=iorb+1,Norb
                       do isite=1,Nsites(iorb)
                          do jsite=1,Nsites(jorb)
-                            ed_Epot = ed_Epot - Jk*(Nup(io)-Ndw(io))*(Nup(jo)-Ndw(jo))*gs_weight
+                            ed_Epot = ed_Epot - Jk/4d0*(Nup(io)-Ndw(io))*(Nup(jo)-Ndw(jo))*gs_weight
                             ed_Dk = ed_Dk + (Nup(io)-Ndw(io))*(Nup(jo)-Ndw(jo))*gs_weight
                          enddo
                       enddo
@@ -766,7 +756,6 @@ contains
     endif
     !
     if(MPIMASTER)then
-       call write_energy_info()
        call write_energy()
     endif
     !
@@ -996,7 +985,7 @@ contains
                                jup = binary_search(sectorI%H(1)%map,k4)
                                j = jup + (jdw-1)*sectorI%DimUp
                                !
-                               ed_Epot = ed_Epot + Jk*sg1*sg2*sg3*sg4*evec(i)*evec(j)*peso
+                               ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*evec(i)*evec(j)*peso
                                ed_Dk = ed_Dk + sg1*sg2*sg3*sg4*evec(i)*evec(j)*peso
                             endif
                             !
@@ -1015,7 +1004,7 @@ contains
                                jup = binary_search(sectorI%H(1)%map,k4)
                                j = jup + (jdw-1)*sectorI%DimUp
                                !
-                               ed_Epot = ed_Epot + Jk*sg1*sg2*sg3*sg4*evec(i)*evec(j)*peso
+                               ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*evec(i)*evec(j)*peso
                                ed_Dk = ed_Dk + sg1*sg2*sg3*sg4*evec(i)*evec(j)*peso
                             endif
                             !
@@ -1064,7 +1053,7 @@ contains
                    do jorb=iorb+1,Norb
                       do isite=1,Nsites(iorb)
                          do jsite=1,Nsites(jorb)
-                            ed_Epot = ed_Epot - Jk*(Nup(io)-Ndw(io))*(Nup(jo)-Ndw(jo))*state_weight
+                            ed_Epot = ed_Epot - Jk/4d0*(Nup(io)-Ndw(io))*(Nup(jo)-Ndw(jo))*state_weight
                             ed_Dk = ed_Dk + (Nup(io)-Ndw(io))*(Nup(jo)-Ndw(jo))*state_weight
                          enddo
                       enddo
@@ -1118,7 +1107,6 @@ contains
        write(LOGfile,"(A,10f18.12)")"Dund    =",ed_Dund
        write(LOGfile,"(A,10f18.12)")"Dk      =",ed_Dk
     endif
-    call write_energy_info()
     call write_energy()
     !
     !
@@ -1131,59 +1119,67 @@ contains
   !####################################################################
   !                    COMPUTATIONAL ROUTINES
   !####################################################################
-  !+-------------------------------------------------------------------+
-  !PURPOSE  : get scattering rate and renormalization constant Z
-  !+-------------------------------------------------------------------+
-  subroutine get_szr()
-    integer                  :: ispin,is
-    real(8)                  :: wm1,wm2
-    wm1 = pi/beta ; wm2=3d0*pi/beta
-    do ispin=1,Nspin
-       do is=1,Ns
-          simp(ispin,is) = dimag(impSmats(ispin,is,is,1)) - &
-               wm1*(dimag(impSmats(ispin,is,is,2))-dimag(impSmats(ispin,is,is,1)))/(wm2-wm1)
-          zimp(ispin,is)   = 1.d0/( 1.d0 + abs( dimag(impSmats(ispin,is,is,1))/wm1 ))
-       enddo
-    enddo
-  end subroutine get_szr
-
-
 
   !+-------------------------------------------------------------------+
-  !PURPOSE  : write legend, i.e. info about columns 
+  !PURPOSE  : write observables to file
   !+-------------------------------------------------------------------+
-  subroutine write_legend()
-    integer :: unit,iorb,jorb,ispin,stride
-    unit = free_unit()
-    open(unit,file="observables_info.ed")
-    write(unit,"(A1,90(A10,6X))")"#",&
-         (reg(txtfy(iorb))//"dens_"//reg(txtfy(iorb)),iorb=1,Norb),&
-         (reg(txtfy(Norb+iorb))//"docc_"//reg(txtfy(iorb)),iorb=1,Norb),&
-         (reg(txtfy(2*Norb+iorb))//"nup_"//reg(txtfy(iorb)),iorb=1,Norb),&
-         (reg(txtfy(3*Norb+iorb))//"ndw_"//reg(txtfy(iorb)),iorb=1,Norb),&
-         (reg(txtfy(4*Norb+iorb))//"mag_"//reg(txtfy(iorb)),iorb=1,Norb),&
-         reg(txtfy(5*Norb+1))//"s2",&
-         reg(txtfy(5*Norb+2))//"egs",&
-         ((reg(txtfy(5*Norb+2+(iorb-1)*Norb+jorb))//"sz2_"//reg(txtfy(iorb))//reg(txtfy(jorb)),jorb=1,Norb),iorb=1,Norb),&
-         ((reg(txtfy((5+Norb)*Norb+2+(iorb-1)*Norb+jorb))//"n2_"//reg(txtfy(iorb))//reg(txtfy(jorb)),jorb=1,Norb),iorb=1,Norb),&
-         ((reg(txtfy((5+2*Norb)*Norb+2+(ispin-1)*Nspin+iorb))//"z_"//reg(txtfy(iorb))//"s"//reg(txtfy(ispin)),iorb=1,Norb),ispin=1,Nspin),&
-         ((reg(txtfy((5+2*Norb)*Norb+2+Norb*Nspin+(ispin-1)*Nspin+iorb))//"sig_"//reg(txtfy(iorb))//"s"//reg(txtfy(ispin)),iorb=1,Norb),ispin=1,Nspin)
-
-    close(unit)
-    !
-
-    unit = free_unit()
-    open(unit,file="parameters_info.ed")
-    write(unit,"(A1,90(A14,1X))")"#","1xmu","2beta",&
-         (reg(txtfy(2+iorb))//"U_"//reg(txtfy(iorb)),iorb=1,Norb),&
-         reg(txtfy(2+Norb+1))//"U'",reg(txtfy(2+Norb+2))//"Jh"
-    close(unit)
-    !
-    iolegend=.false.
-  end subroutine write_legend
-
-  subroutine write_energy_info()
+  subroutine write_observables()
     integer :: unit
+    integer :: io,jo,iorb
+    unit = free_unit()
+    open(unit,file="parameters_last.ed")
+    write(unit,"(90F15.9)")xmu,beta,(uloc(iorb),iorb=1,Norb),Ust,Jh,Jx,Jp,Jk
+    close(unit)
+
+    unit = free_unit()
+    open(unit,file="dens.ed")
+    write(unit,"(90(F20.12,1X))")(dens(io),io=1,Ns)
+    close(unit)         
+
+    unit = free_unit()
+    open(unit,file="dens_up.ed")
+    write(unit,"(90(F20.12,1X))")(dens_up(io),io=1,Ns)
+    close(unit)         
+
+    unit = free_unit()
+    open(unit,file="dens_dw.ed")
+    write(unit,"(90(F20.12,1X))")(dens_dw(io),io=1,Ns)
+    close(unit)         
+
+    unit = free_unit()
+    open(unit,file="docc.ed")
+    write(unit,"(90(F20.12,1X))")(docc(io),io=1,Ns)
+    close(unit)
+
+    unit = free_unit()
+    open(unit,file="magz.ed")
+    write(unit,"(90(F20.12,1X))")(magz(io),io=1,Ns)
+    close(unit)         
+
+    unit = free_unit()
+    open(unit,file="egs.ed")
+    write(unit,*)egs
+    close(unit)
+
+    unit = free_unit()
+    open(unit,file="Sz_corr.ed")
+    do io=1,Ns
+       write(unit,"(90(F15.9,1X))")(sz2(io,jo),jo=1,Ns)
+    enddo
+    close(unit)         
+
+    unit = free_unit()
+    open(unit,file="N_corr.ed")
+    do io=1,Ns
+       write(unit,"(90(F15.9,1X))")(n2(io,jo),jo=1,Ns)
+    enddo
+    close(unit)         
+    !
+  end subroutine write_observables
+
+  subroutine write_energy()
+    integer :: unit
+    
     unit = free_unit()
     open(unit,file="energy_info.ed")
     write(unit,"(A1,90(A14,1X))")"#",&
@@ -1197,55 +1193,7 @@ contains
          reg(txtfy(8))//"<Dph>",&
          reg(txtfy(9))//"<Dk>"
     close(unit)
-  end subroutine write_energy_info
 
-
-  !+-------------------------------------------------------------------+
-  !PURPOSE  : write observables to file
-  !+-------------------------------------------------------------------+
-  subroutine write_observables()
-    integer :: unit
-    integer :: iorb,jorb,ispin
-    unit = free_unit()
-    open(unit,file="observables_all.ed",position='append')
-    write(unit,"(90(F15.9,1X))")&
-         (dens(iorb),iorb=1,Norb),&
-         (docc(iorb),iorb=1,Norb),&
-         (dens_up(iorb),iorb=1,Norb),&
-         (dens_dw(iorb),iorb=1,Norb),&
-         (magz(iorb),iorb=1,Norb),&
-         s2tot,egs,&
-         ((sz2(iorb,jorb),jorb=1,Norb),iorb=1,Norb),&
-         ((n2(iorb,jorb),jorb=1,Norb),iorb=1,Norb),&
-         ((zimp(iorb,ispin),iorb=1,Norb),ispin=1,Nspin),&
-         ((simp(iorb,ispin),iorb=1,Norb),ispin=1,Nspin)
-    close(unit)    
-    !
-    unit = free_unit()
-    open(unit,file="parameters_last.ed")
-    write(unit,"(90F15.9)")xmu,beta,(uloc(iorb),iorb=1,Norb),Ust,Jh,Jx,Jp
-    close(unit)
-    !
-    unit = free_unit()
-    open(unit,file="observables_last.ed")
-    write(unit,"(90(F15.9,1X))")&
-         (dens(iorb),iorb=1,Norb),&
-         (docc(iorb),iorb=1,Norb),&
-         (dens_up(iorb),iorb=1,Norb),&
-         (dens_dw(iorb),iorb=1,Norb),&
-         (magz(iorb),iorb=1,Norb),&
-         s2tot,egs,&
-         ((sz2(iorb,jorb),jorb=1,Norb),iorb=1,Norb),&
-         ((n2(iorb,jorb),jorb=1,Norb),iorb=1,Norb),&
-         ((zimp(iorb,ispin),iorb=1,Norb),ispin=1,Nspin),&
-         ((simp(iorb,ispin),iorb=1,Norb),ispin=1,Nspin)
-    close(unit)         
-    !
-    !
-  end subroutine write_observables
-
-  subroutine write_energy()
-    integer :: unit
     unit = free_unit()
     open(unit,file="energy_last.ed")
     write(unit,"(90F15.9)")ed_Epot,ed_Epot-ed_Ehartree,ed_Eknot,ed_Ehartree,ed_Dust,ed_Dund,ed_Dse,ed_Dph,ed_Dk
@@ -1254,7 +1202,6 @@ contains
 
 
 end MODULE ED_OBSERVABLES
-
 
 
 

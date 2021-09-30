@@ -17,7 +17,8 @@ MODULE ED_GREENS_FUNCTIONS
   private 
 
   public :: buildGf_impurity
-
+  logical,save                       :: iolegend=.true.
+  real(8),dimension(:,:),allocatable :: zimp,simp
 contains
 
 
@@ -47,10 +48,50 @@ contains
        if(ed_print_G0)call ed_print_impG0()
     endif
     !
+    call build_szr
+    !
     call deallocate_grids
     !
   end subroutine buildgf_impurity
 
 
+
+
+
+
+  !+-------------------------------------------------------------------+
+  !PURPOSE  : get scattering rate and renormalization constant Z
+  !+-------------------------------------------------------------------+
+  subroutine build_szr()
+    integer :: ispin,is
+    real(8) :: wm1,wm2
+    integer :: unit
+    integer :: iorb,jorb
+    if(allocated(simp))deallocate(simp)
+    if(allocated(zimp))deallocate(zimp)
+    allocate(simp(Nspin,Ns),zimp(Nspin,Ns))
+    wm1 = pi/beta ; wm2=3d0*pi/beta
+    do ispin=1,Nspin
+       do is=1,Ns
+          simp(ispin,is) = dimag(impSmats(ispin,is,is,1)) - &
+               wm1*(dimag(impSmats(ispin,is,is,2))-dimag(impSmats(ispin,is,is,1)))/(wm2-wm1)
+          zimp(ispin,is)   = 1.d0/( 1.d0 + abs( dimag(impSmats(ispin,is,is,1))/wm1 ))
+       enddo
+    enddo
+
+    unit = free_unit()
+    open(unit,file="zeta_last.ed")
+    write(unit,"(90(F15.9,1X))")&
+         ((zimp(iorb,ispin),iorb=1,Norb),ispin=1,Nspin)
+    close(unit)         
+
+    unit = free_unit()
+    open(unit,file="sig_last.ed")
+    write(unit,"(90(F15.9,1X))")&
+         ((simp(iorb,ispin),iorb=1,Norb),ispin=1,Nspin)
+    close(unit)         
+
+  end subroutine build_szr
+  
 
 end MODULE ED_GREENS_FUNCTIONS
