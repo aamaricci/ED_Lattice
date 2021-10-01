@@ -251,7 +251,7 @@ contains
     !
     if(MPIMASTER)then
        call write_observables()
-       write(LOGfile,"(A,10f18.12,f18.12)")&
+       write(LOGfile,"(A,100f18.12,f18.12)")&
             "dens=",(dens(is),is=1,Ns),sum(dens)
        if(Nspin==2)then
           write(LOGfile,"(A,10f18.12,A)")&
@@ -373,7 +373,7 @@ contains
     enddo
     !
     call write_observables()
-    write(LOGfile,"(A,10f18.12,f18.12)")&
+    write(LOGfile,"(A,100f18.12,f18.12)")&
          "dens=",(dens(is),is=1,Ns),sum(dens)
     if(Nspin==2)then
        write(LOGfile,"(A,10f18.12,A)")&
@@ -405,7 +405,7 @@ contains
     integer                           :: istate,iud(2),jud(2)
     integer,dimension(2*Ns_Ud)        :: Indices,Jndices
     integer,dimension(Ns_Ud,Ns_Orb)   :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
-    real(8),dimension(Ns)             :: Nup,Ndw
+    real(8),dimension(Ns)             :: Nup,Ndw,Sz
     complex(8),dimension(Nspin,Ns,Ns) :: Hij,Hloc
     complex(8),dimension(Nspin,Ns)    :: Hdiag
     !
@@ -456,6 +456,7 @@ contains
              enddo
              Nup =  Nups(1,:)!Breorder(Nups)
              Ndw =  Ndws(1,:)!Breorder(Ndws)
+             Sz = 0.5d0*(Nup-Ndw)
              !
              gs_weight=peso*abs(state_cvec(i))**2
              !
@@ -588,7 +589,7 @@ contains
              !
              if(Jhflag.AND.Jk/=0d0)then
                 do iorb=1,Norb
-                   do jorb=1,Norb
+                   do jorb=iorb+1,Norb
                       do isite=1,Nsites(iorb)
                          do jsite=1,Nsites(jorb)
                             if(isite/=jsite)cycle !local interaction only:
@@ -680,8 +681,8 @@ contains
                    do jorb=iorb+1,Norb
                       do isite=1,Nsites(iorb)
                          do jsite=1,Nsites(jorb)
-                            ed_Epot = ed_Epot - Jk/4d0*(Nup(io)-Ndw(io))*(Nup(jo)-Ndw(jo))*gs_weight
-                            ed_Dk = ed_Dk + (Nup(io)-Ndw(io))*(Nup(jo)-Ndw(jo))*gs_weight
+                            ed_Epot = ed_Epot - Jk*Sz(io)*Sz(jo)*gs_weight
+                            ed_Dk = ed_Dk + Sz(io)*Sz(jo)*gs_weight
                          enddo
                       enddo
                    enddo
@@ -706,9 +707,7 @@ contains
                                io = pack_indices(isite,iorb)
                                jo = pack_indices(isite,jorb)
                                ed_Ehartree=ed_Ehartree - 0.5d0*Ust*(nup(io)+ndw(io)+nup(jo)+ndw(jo))*gs_weight
-                               !ed_Ehartree=ed_Ehartree + 0.25d0*Ust*gs_weight
                                ed_Ehartree=ed_Ehartree - 0.5d0*(Ust-Jh)*(nup(io)+ndw(io)+nup(jo)+ndw(jo))*gs_weight
-                               !ed_Ehartree=ed_Ehartree + 0.25d0*(Ust-Jh)*gs_weight
                             enddo
                          enddo
                       enddo
@@ -782,7 +781,7 @@ contains
     integer                           :: iud(2),jud(2)
     integer,dimension(2*Ns_Ud)        :: Indices,Jndices
     integer,dimension(Ns_Ud,Ns_Orb)   :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
-    real(8),dimension(Ns)             :: Nup,Ndw
+    real(8),dimension(Ns)             :: Nup,Ndw,Sz
     logical                           :: Jcondition
     complex(8),dimension(Nspin,Ns,Ns) :: Hij,Hloc
     complex(8),dimension(Nspin,Ns)    :: Hdiag
@@ -827,6 +826,7 @@ contains
              enddo
              Nup =  Nups(1,:)!Breorder(Nups)
              Ndw =  Ndws(1,:)!Breorder(Ndws)
+             Sz  = 0.5d0*(Nup-Ndw)
              !
              state_weight = (evec(i))*evec(i)
              weight = boltzman_weight*state_weight
@@ -963,7 +963,7 @@ contains
              !
              if(Jhflag.AND.Jk/=0d0)then
                 do iorb=1,Norb
-                   do jorb=1,Norb
+                   do jorb=iorb+1,Norb
                       do isite=1,Nsites(iorb)
                          do jsite=1,Nsites(jorb)
                             if(isite/=jsite)cycle !local interaction only:
@@ -1053,8 +1053,8 @@ contains
                    do jorb=iorb+1,Norb
                       do isite=1,Nsites(iorb)
                          do jsite=1,Nsites(jorb)
-                            ed_Epot = ed_Epot - Jk/4d0*(Nup(io)-Ndw(io))*(Nup(jo)-Ndw(jo))*state_weight
-                            ed_Dk = ed_Dk + (Nup(io)-Ndw(io))*(Nup(jo)-Ndw(jo))*state_weight
+                            ed_Epot = ed_Epot - Jk/4d0*Sz(io)*Sz(jo)*state_weight
+                            ed_Dk = ed_Dk + Sz(io)*Sz(jo)*state_weight
                          enddo
                       enddo
                    enddo
@@ -1066,7 +1066,7 @@ contains
                 do iorb=1,Norb
                    do isite=1,Nsites(iorb)          
                       io = pack_indices(isite,iorb)
-                      ed_Ehartree=ed_Ehartree - 0.5d0*Uloc(iorb)*(nup(io)+ndw(io))*state_weight + 0.25d0*uloc(iorb)*state_weight
+                      ed_Ehartree=ed_Ehartree - 0.5d0*Uloc(iorb)*(nup(io)+ndw(io))*state_weight
                    enddo
                 enddo
                 !
@@ -1079,9 +1079,7 @@ contains
                                io = pack_indices(isite,iorb)
                                jo = pack_indices(isite,jorb)
                                ed_Ehartree=ed_Ehartree - 0.5d0*Ust*(nup(io)+ndw(io)+nup(jo)+ndw(jo))*state_weight
-                               ed_Ehartree=ed_Ehartree + 0.25d0*Ust*state_weight
                                ed_Ehartree=ed_Ehartree - 0.5d0*(Ust-Jh)*(nup(io)+ndw(io)+nup(jo)+ndw(jo))*state_weight
-                               ed_Ehartree=ed_Ehartree + 0.25d0*(Ust-Jh)*state_weight
                             enddo
                          enddo
                       enddo

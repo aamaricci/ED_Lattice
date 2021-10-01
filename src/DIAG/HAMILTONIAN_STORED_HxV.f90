@@ -38,8 +38,8 @@ contains
     if(present(Hmat))&
          call assert_shape(Hmat,[getdim(isector), getdim(isector)],"ed_buildh_main","Hmat")
     !
-    call Hij_get(Hij)
-    call Hij_get(Hloc)
+    call Hij_get(Hij) ;Hij = dreal(Hij)
+    call Hij_get(Hloc);Hloc= dreal(Hloc)
     do ispin=1,Nspin
        Hdiag(ispin,:) = diagonal(Hloc(ispin,:,:))
     enddo
