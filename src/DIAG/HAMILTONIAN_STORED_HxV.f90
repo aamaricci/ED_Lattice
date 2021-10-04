@@ -24,7 +24,8 @@ contains
     real(8),dimension(:,:),allocatable :: Htmp_up,Htmp_dw,Hrdx,Hmat_tmp
     integer,dimension(2*Ns_Ud)         :: Indices    ![2-2*Norb]
     integer,dimension(Ns_Ud,Ns_Orb)    :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
-    integer,dimension(Ns)              :: Nup,Ndw,Sz ![Ns]
+    integer,dimension(Ns)              :: Nup,Ndw
+    real(8),dimension(Ns)              :: Sz 
     complex(8),dimension(Nspin,Ns,Ns)  :: Hij,Hloc
     complex(8),dimension(Nspin,Ns)     :: Hdiag
     !

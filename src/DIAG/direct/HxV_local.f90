@@ -67,7 +67,7 @@
                     if(isite/=jsite)cycle !local interaction only:
                     io = pack_indices(isite,iorb)
                     jo = pack_indices(isite,jorb)
-                    htmp = htmp - Jk*Sz(io)*Sz(jo)
+                    htmp = htmp - 2*Jk*Sz(io)*Sz(jo)
                  enddo
               enddo
            enddo

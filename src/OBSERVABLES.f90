@@ -681,7 +681,7 @@ contains
                    do jorb=iorb+1,Norb
                       do isite=1,Nsites(iorb)
                          do jsite=1,Nsites(jorb)
-                            ed_Epot = ed_Epot - Jk*Sz(io)*Sz(jo)*gs_weight
+                            ed_Epot = ed_Epot - 2*Jk*Sz(io)*Sz(jo)*gs_weight
                             ed_Dk = ed_Dk + Sz(io)*Sz(jo)*gs_weight
                          enddo
                       enddo
@@ -1053,7 +1053,7 @@ contains
                    do jorb=iorb+1,Norb
                       do isite=1,Nsites(iorb)
                          do jsite=1,Nsites(jorb)
-                            ed_Epot = ed_Epot - Jk/4d0*Sz(io)*Sz(jo)*state_weight
+                            ed_Epot = ed_Epot - 2*Jk*Sz(io)*Sz(jo)*state_weight
                             ed_Dk = ed_Dk + Sz(io)*Sz(jo)*state_weight
                          enddo
                       enddo

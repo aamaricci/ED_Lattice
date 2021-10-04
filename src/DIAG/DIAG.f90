@@ -505,7 +505,7 @@ contains
              call print_state_list(LOGfile)
           endif
           !
-          lanc_nstates_total=max(state_list%size,lanc_nstates_step)+lanc_nstates_step
+          lanc_nstates_total=state_list%size
           write(LOGfile,"(A,I4)")"Adjusting lanc_nstates_total to:",lanc_nstates_total
           !
        endif
