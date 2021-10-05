@@ -20,7 +20,7 @@ contains
 
   subroutine ed_buildh_main(Hmat)
     real(8),dimension(:,:),optional    :: Hmat
-    integer                            :: isector,ispin
+    integer                            :: isector,ispin,i,j
     real(8),dimension(:,:),allocatable :: Htmp_up,Htmp_dw,Hrdx,Hmat_tmp
     integer,dimension(2*Ns_Ud)         :: Indices    ![2-2*Norb]
     integer,dimension(Ns_Ud,Ns_Orb)    :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
