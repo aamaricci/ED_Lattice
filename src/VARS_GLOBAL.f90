@@ -175,9 +175,9 @@ MODULE ED_VARS_GLOBAL
   !=========================================================
   integer                                          :: site_indx_padding=4
   logical                                          :: Jhflag              !spin-exchange and pair-hopping flag.
-  logical                                          :: offdiag_gf_flag=.false.
   logical                                          :: finiteT             !flag for finite temperature calculation
-
+  logical                                          :: chi_flag
+  integer                                          :: lanc_nstates_total=1  !Max number of states hold in the finite T calculation
 
   !This is the internal Mpi Communicator and variables.
   !=========================================================

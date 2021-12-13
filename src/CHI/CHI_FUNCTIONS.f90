@@ -62,8 +62,7 @@ contains
     !
     !
     !PRINTING:
-    ! if(MPIMASTER.AND.(any([chispin_flag,chidens_flag,chipair_flag,chiexct_flag])))call ed_print_impChi()
-    if(MPIMASTER.AND.chispin_flag)call ed_print_impChi()
+    if(MPIMASTER)call ed_print_impChi()
     !
     call deallocate_grids
     !

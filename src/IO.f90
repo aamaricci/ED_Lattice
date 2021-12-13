@@ -112,23 +112,32 @@ contains
   !                         PRINT LATTICE FUNCTIONS:
   !+------------------------------------------------------------------+
   subroutine ed_print_impSigma
+    integer :: iprint
+    iprint=1
+    if(offdiag_gf_flag)iprint=3
     call allocate_grids()
-    call ed_write_func(impSmats,"Sigma",'mats',wm,3)
-    call ed_write_func(impSreal,"Sigma",'real',wr,3)
+    call ed_write_func(impSmats,"Sigma",'mats',wm,iprint)
+    call ed_write_func(impSreal,"Sigma",'real',wr,iprint)
     call deallocate_grids()
   end subroutine ed_print_impSigma
 
   subroutine ed_print_impG
+        integer :: iprint
+    iprint=1
+    if(offdiag_gf_flag)iprint=3
     call allocate_grids()
-    call ed_write_func(impGmats,"G",'mats',wm,3)
-    call ed_write_func(impGreal,"G",'real',wr,3)
+    call ed_write_func(impGmats,"G",'mats',wm,iprint)
+    call ed_write_func(impGreal,"G",'real',wr,iprint)
     call deallocate_grids()
   end subroutine ed_print_impG
 
   subroutine ed_print_impG0
+    integer :: iprint
+    iprint=1
+    if(offdiag_gf_flag)iprint=3
     call allocate_grids()
-    call ed_write_func(impG0mats,"G0",'mats',wm,3)
-    call ed_write_func(impG0real,"G0",'real',wr,3)
+    call ed_write_func(impG0mats,"G0",'mats',wm,iprint)
+    call ed_write_func(impG0real,"G0",'real',wr,iprint)
     call deallocate_grids()
   end subroutine ed_print_impG0
 
@@ -138,19 +147,46 @@ contains
   !+------------------------------------------------------------------+  
   subroutine ed_print_impChi
     if(chispin_flag)call print_chi_spin
+    ! if(chidens_flag)call print_chi_dens
+    ! if(chipair_flag)call print_chi_pair
+    ! if(chiexct_flag)call print_chi_exct
   end subroutine ed_print_impChi
 
   !                         SPIN-SPIN
   subroutine print_chi_spin
-    integer :: io,jo
+    integer :: iorb,jorb,ilat,jlat,io,jo
     call allocate_grids()
-    do io=1,Ns
-       do jo=1,Ns
-          call splot("spinChi_l"//str(io)//str(io)//"_tau.ed",tau,spinChi_tau(io,jo,0:))
-          call splot("spinChi_l"//str(io)//str(jo)//"_realw.ed",vr,spinChi_w(io,jo,:))
-          call splot("spinChi_l"//str(io)//str(io)//"_iv.ed",vm,spinChi_iv(io,jo,:))
+    do iorb=1,Norb
+       do ilat=1,Nsites(iorb)
+          io = pack_indices(ilat,iorb)
+          suffix="spinChi"//&
+               "_i"//str(ilat,site_indx_padding)//&
+               "_l"//str(iorb)
+          call splot(reg(suffix)//"_tau.ed",tau,spinChi_tau(io,io,0:))
+          call splot(reg(suffix)//"_realw.ed",vr,spinChi_w(io,io,:))
+          call splot(reg(suffix)//"_iv.ed",vm,spinChi_iv(io,io,:))
        enddo
     enddo
+    if(offdiag_chispin_flag.AND.Norb>1)then
+       do iorb=1,Norb
+          do jorb=1,Norb
+             do ilat=1,Nsites(iorb)
+                do jlat=1,Nsites(jorb)
+                   io  = pack_indices(ilat,iorb)
+                   jo  = pack_indices(jlat,jorb)
+                   if(io==jo)cycle
+                   !
+                   suffix="spinChi"//&
+                        "_i"//str(ilat,site_indx_padding)//"j"//str(jlat,site_indx_padding)//&
+                        "_l"//str(iorb)//"m"//str(jorb)
+                   call splot(reg(suffix)//"_tau.ed",tau,spinChi_tau(io,jo,0:))
+                   call splot(reg(suffix)//"_realw.ed",vr,spinChi_w(io,jo,:))
+                   call splot(reg(suffix)//"_iv.ed",vm,spinChi_iv(io,jo,:))
+                enddo
+             enddo
+          enddo
+       enddo
+    endif
     call deallocate_grids()
   end subroutine print_chi_spin
 

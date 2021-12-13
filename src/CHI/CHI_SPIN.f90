@@ -64,7 +64,7 @@ contains
        enddo
     enddo
     !
-    if(Norb>1)then
+    if(offdiag_chispin_flag.AND.Norb>1)then
        do iorb=1,Norb
           do jorb=1,Norb
              do isite=1,Nsites(iorb)
@@ -90,15 +90,16 @@ contains
        enddo
        !
        !
-       do iorb=1,Norb
-          do jorb=iorb+1,Norb
-             spinChi_w(iorb,jorb,:)   = 0.5d0*(spinChi_w(iorb,jorb,:) - spinChi_w(iorb,iorb,:) - spinChi_w(jorb,jorb,:))
-             spinChi_tau(iorb,jorb,:) = 0.5d0*(spinChi_tau(iorb,jorb,:) - spinChi_tau(iorb,iorb,:) - spinChi_tau(jorb,jorb,:))
-             spinChi_iv(iorb,jorb,:)  = 0.5d0*(spinChi_iv(iorb,jorb,:) - spinChi_iv(iorb,iorb,:) - spinChi_iv(jorb,jorb,:))
+       do io=1,Ns
+          do jo=1,Ns
+             if(io==jo)cycle
+             spinChi_w(io,jo,:)   = 0.5d0*(spinChi_w(io,jo,:) - spinChi_w(io,io,:) - spinChi_w(jo,jo,:))
+             spinChi_tau(io,jo,:) = 0.5d0*(spinChi_tau(io,jo,:) - spinChi_tau(io,io,:) - spinChi_tau(jo,jo,:))
+             spinChi_iv(io,jo,:)  = 0.5d0*(spinChi_iv(io,jo,:) - spinChi_iv(io,io,:) - spinChi_iv(jo,jo,:))
              !
-             spinChi_w(jorb,iorb,:)   = spinChi_w(iorb,jorb,:)
-             spinChi_tau(jorb,iorb,:) = spinChi_tau(iorb,jorb,:)
-             spinChi_iv(jorb,iorb,:)  = spinChi_iv(iorb,jorb,:)
+             spinChi_w(jo,io,:)   = spinChi_w(io,jo,:)
+             spinChi_tau(jo,io,:) = spinChi_tau(io,jo,:)
+             spinChi_iv(jo,io,:)  = spinChi_iv(io,jo,:)
           enddo
        enddo
     endif
@@ -120,58 +121,58 @@ contains
 
 
 
-  subroutine lanc_ed_build_spinChi_diag(isite,iorb)
-    integer,intent(in) :: isite,iorb
-    integer            :: io
-    type(sector)       :: sectorI,sectorJ
-    !
-    ialfa = 1
-    io    = pack_indices(isite,iorb)
-    !
-    do istate=1,state_list%size
-       isector    =  es_return_sector(state_list,istate)
-       state_e    =  es_return_energy(state_list,istate)
+     subroutine lanc_ed_build_spinChi_diag(isite,iorb)
+       integer,intent(in) :: isite,iorb
+       integer            :: io
+       type(sector)       :: sectorI,sectorJ
+       !
+       ialfa = 1
+       io    = pack_indices(isite,iorb)
+       !
+       do istate=1,state_list%size
+          isector    =  es_return_sector(state_list,istate)
+          state_e    =  es_return_energy(state_list,istate)
 #ifdef _MPI
-       if(MpiStatus)then
-          state_cvec => es_return_cvector(MpiComm,state_list,istate)
-       else
+          if(MpiStatus)then
+             state_cvec => es_return_cvector(MpiComm,state_list,istate)
+          else
+             state_cvec => es_return_cvector(state_list,istate)
+          endif
+#else
           state_cvec => es_return_cvector(state_list,istate)
-       endif
-#else
-       state_cvec => es_return_cvector(state_list,istate)
 #endif
-       !
-       if(MpiMaster)then
-          call build_sector(isector,sectorI)
-          if(ed_verbose>=3)write(LOGfile,"(A,I6,20I4)")&
-               'Apply Sz  :',isector,sectorI%Nups,sectorI%Ndws
-          allocate(vvinit(sectorI%Dim)) ; vvinit=zero
-          do i=1,sectorI%Dim
-             call apply_op_Sz(i,sgn,io,ialfa,sectorI)            
-             vvinit(i) = sgn*state_cvec(i)
-          enddo
-          call delete_sector(sectorI)
-       else
-          allocate(vvinit(1));vvinit=0.d0
-       endif
-       !
-       call tridiag_Hv_sector(isector,vvinit,alfa_,beta_,norm2)
-       call add_to_lanczos_spinChi(norm2,state_e,alfa_,beta_,io,io)
-       deallocate(alfa_,beta_)
-       if(allocated(vvinit))deallocate(vvinit)
-       !
+          !
+          if(MpiMaster)then
+             call build_sector(isector,sectorI)
+             if(ed_verbose>=3)write(LOGfile,"(A,I6,20I4)")&
+                  'Apply Sz  :',isector,sectorI%Nups,sectorI%Ndws
+             allocate(vvinit(sectorI%Dim)) ; vvinit=zero
+             do i=1,sectorI%Dim
+                call apply_op_Sz(i,sgn,io,ialfa,sectorI)            
+                vvinit(i) = sgn*state_cvec(i)
+             enddo
+             call delete_sector(sectorI)
+          else
+             allocate(vvinit(1));vvinit=0.d0
+          endif
+          !
+          call tridiag_Hv_sector(isector,vvinit,alfa_,beta_,norm2)
+          call add_to_lanczos_spinChi(norm2,state_e,alfa_,beta_,io,io)
+          deallocate(alfa_,beta_)
+          if(allocated(vvinit))deallocate(vvinit)
+          !
 #ifdef _MPI
-       if(MpiStatus)then
-          if(associated(state_cvec))deallocate(state_cvec)
-       else
-          if(associated(state_cvec))nullify(state_cvec)
-       endif
+          if(MpiStatus)then
+             if(associated(state_cvec))deallocate(state_cvec)
+          else
+             if(associated(state_cvec))nullify(state_cvec)
+          endif
 #else
-       if(associated(state_cvec))nullify(state_cvec)
+          if(associated(state_cvec))nullify(state_cvec)
 #endif
-    enddo
-    return
-  end subroutine lanc_ed_build_spinChi_diag
+       enddo
+       return
+     end subroutine lanc_ed_build_spinChi_diag
 
 
 
@@ -292,9 +293,15 @@ contains
        do i=1,Lmats
           spinChi_iv(io,jo,i)=spinChi_iv(io,jo,i) + peso*(1d0-exp(-beta*dE))*2d0*dE/(vm(i)**2+dE**2)
        enddo
-       do i=0,Ltau
-          spinChi_tau(io,jo,i)=spinChi_tau(io,jo,i) + exp(-tau(i)*dE)*peso
+       !Symmetrize for low-T /large-beta, mostly occurring for zero T calculations
+       do i=0,Ltau/2-1
+          spinChi_tau(io,jo,i)=spinChi_tau(io,jo,i) + peso*exp(-tau(i)*dE)
        enddo
+       spinChi_tau(io,jo,Ltau/2)=spinChi_tau(io,jo,Ltau/2) + peso*0.5d0*(exp(-tau(Ltau/2)*dE)+exp(-(beta-tau(Ltau/2))*dE))
+       do i=Ltau/2+1,Ltau
+          spinChi_tau(io,jo,i)=spinChi_tau(io,jo,i) + peso*exp(-(beta-tau(i))*dE)
+       enddo
+       !
        do i=1,Lreal
           spinChi_w(io,jo,i)=spinChi_w(io,jo,i) - peso*(1d0-exp(-beta*dE))*(1d0/(dcmplx(vr(i),eps) - dE) - 1d0/(dcmplx(vr(i),eps) + dE))
        enddo

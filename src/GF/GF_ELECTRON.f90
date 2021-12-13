@@ -63,7 +63,7 @@ contains
        enddo
     enddo
     !
-    if(offdiag_gf_flag)then     
+    if(offdiag_gf_flag.AND.Norb>1)then     
        do ispin=1,Nspin
           do iorb=1,Norb
              do jorb=1,Norb

@@ -85,13 +85,14 @@ contains
              lanc_nstates_sector=lanc_nstates_sector+1
              write(LOGfile,"(A,I10)")"Increased Lanc_nstates_sector:",lanc_nstates_sector
           endif
+          !
+          lanc_nstates_total=lanc_nstates_sector*Nsectors+10
           if(mod(lanc_nstates_total,2)/=0)then
              lanc_nstates_total=lanc_nstates_total+1
              write(LOGfile,"(A,I10)")"Increased Lanc_nstates_total:",lanc_nstates_total
           endif
           write(LOGfile,"(A,I3)")"Nstates x Sector = ", lanc_nstates_sector
-          write(LOGfile,"(A,I3)")"Nstates   Total  = ", lanc_nstates_total
-          !
+          write(LOGfile,"(A,I6)")"Nstates   Total  = ", lanc_nstates_total
           write(LOGfile,"(A)")"Lanczos FINITE temperature calculation:"
        else
           write(LOGfile,"(A)")"Lanczos ZERO temperature calculation:"
@@ -110,10 +111,6 @@ contains
     end select
     !
     !
-    offdiag_gf_flag=ed_solve_offdiag_gf
-    !
-    !
-    !
     !allocate functions
     allocate(impSmats(Nspin,Ns,Ns,Lmats))
     allocate(impSreal(Nspin,Ns,Ns,Lreal))
@@ -129,6 +126,9 @@ contains
     allocate(impG0real(Nspin,Ns,Ns,Lreal))
     impG0mats=zero
     impG0real=zero
+    !
+    chi_flag=.false.
+    if(any([chispin_flag,chidens_flag,chipair_flag,chiexct_flag]))chi_flag=.true.
     !
     allocate(spinChi_tau(Ns,Ns,0:Ltau))
     allocate(spinChi_w(Ns,Ns,Lreal))
@@ -168,17 +168,11 @@ contains
     select case(ed_method)
     case default
        if(lanc_method=="lanczos")then
-          if(lanc_nstates_total>1)stop "ED ERROR: lanc_method==lanczos available only for lanc_nstates_total==1, T=0"
+          if(ed_finite_temp)stop "ED ERROR: lanc_method==lanczos available only for T=0"
           if(lanc_nstates_sector>1)stop "ED ERROR: lanc_method==lanczos available only for lanc_nstates_sector==1, T=0"
        endif
        !
-       if(ed_finite_temp)then
-          if(lanc_nstates_total==1)stop "ED ERROR: ed_finite_temp=T *but* lanc_nstates_total==1 => T=0. Increase lanc_nstates_total"
-       else
-          if(lanc_nstates_total>1)print*, "ED WARNING: ed_finite_temp=F, T=0 *AND* lanc_nstates_total>1. re-Set lanc_nstates_total=1"
-          lanc_nstates_total=1
-       endif
-       !
+       lanc_nstates_total=1
     case('lapack','full')
        if(MpiStatus.AND.mpiSIZE>1)stop "ED ERROR: ed_diag_type=FULL + MPIsize>1: not possible at the moment"
     end select

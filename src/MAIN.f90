@@ -65,6 +65,7 @@ contains
     !
   end subroutine ed_init_solver_single
 
+  
 #ifdef _MPI
   subroutine ed_init_solver_single_mpi(MpiComm)
     integer :: MpiComm
@@ -92,11 +93,7 @@ contains
   !PURPOSE: solve the impurity problems for a single or many independent
   ! lattice site using ED. 
   !+-----------------------------------------------------------------------------+!
-  subroutine ed_solve_single(sflag)
-    logical,optional                :: sflag
-    logical                         :: check,iflag
-    !
-    iflag=.true. ;if(present(sflag))iflag=sflag
+  subroutine ed_solve_single()
     !
     if(MpiMaster)call save_input_file(str(ed_input_file))
     !
@@ -105,13 +102,11 @@ contains
     !
     !
     !SOLVE THE QUANTUM IMPURITY PROBLEM:
-    call diagonalize_impurity()         !find target states by digonalization of Hamiltonian
-    call observables_impurity()         !obtain impurity observables as thermal averages.
-    call local_energy_impurity()        !obtain the local energy of the effective impurity problem
-    if(iflag)then
-       call buildgf_impurity()             !build the one-particle impurity Green's functions  & Self-energy
-       call buildchi_impurity()            !build the local susceptibilities (spin [todo charge])
-    endif
+    call diagonalize_impurity()
+    call observables_impurity()
+    call local_energy_impurity()
+    if(gf_flag)call buildgf_impurity()
+    if(chi_flag)call buildchi_impurity()
     !
     select case(ed_method)
     case default
@@ -127,12 +122,8 @@ contains
 
 
 #ifdef _MPI
-  subroutine ed_solve_single_mpi(MpiComm,sflag)
+  subroutine ed_solve_single_mpi(MpiComm)
     integer                         :: MpiComm
-    logical,optional                :: sflag
-    logical                         :: check,iflag
-    !
-    iflag=.true. ;if(present(sflag))iflag=sflag
     !
     !SET THE LOCAL MPI COMMUNICATOR :
     call ed_set_MpiComm(MpiComm)
@@ -143,13 +134,11 @@ contains
     call Hij_write(unit=LOGfile)
     !
     !SOLVE THE QUANTUM IMPURITY PROBLEM:
-    call diagonalize_impurity()         !find target states by digonalization of Hamiltonian
-    call observables_impurity()         !obtain impurity observables as thermal averages.
-    call local_energy_impurity()        !obtain the local energy of the effective impurity problem
-    if(iflag)then
-       call buildgf_impurity()             !build the one-particle impurity Green's functions  & Self-energy
-       call buildchi_impurity()            !build the local susceptibilities (spin [todo charge])
-    endif
+    call diagonalize_impurity()
+    call observables_impurity()
+    call local_energy_impurity()
+    if(gf_flag)call buildgf_impurity()
+    if(chi_flag)call buildchi_impurity()
     !
     select case(ed_method)
     case default
