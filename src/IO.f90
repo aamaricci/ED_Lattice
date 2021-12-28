@@ -16,9 +16,8 @@ MODULE ED_IO
   public :: ed_get_dens
   public :: ed_get_mag
   public :: ed_get_docc
-  public :: ed_get_elocal
+  public :: ed_get_energy
   public :: ed_get_doubles
-  public :: ed_get_density_matrix
   !
   public :: ed_print_impSigma
   public :: ed_print_impG
@@ -90,15 +89,10 @@ contains
     docc = [ed_Dust,ed_Dund,ed_Dse,ed_Dph,ed_Dk]
   end subroutine ed_get_doubles
 
-  subroutine ed_get_elocal(eimp)
-    real(8),dimension(4) :: eimp
-    eimp = [ed_Epot,ed_Eint,ed_Ehartree,ed_Eknot]
-  end subroutine ed_get_elocal
-
-  subroutine ed_get_density_matrix(rho) 
-    complex(8),dimension(Nspin,Ns,Ns),intent(inout) :: rho
-    rho = imp_density_matrix
-  end subroutine ed_get_density_matrix
+  subroutine ed_get_energy(eimp)
+    real(8),dimension(5) :: eimp
+    eimp = [ed_Ekin,ed_Epot,ed_Eint,ed_Ehartree,ed_Eknot]
+  end subroutine ed_get_energy
 
 
 
@@ -122,7 +116,7 @@ contains
   end subroutine ed_print_impSigma
 
   subroutine ed_print_impG
-        integer :: iprint
+    integer :: iprint
     iprint=1
     if(offdiag_gf_flag)iprint=3
     call allocate_grids()

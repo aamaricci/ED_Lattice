@@ -11,35 +11,17 @@ module ED_MAIN
   USE ED_CHI_FUNCTIONS
   USE ED_OBSERVABLES
   USE ED_DIAG
-
   implicit none
   private
   !
-  !>INIT ED SOLVER
-  !
-  interface ed_init_solver
-     module procedure :: ed_init_solver_single
-#ifdef _MPI
-     module procedure :: ed_init_solver_single_mpi
-#endif
-  end interface ed_init_solver
-  !>
   public :: ed_init_solver
-
-
-  !
-  !> ED SOLVER
-  !
-  interface ed_solve
-     module procedure :: ed_solve_single
-#ifdef _MPI
-     module procedure :: ed_solve_single_mpi
-#endif
-  end interface ed_solve
-  !>
   public :: ed_solve
 
-  character(len=64)                                  :: suffix
+
+  !Boolean to select MPI mode for the inequivalent sites solver:
+  !T: solve each site SERIALLY, using MPI lanczos, 
+  !F: solve each site PARALLEL, using Serial Lanczos   
+  logical :: mpi_lanc_=.true.
 
 
 
@@ -52,28 +34,12 @@ contains
   !+-----------------------------------------------------------------------------+!
   ! PURPOSE: allocate Memory and Initialize ED -+!
   !+-----------------------------------------------------------------------------+!
-  subroutine ed_init_solver_single()
-    write(LOGfile,"(A)")"INIT ED SOLVER"
-    !
-    !Init ED Structure & memory
-    call init_ed_structure()
-    !
-    !Check Hmatrix is allocated:
-    if(.not.Hmatrix%status)stop "ED_INIT_SOLVER ERROR: Hmatrix is not allocated"
-    !
-    call setup_global
-    !
-  end subroutine ed_init_solver_single
-
-  
-#ifdef _MPI
-  subroutine ed_init_solver_single_mpi(MpiComm)
-    integer :: MpiComm
+  subroutine ed_init_solver()
     !
     !SET THE LOCAL MPI COMMUNICATOR :
-    call ed_set_MpiComm(MpiComm)
+    if(mpi_lanc_)call ed_set_MpiComm()
     !
-    write(LOGfile,"(A)")"INIT ED SOLVER"
+    if(MpiMaster)write(LOGfile,"(A)")"INIT ED SOLVER"
     !
     !Init ED Structure & memory
     call init_ed_structure()
@@ -85,48 +51,19 @@ contains
     !
     call ed_del_MpiComm()
     !
-  end subroutine ed_init_solver_single_mpi
-#endif
+  end subroutine ed_init_solver
+
 
 
   !+-----------------------------------------------------------------------------+!
   !PURPOSE: solve the impurity problems for a single or many independent
   ! lattice site using ED. 
   !+-----------------------------------------------------------------------------+!
-  subroutine ed_solve_single()
+  subroutine ed_solve()
     !
-    if(MpiMaster)call save_input_file(str(ed_input_file))
-    !
-    if(.not.Hmatrix%status)stop "ED_INIT_SOLVER ERROR: Hmatrix is not allocated"
-    call Hij_write(unit=LOGfile)
-    !
-    !
-    !SOLVE THE QUANTUM IMPURITY PROBLEM:
-    call diagonalize_impurity()
-    call observables_impurity()
-    call local_energy_impurity()
-    if(gf_flag)call buildgf_impurity()
-    if(chi_flag)call buildchi_impurity()
-    !
-    select case(ed_method)
-    case default
-       call es_delete_espace(state_list)
-    case("lapack","full")
-       call delete_eigenspace()
-    end select
-    !
-    nullify(spHtimesV_p)
-    return
-  end subroutine ed_solve_single
-
-
-
-#ifdef _MPI
-  subroutine ed_solve_single_mpi(MpiComm)
-    integer                         :: MpiComm
-    !
-    !SET THE LOCAL MPI COMMUNICATOR :
-    call ed_set_MpiComm(MpiComm)
+    !SET THE LOCAL MPI COMMUNICATOR
+    !Only if mpi_lanc_ is TRUE: solve using MPI Lanczos  
+    if(mpi_lanc_)call ed_set_MpiComm()
     !
     if(MpiMaster)call save_input_file(str(ed_input_file))
     !
@@ -136,7 +73,7 @@ contains
     !SOLVE THE QUANTUM IMPURITY PROBLEM:
     call diagonalize_impurity()
     call observables_impurity()
-    call local_energy_impurity()
+    call internal_energy_impurity()
     if(gf_flag)call buildgf_impurity()
     if(chi_flag)call buildchi_impurity()
     !
@@ -150,8 +87,8 @@ contains
     !DELETE THE LOCAL MPI COMMUNICATOR:
     call ed_del_MpiComm()
     nullify(spHtimesV_p)
-  end subroutine ed_solve_single_mpi
-#endif
+    if(MpiMaster)write(Logfile,"(A)")""
+  end subroutine ed_solve
 
 end module ED_MAIN
 

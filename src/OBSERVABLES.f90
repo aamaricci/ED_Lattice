@@ -14,7 +14,7 @@ MODULE ED_OBSERVABLES
   private
   !
   public :: observables_impurity
-  public :: local_energy_impurity
+  public :: internal_energy_impurity
 
 
 
@@ -70,14 +70,14 @@ contains
 
 
 
-  subroutine local_energy_impurity()
+  subroutine internal_energy_impurity()
     select case(ed_method)
     case default
-       call lanc_local_energy()
+       call lanc_internal_energy()
     case ("lapack","full")
-       call full_local_energy()
+       call full_internal_energy()
     end select
-  end subroutine local_energy_impurity
+  end subroutine internal_energy_impurity
 
 
 
@@ -133,13 +133,6 @@ contains
              sz = (nup-ndw)/2d0
              nt =  nup+ndw
              !
-             ! !Configuration probability
-             ! iprob=1
-             ! do iorb=1,Norb
-             !    iprob=iprob+nint(nt(iorb))*3**(iorb-1)
-             ! end do
-             ! Prob(iprob) = Prob(iprob) + gs_weight
-             !
              !Evaluate averages of observables:
              do is=1,Ns
                 dens(is)     = dens(is)      +  nt(is)*gs_weight
@@ -162,78 +155,6 @@ contains
           call delete_sector(sectorI)
        endif
        !
-#ifdef _MPI
-       if(MpiStatus)then
-          if(associated(state_cvec))deallocate(state_cvec)
-       else
-          if(associated(state_cvec))nullify(state_cvec)
-       endif
-#else
-       if(associated(state_cvec))nullify(state_cvec)
-#endif
-       !
-    enddo
-
-
-    !
-    !IMPURITY DENSITY MATRIX
-    if(allocated(imp_density_matrix)) deallocate(imp_density_matrix)
-    allocate(imp_density_matrix(Nspin,Ns,Ns));imp_density_matrix=zero
-    do istate=1,state_list%size
-       isector = es_return_sector(state_list,istate)
-       Ei      = es_return_energy(state_list,istate)
-#ifdef _MPI
-       if(MpiStatus)then
-          state_cvec => es_return_cvector(MpiComm,state_list,istate)
-       else
-          state_cvec => es_return_cvector(state_list,istate)
-       endif
-#else
-       state_cvec => es_return_cvector(state_list,istate)
-#endif
-       !
-       peso = 1.d0 ; if(finiteT)peso=exp(-beta*(Ei-Egs))
-       peso = peso/zeta_function
-       !
-       if(MpiMaster)then
-          call build_sector(isector,sectorI)
-          do i=1,sectorI%Dim
-             call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
-             !
-             call build_op_Ns(i,Nud(1,:),Nud(2,:),sectorI)
-             !
-             !Diagonal densities
-             do ispin=1,Nspin
-                do is=1,Ns
-                   imp_density_matrix(ispin,is,is) = &
-                        imp_density_matrix(ispin,is,is) + &
-                        peso*Nud(ispin,is)*(state_cvec(i))*state_cvec(i)
-                enddo
-             enddo
-             !
-             !Off-diagonal
-             do ispin=1,Nspin
-                do is=1,Ns
-                   do js=1,Ns
-                      if((Nud(ispin,js)==1).and.(Nud(ispin,is)==0))then
-                         iud(1) = sectorI%H(1)%map(Indices(1))
-                         iud(2) = sectorI%H(2)%map(Indices(2))
-                         call c(js,iud(ispin),r,sgn1)
-                         call cdg(is,r,k,sgn2)
-                         Jndices = Indices
-                         Jndices(1+(ispin-1)*Ns_Ud) = &
-                              binary_search(sectorI%H(1+(ispin-1)*Ns_Ud)%map,k)
-                         call indices2state(Jndices,[sectorI%DimUps,sectorI%DimDws],j)
-                         !
-                         imp_density_matrix(ispin,is,js) = imp_density_matrix(ispin,is,js) + &
-                              peso*sgn1*state_cvec(i)*sgn2*(state_cvec(j))
-                      endif
-                   enddo
-                enddo
-             enddo
-          enddo
-          call delete_sector(sectorI)         
-       endif
 #ifdef _MPI
        if(MpiStatus)then
           if(associated(state_cvec))deallocate(state_cvec)
@@ -401,7 +322,7 @@ contains
   !+-------------------------------------------------------------------+
   !PURPOSE  : Get internal energy from the Impurity problem.
   !+-------------------------------------------------------------------+
-  subroutine lanc_local_energy()
+  subroutine lanc_internal_energy()
     integer                           :: istate,iud(2),jud(2)
     integer,dimension(2*Ns_Ud)        :: Indices,Jndices
     integer,dimension(Ns_Ud,Ns_Orb)   :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
@@ -410,6 +331,7 @@ contains
     complex(8),dimension(Nspin,Ns)    :: Hdiag
     !
     Egs     = state_list%emin
+    ed_Ekin    = 0.d0
     ed_Ehartree= 0.d0
     ed_Eknot   = 0.d0
     ed_Epot    = 0.d0
@@ -451,12 +373,12 @@ contains
              do ii=1,Ns_Ud
                 mup = sectorI%H(ii)%map(Indices(ii))
                 mdw = sectorI%H(ii+Ns_Ud)%map(Indices(ii+Ns_ud))
-                Nups(ii,:) = Bdecomp(mup,Ns_Orb) ![Norb,1+Nbath]
+                Nups(ii,:) = Bdecomp(mup,Ns_Orb)
                 Ndws(ii,:) = Bdecomp(mdw,Ns_Orb)
              enddo
-             Nup =  Nups(1,:)!Breorder(Nups)
-             Ndw =  Ndws(1,:)!Breorder(Ndws)
-             Sz = 0.5d0*(Nup-Ndw)
+             Nup =  Nups(1,:)
+             Ndw =  Ndws(1,:)
+             Sz  = 0.5d0*(Nup-Ndw)
              !
              gs_weight=peso*abs(state_cvec(i))**2
              !
@@ -469,59 +391,51 @@ contains
              !> H_imp: Off-diagonal elements, i.e. non-local part.
              !UP - hopping
              iup = Indices(1)
+             idw = Indices(2)
              mup = sectorI%H(1)%map(iup)
-             do iorb=1,Norb
-                do jorb=1,Norb
-                   do isite=1,Nsites(iorb)
-                      do jsite=1,Nsites(jorb)
-                         if(isite/=jsite)cycle !local terms only:
-                         io = pack_indices(isite,iorb)
-                         jo = pack_indices(isite,jorb)
-                         Jcondition = &
-                              (Hij(1,io,jo)/=zero) .AND. &
-                              (Nup(jo)==1) .AND. (Nup(io)==0)
-                         if (Jcondition) then
-                            call c(jo,mup,k1,sg1)
-                            call cdg(io,k1,k2,sg2)
-                            jup = binary_search(sectorI%H(1)%map,k2)
-                            j   = jup + (idw-1)*sectorI%DimUp
-                            ed_Eknot = ed_Eknot + &
-                                 Hij(1,io,jo)*sg1*sg2*state_cvec(i)*(state_cvec(j))*peso
-                         endif
-                      enddo
-                   enddo
+             do io=1,Ns
+                do jo=1,Ns
+                   Jcondition = &
+                        (Hij(1,io,jo)/=zero) .AND. &
+                        (Nup(jo)==1) .AND. (Nup(io)==0)
+                   if (Jcondition) then
+                      call c(jo,mup,k1,sg1)
+                      call cdg(io,k1,k2,sg2)
+                      jup = binary_search(sectorI%H(1)%map,k2)
+                      j   = jup + (idw-1)*sectorI%DimUp
+                      ed_Ekin = ed_Ekin + &
+                           Hij(1,io,jo)*sg1*sg2*state_cvec(i)*(state_cvec(j))*peso
+                   endif
                 enddo
              enddo
              !
              !DW - hopping
+             iup = Indices(1)
              idw = Indices(2)
              mdw = sectorI%H(2)%map(idw)
-             do iorb=1,Norb
-                do jorb=1,Norb
-                   do isite=1,Nsites(iorb)
-                      do jsite=1,Nsites(jorb)
-                         if(isite/=jsite)cycle !local terms only:
-                         io = pack_indices(isite,iorb)
-                         jo = pack_indices(isite,jorb)
-                         Jcondition = &
-                              (Hij(Nspin,io,jo)/=zero) .AND. &
-                              (Ndw(jo)==1) .AND. (Ndw(io)==0)
-                         if (Jcondition) then
-                            call c(jo,mdw,k1,sg1)
-                            call cdg(io,k1,k2,sg2)
-                            jdw = binary_search(sectorI%H(2)%map,k2)
-                            j   = iup + (jdw-1)*sectorI%DimUp
-                            ed_Eknot = ed_Eknot + &
-                                 Hij(Nspin,io,jo)*sg1*sg2*state_cvec(i)*(state_cvec(j))*peso
-                         endif
-                      enddo
-                   enddo
+             do io=1,Ns
+                do jo=1,Ns
+                   Jcondition = &
+                        (Hij(Nspin,io,jo)/=zero) .AND. &
+                        (Ndw(jo)==1) .AND. (Ndw(io)==0)
+                   if (Jcondition) then
+                      call c(jo,mdw,k1,sg1)
+                      call cdg(io,k1,k2,sg2)
+                      jdw = binary_search(sectorI%H(2)%map,k2)
+                      j   = iup + (jdw-1)*sectorI%DimUp
+                      ed_Ekin = ed_Ekin + &
+                           Hij(Nspin,io,jo)*sg1*sg2*state_cvec(i)*(state_cvec(j))*peso
+                   endif
                 enddo
              enddo
              !
              !
              !SPIN-EXCHANGE Jx
              if(Jhflag.AND.Jx/=0d0)then
+                iup = Indices(1)
+                idw = Indices(2)
+                mup = sectorI%H(1)%map(iup)
+                mdw = sectorI%H(2)%map(idw)
                 do iorb=1,Norb
                    do jorb=1,Norb
                       do isite=1,Nsites(iorb)
@@ -556,6 +470,10 @@ contains
              !
              ! PAIR-HOPPING Jp
              if(Jhflag.AND.Jp/=0d0)then
+                iup = Indices(1)
+                idw = Indices(2)
+                mup = sectorI%H(1)%map(iup)
+                mdw = sectorI%H(2)%map(idw)
                 do iorb=1,Norb
                    do jorb=1,Norb
                       do isite=1,Nsites(iorb)
@@ -588,6 +506,10 @@ contains
              endif
              !
              if(Jhflag.AND.Jk/=0d0)then
+                iup = Indices(1)
+                idw = Indices(2)
+                mup = sectorI%H(1)%map(iup)
+                mdw = sectorI%H(2)%map(idw)
                 do iorb=1,Norb
                    do jorb=iorb+1,Norb
                       do isite=1,Nsites(iorb)
@@ -642,7 +564,6 @@ contains
              !
              !
              !Euloc=\sum=i U_i*(n_u*n_d)_i
-             !ed_Epot = ed_Epot + dot_product(uloc,nup*ndw)*gs_weight
              do iorb=1,Norb
                 do isite=1,Nsites(iorb)          
                    io = pack_indices(isite,iorb)
@@ -650,12 +571,8 @@ contains
                 enddo
              enddo
              !
-             !Eust=\sum_ij Ust*(n_up_i*n_dn_j + n_up_j*n_dn_i)
-             !    "="\sum_ij (Uloc - 2*Jh)*(n_up_i*n_dn_j + n_up_j*n_dn_i)
-             !
+             !Eust = \sum_ij Ust*(n_up_i*n_dn_j + n_up_j*n_dn_i)
              !Eund = \sum_ij Und*(n_up_i*n_up_j + n_dn_i*n_dn_j)
-             !    "="\sum_ij (Ust-Jh)*(n_up_i*n_up_j + n_dn_i*n_dn_j)
-             !    "="\sum_ij (Uloc-3*Jh)*(n_up_i*n_up_j + n_dn_i*n_dn_j)
              if(Norb>1)then
                 do iorb=1,Norb
                    do jorb=iorb+1,Norb
@@ -694,7 +611,7 @@ contains
                 do iorb=1,Norb
                    do isite=1,Nsites(iorb)          
                       io = pack_indices(isite,iorb)
-                      ed_Ehartree=ed_Ehartree - 0.5d0*Uloc(iorb)*(nup(io)+ndw(io))*gs_weight !+ 0.25d0*uloc(iorb)*gs_weight
+                      ed_Ehartree=ed_Ehartree - 0.5d0*Uloc(iorb)*(nup(io)+ndw(io))*gs_weight
                    enddo
                 enddo
                 !
@@ -715,6 +632,8 @@ contains
                    !
                 endif
              endif
+             !
+             !
           enddo
           call delete_sector(sectorI)         
        endif
@@ -734,23 +653,30 @@ contains
     !
 #ifdef _MPI
     if(MpiStatus)then
+       call Bcast_MPI(MpiComm,ed_Ekin)
        call Bcast_MPI(MpiComm,ed_Epot)
        call Bcast_MPI(MpiComm,ed_Eknot)
        call Bcast_MPI(MpiComm,ed_Ehartree)
        call Bcast_MPI(MpiComm,ed_Dust)
        call Bcast_MPI(MpiComm,ed_Dund)
+       call Bcast_MPI(MpiComm,ed_Dph)
+       call Bcast_MPI(MpiComm,ed_Dse)
+       call Bcast_MPI(MpiComm,ed_Dk)
     endif
 #endif
     !
     ed_Epot = ed_Epot + ed_Ehartree
     !
     if(ed_verbose>2)then
-       write(LOGfile,"(A,10f18.12)")"<Hint>  =",ed_Epot
+       write(LOGfile,"(A,10f18.12)")"<K>     =",ed_Ekin
        write(LOGfile,"(A,10f18.12)")"<V>     =",ed_Epot-ed_Ehartree
+       write(LOGfile,"(A,10f18.12)")"<Hint>  =",ed_Epot
        write(LOGfile,"(A,10f18.12)")"<E0>    =",ed_Eknot
        write(LOGfile,"(A,10f18.12)")"<Ehf>   =",ed_Ehartree    
        write(LOGfile,"(A,10f18.12)")"Dust    =",ed_Dust
        write(LOGfile,"(A,10f18.12)")"Dund    =",ed_Dund
+       write(LOGfile,"(A,10f18.12)")"Dph     =",ed_Dph
+       write(LOGfile,"(A,10f18.12)")"Dse     =",ed_Dse
        write(LOGfile,"(A,10f18.12)")"Dk      =",ed_Dk
     endif
     !
@@ -759,11 +685,11 @@ contains
     endif
     !
     !
-  end subroutine lanc_local_energy
+  end subroutine lanc_internal_energy
 
 
 
-  subroutine full_local_energy()
+  subroutine full_internal_energy()
     integer                           :: i,j
     integer                           :: izero,istate
     integer                           :: isector
@@ -788,6 +714,7 @@ contains
     !
     !
     ed_Ehartree= 0.d0
+    ed_Ekin    = 0.d0
     ed_Eknot   = 0.d0
     ed_Epot    = 0.d0
     ed_Dust    = 0.d0
@@ -821,11 +748,11 @@ contains
              do ii=1,Ns_Ud
                 mup = sectorI%H(ii)%map(Indices(ii))
                 mdw = sectorI%H(ii+Ns_Ud)%map(Indices(ii+Ns_ud))
-                Nups(ii,:) = Bdecomp(mup,Ns_Orb) ![Norb,1+Nbath]
+                Nups(ii,:) = Bdecomp(mup,Ns_Orb)
                 Ndws(ii,:) = Bdecomp(mdw,Ns_Orb)
              enddo
-             Nup =  Nups(1,:)!Breorder(Nups)
-             Ndw =  Ndws(1,:)!Breorder(Ndws)
+             Nup =  Nups(1,:)
+             Ndw =  Ndws(1,:)
              Sz  = 0.5d0*(Nup-Ndw)
              !
              state_weight = (evec(i))*evec(i)
@@ -841,61 +768,53 @@ contains
                 ed_Eknot = ed_Eknot + Hdiag(Nspin,io)*Ndw(io)*state_weight
              enddo
              !
-             !> H_imp: Off-diagonal elements, i.e. non-local part. 
+             !> H_imp: Off-diagonal elements, i.e. non-local part.
              !UP - hopping
              iup = Indices(1)
+             idw = Indices(2)
              mup = sectorI%H(1)%map(iup)
-             do iorb=1,Norb
-                do jorb=1,Norb
-                   do isite=1,Nsites(iorb)
-                      do jsite=1,Nsites(jorb)
-                         if(isite/=jsite)cycle !local terms only:
-                         io = pack_indices(isite,iorb)
-                         jo = pack_indices(isite,jorb)
-                         Jcondition = &
-                              (Hij(1,io,jo)/=zero) .AND. &
-                              (Nup(jo)==1) .AND. (Nup(io)==0)
-                         if (Jcondition) then
-                            call c(jo,mup,k1,sg1)
-                            call cdg(io,k1,k2,sg2)
-                            jup = binary_search(sectorI%H(1)%map,k2)
-                            j   = jup + (idw-1)*sectorI%DimUp
-                            ed_Eknot = ed_Eknot + &
-                                 Hij(1,io,jo)*sg1*sg2*evec(i)*(evec(j))*peso
-                         endif
-                      enddo
-                   enddo
+             do io=1,Ns
+                do jo=1,Ns
+                   Jcondition = &
+                        (Hij(1,io,jo)/=zero) .AND. &
+                        (Nup(jo)==1) .AND. (Nup(io)==0)
+                   if (Jcondition) then
+                      call c(jo,mup,k1,sg1)
+                      call cdg(io,k1,k2,sg2)
+                      jup = binary_search(sectorI%H(1)%map,k2)
+                      j   = jup + (idw-1)*sectorI%DimUp
+                      ed_Ekin = ed_Ekin + &
+                           Hij(1,io,jo)*sg1*sg2*evec(i)*(evec(j))*peso
+                   endif
                 enddo
              enddo
              !
              !DW - hopping
+             iup = Indices(1)
              idw = Indices(2)
              mdw = sectorI%H(2)%map(idw)
-             do iorb=1,Norb
-                do jorb=1,Norb
-                   do isite=1,Nsites(iorb)
-                      do jsite=1,Nsites(jorb)
-                         if(isite/=jsite)cycle !local terms only:
-                         io = pack_indices(isite,iorb)
-                         jo = pack_indices(isite,jorb)
-                         Jcondition = &
-                              (Hij(Nspin,io,jo)/=zero) .AND. &
-                              (Ndw(jo)==1) .AND. (Ndw(io)==0)
-                         if (Jcondition) then
-                            call c(jo,mdw,k1,sg1)
-                            call cdg(io,k1,k2,sg2)
-                            jdw = binary_search(sectorI%H(2)%map,k2)
-                            j   = iup + (jdw-1)*sectorI%DimUp
-                            ed_Eknot = ed_Eknot + &
-                                 Hij(Nspin,io,jo)*sg1*sg2*evec(i)*(evec(j))*peso
-                         endif
-                      enddo
-                   enddo
+             do io=1,Ns
+                do jo=1,Ns
+                   Jcondition = &
+                        (Hij(Nspin,io,jo)/=zero) .AND. &
+                        (Ndw(jo)==1) .AND. (Ndw(io)==0)
+                   if (Jcondition) then
+                      call c(jo,mdw,k1,sg1)
+                      call cdg(io,k1,k2,sg2)
+                      jdw = binary_search(sectorI%H(2)%map,k2)
+                      j   = iup + (jdw-1)*sectorI%DimUp
+                      ed_Ekin = ed_Ekin + &
+                           Hij(Nspin,io,jo)*sg1*sg2*evec(i)*(evec(j))*peso
+                   endif
                 enddo
              enddo
              !
              !SPIN-EXCHANGE Jx
              if(Jhflag.AND.Jx/=0d0)then
+                iup = Indices(1)
+                idw = Indices(2)
+                mup = sectorI%H(1)%map(iup)
+                mdw = sectorI%H(2)%map(idw)
                 do iorb=1,Norb
                    do jorb=1,Norb
                       do isite=1,Nsites(iorb)
@@ -930,6 +849,10 @@ contains
              !
              ! PAIR-HOPPING Jp
              if(Jhflag.AND.Jp/=0d0)then
+                iup = Indices(1)
+                idw = Indices(2)
+                mup = sectorI%H(1)%map(iup)
+                mdw = sectorI%H(2)%map(idw)
                 do iorb=1,Norb
                    do jorb=1,Norb
                       do isite=1,Nsites(iorb)
@@ -962,6 +885,10 @@ contains
              endif
              !
              if(Jhflag.AND.Jk/=0d0)then
+                iup = Indices(1)
+                idw = Indices(2)
+                mup = sectorI%H(1)%map(iup)
+                mdw = sectorI%H(2)%map(idw)
                 do iorb=1,Norb
                    do jorb=iorb+1,Norb
                       do isite=1,Nsites(iorb)
@@ -1016,7 +943,6 @@ contains
              !
              !
              !Euloc=\sum=i U_i*(n_u*n_d)_i
-             !ed_Epot = ed_Epot + dot_product(uloc,nup*ndw)*state_weight
              do iorb=1,Norb
                 do isite=1,Nsites(iorb)          
                    io = pack_indices(isite,iorb)
@@ -1025,11 +951,8 @@ contains
              enddo
              !
              !Eust=\sum_ij Ust*(n_up_i*n_dn_j + n_up_j*n_dn_i)
-             !    "="\sum_ij (Uloc - 2*Jh)*(n_up_i*n_dn_j + n_up_j*n_dn_i)
              !
              !Eund = \sum_ij Und*(n_up_i*n_up_j + n_dn_i*n_dn_j)
-             !    "="\sum_ij (Ust-Jh)*(n_up_i*n_up_j + n_dn_i*n_dn_j)
-             !    "="\sum_ij (Uloc-3*Jh)*(n_up_i*n_up_j + n_dn_i*n_dn_j)
              if(Norb>1)then
                 do iorb=1,Norb
                    do jorb=iorb+1,Norb
@@ -1097,18 +1020,21 @@ contains
     ed_Epot = ed_Epot + ed_Ehartree
     !
     if(ed_verbose>2)then
-       write(LOGfile,"(A,10f18.12)")"<Hint>  =",ed_Epot
+       write(LOGfile,"(A,10f18.12)")"<K>     =",ed_Ekin
        write(LOGfile,"(A,10f18.12)")"<V>     =",ed_Epot-ed_Ehartree
+       write(LOGfile,"(A,10f18.12)")"<Hint>  =",ed_Epot
        write(LOGfile,"(A,10f18.12)")"<E0>    =",ed_Eknot
        write(LOGfile,"(A,10f18.12)")"<Ehf>   =",ed_Ehartree    
        write(LOGfile,"(A,10f18.12)")"Dust    =",ed_Dust
        write(LOGfile,"(A,10f18.12)")"Dund    =",ed_Dund
+       write(LOGfile,"(A,10f18.12)")"Dph     =",ed_Dph
+       write(LOGfile,"(A,10f18.12)")"Dse     =",ed_Dse
        write(LOGfile,"(A,10f18.12)")"Dk      =",ed_Dk
     endif
     call write_energy()
     !
     !
-  end subroutine full_local_energy
+  end subroutine full_internal_energy
 
 
 
@@ -1177,24 +1103,27 @@ contains
 
   subroutine write_energy()
     integer :: unit
-    
+
     unit = free_unit()
     open(unit,file="energy_info.ed")
     write(unit,"(A1,90(A14,1X))")"#",&
-         reg(txtfy(1))//"<Hi>",&
-         reg(txtfy(2))//"<V>=<Hi-Ehf>",&
-         reg(txtfy(3))//"<Eloc>",&
-         reg(txtfy(4))//"<Ehf>",&
-         reg(txtfy(5))//"<Dst>",&
-         reg(txtfy(6))//"<Dnd>",&
-         reg(txtfy(7))//"<Dse>",&
-         reg(txtfy(8))//"<Dph>",&
-         reg(txtfy(9))//"<Dk>"
+         reg(txtfy(1))//"<K>",&
+         reg(txtfy(2))//"<Hi>",&
+         reg(txtfy(3))//"<V>=<Hi-Ehf>",&
+         reg(txtfy(4))//"<Eloc>",&
+         reg(txtfy(5))//"<Ehf>",&
+         reg(txtfy(6))//"<Dst>",&
+         reg(txtfy(7))//"<Dnd>",&
+         reg(txtfy(8))//"<Dse>",&
+         reg(txtfy(9))//"<Dph>",&
+         reg(txtfy(10))//"<Dk>"
     close(unit)
 
     unit = free_unit()
     open(unit,file="energy_last.ed")
-    write(unit,"(90F15.9)")ed_Epot,ed_Epot-ed_Ehartree,ed_Eknot,ed_Ehartree,ed_Dust,ed_Dund,ed_Dse,ed_Dph,ed_Dk
+    write(unit,"(90F15.9)")&
+         ed_Ekin,ed_Epot,ed_Epot-ed_Ehartree,ed_Eknot,ed_Ehartree,&
+         ed_Dust,ed_Dund,ed_Dse,ed_Dph,ed_Dk
     close(unit)
   end subroutine write_energy
 

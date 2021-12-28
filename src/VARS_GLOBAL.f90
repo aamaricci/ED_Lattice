@@ -184,9 +184,9 @@ MODULE ED_VARS_GLOBAL
 #ifdef _MPI
   integer                                          :: MpiComm_Global=MPI_COMM_NULL
   integer                                          :: MpiComm=MPI_COMM_NULL
-#endif
   integer                                          :: MpiGroup_Global=MPI_GROUP_NULL
   integer                                          :: MpiGroup=MPI_GROUP_NULL
+#endif
   logical                                          :: MpiStatus=.false.
   logical                                          :: MpiMaster=.true.
   integer                                          :: MpiRank=0
@@ -211,28 +211,36 @@ contains
 
 
 
-  !=========================================================
-  subroutine ed_set_MpiComm(comm)
+
+  !IF code is compiled with MPI support
+  !+  MPI is initialized:
+  !THEN this routine setup the internal communicator
+  !(inherited from MPI_COMM_WORLD) plus global variables
+  !ELSE it does nothing
+  !
+  !
+  subroutine ed_set_MpiComm()
 #ifdef _MPI
-    integer :: comm,ierr
-    ! call MPI_Comm_dup(Comm,MpiComm_Global,ierr)
-    ! call MPI_Comm_dup(Comm,MpiComm,ierr)
-    MpiComm_Global = comm
-    MpiComm        = comm
-    call Mpi_Comm_group(MpiComm_Global,MpiGroup_Global,ierr)
-    MpiStatus      = .true.
-    MpiSize        = get_Size_MPI(MpiComm_Global)
-    MpiRank        = get_Rank_MPI(MpiComm_Global)
-    MpiMaster      = get_Master_MPI(MpiComm_Global)
-#else
-    integer,optional :: comm
+    integer :: ierr
+    if(check_MPI())then
+       MpiComm_Global = MPI_COMM_WORLD
+       MpiComm        = MPI_COMM_WORLD
+       call Mpi_Comm_group(MpiComm_Global,MpiGroup_Global,ierr)
+       MpiStatus      = .true.
+       MpiSize        = get_Size_MPI(MpiComm_Global)
+       MpiRank        = get_Rank_MPI(MpiComm_Global)
+       MpiMaster      = get_Master_MPI(MpiComm_Global)
+    endif
 #endif
   end subroutine ed_set_MpiComm
 
+
+  !IF code is compiled with MPI support
+  !THEN this routine reset global variables to default values (SERIAL)
   subroutine ed_del_MpiComm()
 #ifdef _MPI    
-    MpiComm_Global = MPI_UNDEFINED
-    MpiComm        = MPI_UNDEFINED
+    MpiComm_Global = MPI_COMM_NULL
+    MpiComm        = MPI_COMM_NULL
     MpiGroup_Global= MPI_GROUP_NULL
     MpiStatus      = .false.
     MpiSize        = 1

@@ -41,9 +41,8 @@ MODULE EDLAT
        ed_get_dens            , &
        ed_get_mag             , &
        ed_get_docc            , &
-       ed_get_elocal          , &
-       ed_get_doubles         , &
-       ed_get_density_matrix
+       ed_get_energy          , &
+       ed_get_doubles
 
 
   USE ED_MAIN, only: &
