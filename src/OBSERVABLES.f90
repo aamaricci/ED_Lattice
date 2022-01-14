@@ -13,8 +13,8 @@ MODULE ED_OBSERVABLES
   implicit none
   private
   !
-  public :: observables_impurity
-  public :: internal_energy_impurity
+  public :: observables_lattice
+  public :: energy_lattice
 
 
 
@@ -59,25 +59,25 @@ contains
   !+-------------------------------------------------------------------+
   !PURPOSE  : Evaluate and print out many interesting physical qties
   !+-------------------------------------------------------------------+
-  subroutine observables_impurity()
+  subroutine observables_lattice()
     select case(ed_method)
     case default
        call lanc_observables()
     case ("lapack","full")
        call full_observables()
     end select
-  end subroutine observables_impurity
+  end subroutine observables_lattice
 
 
 
-  subroutine internal_energy_impurity()
+  subroutine energy_lattice()
     select case(ed_method)
     case default
-       call lanc_internal_energy()
+       call lanc_energy()
     case ("lapack","full")
-       call full_internal_energy()
+       call full_energy()
     end select
-  end subroutine internal_energy_impurity
+  end subroutine energy_lattice
 
 
 
@@ -320,9 +320,9 @@ contains
 
 
   !+-------------------------------------------------------------------+
-  !PURPOSE  : Get internal energy from the Impurity problem.
+  !PURPOSE  : Get energy from the lattice problem.
   !+-------------------------------------------------------------------+
-  subroutine lanc_internal_energy()
+  subroutine lanc_energy()
     integer                           :: istate,iud(2),jud(2)
     integer,dimension(2*Ns_Ud)        :: Indices,Jndices
     integer,dimension(Ns_Ud,Ns_Orb)   :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
@@ -665,6 +665,7 @@ contains
     endif
 #endif
     !
+    ed_Ekin = ed_Ekin/Ns        !Rescale to avoid linear increasing with Ns
     ed_Epot = ed_Epot + ed_Ehartree
     !
     if(ed_verbose>2)then
@@ -685,11 +686,11 @@ contains
     endif
     !
     !
-  end subroutine lanc_internal_energy
+  end subroutine lanc_energy
 
 
 
-  subroutine full_internal_energy()
+  subroutine full_energy()
     integer                           :: i,j
     integer                           :: izero,istate
     integer                           :: isector
@@ -1034,7 +1035,7 @@ contains
     call write_energy()
     !
     !
-  end subroutine full_internal_energy
+  end subroutine full_energy
 
 
 

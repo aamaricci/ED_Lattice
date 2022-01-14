@@ -16,7 +16,7 @@ module ED_DIAG
   private
 
 
-  public :: diagonalize_impurity
+  public :: diagonalize_lattice
 
   real(8),dimension(:),pointer       :: state_cvec
 
@@ -32,7 +32,7 @@ contains
   !PURPOSE  : Setup the Hilbert space, create the Hamiltonian, get the
   ! GS, build the Green's functions calling all the necessary routines
   !+------------------------------------------------------------------+
-  subroutine diagonalize_impurity()
+  subroutine diagonalize_lattice()
     select case(ed_method)
     case default
        call ed_diag_d
@@ -40,7 +40,7 @@ contains
     case('lapack','full')
        call ed_full_d
     end select
-  end subroutine diagonalize_impurity
+  end subroutine diagonalize_lattice
 
 
 

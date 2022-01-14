@@ -28,12 +28,14 @@ MODULE ED_INPUT_VARS
   real(8)              :: sb_field            !symmetry breaking field
   !
   logical              :: gf_flag             !evaluate Green's functions
-  logical              :: offdiag_gf_flag     !flag to select the calculation of the off-diagonal impurity GF.
   logical              :: chispin_flag        !evaluate spin susceptibility
-  logical              :: offdiag_chispin_flag     !flag to select the calculation of the off-diagonal spin Chi.
   logical              :: chidens_flag        !evaluate dens susceptibility
   logical              :: chipair_flag        !evaluate pair susceptibility
   logical              :: chiexct_flag        !evaluate excitonic susceptibility
+  logical              :: offdiag_gf_flag     !flag to select the calculation of the off-diagonal impurity GF.
+  logical              :: offdiag_chispin_flag!flag to select the calculation of the off-diagonal spin Chi.
+  logical              :: oc_flag             !evaluate Optical Conductivity and Drude Weight per orbital
+
   !
   integer              :: ed_filling          !Total number of allowed electrons 
   logical              :: ed_finite_temp      !flag to select finite temperature method. note that if T then lanc_nstates_total must be > 1 
@@ -128,12 +130,13 @@ contains
     !
 
     call parse_input_variable(gf_flag,"GF_FLAG",INPUTunit,default=.false.,comment="Flag to activate Greens functions calculation")
-    call parse_input_variable(offdiag_gf_flag,"OFFDIAG_GF_FLAG",INPUTunit,default=.false.,comment="Flag to activate off-diagonal GF calculation") 
     call parse_input_variable(chispin_flag,"CHISPIN_FLAG",INPUTunit,default=.false.,comment="Flag to activate spin susceptibility calculation.")
-    call parse_input_variable(offdiag_chispin_flag,"OFFDIAG_CHISPIN_FLAG",INPUTunit,default=.false.,comment="Flag to activate off-diagonal spin Chi calculation") 
     call parse_input_variable(chidens_flag,"CHIDENS_FLAG",INPUTunit,default=.false.,comment="Flag to activate density susceptibility calculation.")
     call parse_input_variable(chipair_flag,"CHIPAIR_FLAG",INPUTunit,default=.false.,comment="Flag to activate pair susceptibility calculation.")
     call parse_input_variable(chiexct_flag,"CHIEXCT_FLAG",INPUTunit,default=.false.,comment="Flag to activate excitonis susceptibility calculation.")
+    call parse_input_variable(oc_flag,"OC_FLAG",INPUTunit,default=.false.,comment="Flag to activate Optical Conductivity and Drude weight calculation")
+    call parse_input_variable(offdiag_gf_flag,"OFFDIAG_GF_FLAG",INPUTunit,default=.false.,comment="Flag to activate off-diagonal GF calculation") 
+    call parse_input_variable(offdiag_chispin_flag,"OFFDIAG_CHISPIN_FLAG",INPUTunit,default=.false.,comment="Flag to activate off-diagonal spin Chi calculation") 
 
     call parse_input_variable(hfmode,"HFMODE",INPUTunit,default=.true.,comment="Flag to set the Hartree form of the interaction (n-1/2). see xmu.")
     call parse_input_variable(eps,"EPS",INPUTunit,default=0.01d0,comment="Broadening on the real-axis.")

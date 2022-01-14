@@ -16,7 +16,7 @@ MODULE ED_GREENS_FUNCTIONS
   implicit none
   private 
 
-  public :: buildGf_impurity
+  public :: build_gf_lattice
   logical,save                       :: iolegend=.true.
   real(8),dimension(:,:),allocatable :: zimp,simp
 contains
@@ -25,7 +25,7 @@ contains
   !+------------------------------------------------------------------+
   ! GF CALCULATIONS
   !+------------------------------------------------------------------+
-  subroutine buildGF_impurity()
+  subroutine build_gf_lattice()
     !
     call allocate_grids
     !
@@ -52,7 +52,7 @@ contains
     !
     call deallocate_grids
     !
-  end subroutine buildgf_impurity
+  end subroutine build_gf_lattice
 
 
 
@@ -92,6 +92,6 @@ contains
     close(unit)         
 
   end subroutine build_szr
-  
+
 
 end MODULE ED_GREENS_FUNCTIONS

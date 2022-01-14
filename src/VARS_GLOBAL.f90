@@ -157,7 +157,8 @@ MODULE ED_VARS_GLOBAL
   real(8)                                          :: ed_Eknot
   real(8)                                          :: ed_Dust,ed_Dund,ed_Dse,ed_Dph,ed_Dk
 
-
+  real(8),allocatable,dimension(:)                 :: Drude_weight
+  complex(8),allocatable,dimension(:,:)            :: OptCond_w
 
   !Frequency and time arrays:
   !=========================================================

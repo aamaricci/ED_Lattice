@@ -154,6 +154,11 @@ contains
     ed_dens_dw=0d0
     ed_mag =0d0
     !
+    allocate(Drude_weight(Norb))
+    allocate(OptCond_w(Norb,Lreal))
+    Drude_weight = 0d0
+    OptCond_w    = zero
+    !
   end subroutine init_ed_structure
 
 

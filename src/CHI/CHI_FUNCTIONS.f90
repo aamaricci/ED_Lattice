@@ -21,7 +21,7 @@ MODULE ED_CHI_FUNCTIONS
   implicit none
   private 
 
-  public :: buildChi_impurity
+  public :: build_chi_lattice
 
 contains
 
@@ -29,7 +29,7 @@ contains
   !+------------------------------------------------------------------+
   ! SUSCEPTIBILITY CALCULATIONS
   !+------------------------------------------------------------------+
-  subroutine buildChi_impurity()
+  subroutine build_chi_lattice()
     !
     call allocate_grids
     !
@@ -66,7 +66,7 @@ contains
     !
     call deallocate_grids
     !
-  end subroutine buildChi_impurity
+  end subroutine build_chi_lattice
 
 
 

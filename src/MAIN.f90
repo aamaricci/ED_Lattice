@@ -18,11 +18,6 @@ module ED_MAIN
   public :: ed_solve
 
 
-  !Boolean to select MPI mode for the inequivalent sites solver:
-  !T: solve each site SERIALLY, using MPI lanczos, 
-  !F: solve each site PARALLEL, using Serial Lanczos   
-  logical :: mpi_lanc_=.true.
-
 
 
 contains
@@ -37,7 +32,7 @@ contains
   subroutine ed_init_solver()
     !
     !SET THE LOCAL MPI COMMUNICATOR :
-    if(mpi_lanc_)call ed_set_MpiComm()
+    call ed_set_MpiComm()
     !
     if(MpiMaster)write(LOGfile,"(A)")"INIT ED SOLVER"
     !
@@ -49,6 +44,7 @@ contains
     !
     call setup_global
     !
+    !DELETE THE LOCAL MPI COMMUNICATOR:
     call ed_del_MpiComm()
     !
   end subroutine ed_init_solver
@@ -62,8 +58,7 @@ contains
   subroutine ed_solve()
     !
     !SET THE LOCAL MPI COMMUNICATOR
-    !Only if mpi_lanc_ is TRUE: solve using MPI Lanczos  
-    if(mpi_lanc_)call ed_set_MpiComm()
+    call ed_set_MpiComm()
     !
     if(MpiMaster)call save_input_file(str(ed_input_file))
     !
@@ -71,11 +66,12 @@ contains
     call Hij_write(unit=LOGfile)
     !
     !SOLVE THE QUANTUM IMPURITY PROBLEM:
-    call diagonalize_impurity()
-    call observables_impurity()
-    call internal_energy_impurity()
-    if(gf_flag)call buildgf_impurity()
-    if(chi_flag)call buildchi_impurity()
+    call diagonalize_lattice()
+    call observables_lattice()
+    call energy_lattice()
+    if(gf_flag)call build_gf_lattice()
+    if(chi_flag)call build_chi_lattice()
+    if(oc_flag)call build_oc_lattice()
     !
     select case(ed_method)
     case default

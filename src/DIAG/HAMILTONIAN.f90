@@ -263,7 +263,6 @@ contains
     if(norm2/=0d0)then
 #ifdef _MPI
        if(MpiStatus)then
-          ! call bcast_MPI(MpiComm,norm2)
           vecDim = vecDim_Hv_sector(isector)
           allocate(vvloc(vecDim))
           call scatter_vector_MPI(MpiComm,vvinit,vvloc)
