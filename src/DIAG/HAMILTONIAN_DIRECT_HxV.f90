@@ -17,16 +17,16 @@ contains
 
 
   subroutine directMatVec_main(Nloc,vin,Hv)
-    integer                           :: Nloc
-    real(8),dimension(Nloc)           :: vin
-    real(8),dimension(Nloc)           :: Hv
-    real(8),dimension(:),allocatable  :: vt,Hvt
-    integer,dimension(2*Ns_Ud)        :: Indices,Jndices ![2-2*Norb]
-    integer,dimension(Ns_Ud,Ns_Orb)   :: Nups,Ndws       ![1,Ns]-[Norb,1+Nbath]
-    integer,dimension(Ns)             :: Nup,Ndw
-    real(8),dimension(Ns)             :: Sz 
-    complex(8),dimension(Nspin,Ns,Ns) :: Hij,Hloc
-    complex(8),dimension(Nspin,Ns)    :: Hdiag
+    integer                             :: Nloc
+    complex(8),dimension(Nloc)          :: vin
+    complex(8),dimension(Nloc)          :: Hv
+    complex(8),dimension(:),allocatable :: vt,Hvt
+    integer,dimension(2*Ns_Ud)          :: Indices,Jndices ![2-2*Norb]
+    integer,dimension(Ns_Ud,Ns_Orb)     :: Nups,Ndws       ![1,Ns]-[Norb,1+Nbath]
+    integer,dimension(Ns)               :: Nup,Ndw
+    real(8),dimension(Ns)               :: Sz 
+    complex(8),dimension(Nspin,Ns,Ns)   :: Hij,Hloc
+    complex(8),dimension(Nspin,Ns)      :: Hdiag
 
     if(.not.Hsector%status)stop "directMatVec_cc ERROR: Hsector NOT allocated"
     isector=Hsector%index
@@ -36,10 +36,10 @@ contains
     call Hij_get(Hij)
     call Hij_get(Hloc)
     do ispin=1,Nspin
-       Hdiag(ispin,:) = diagonal(Hloc(ispin,:,:))
+       Hdiag(ispin,:) = dreal(diagonal(Hloc(ispin,:,:)))
     enddo
     !
-    Hv=0d0
+    Hv=zero
     !
     !-----------------------------------------------!
     !LOCAL HAMILTONIAN PART: H_loc*vin = vout
@@ -67,16 +67,16 @@ contains
 #ifdef _MPI
   subroutine directMatVec_MPI_main(Nloc,vin,Hv)
     integer                           :: Nloc,N
-    real(8),dimension(Nloc)           :: Vin
-    real(8),dimension(Nloc)           :: Hv
-    real(8),dimension(:),allocatable  :: vt,Hvt
+    complex(8),dimension(Nloc)           :: Vin
+    complex(8),dimension(Nloc)           :: Hv
+    complex(8),dimension(:),allocatable  :: vt,Hvt
     !
     integer,dimension(2*Ns_Ud)        :: Indices,Jndices ![2-2*Norb]
     integer,dimension(Ns_Ud,Ns_Orb)   :: Nups,Ndws       ![1,Ns]-[Norb,1+Nbath]
     integer,dimension(Ns)             :: Nup,Ndw
     real(8),dimension(Ns)             :: Sz 
     complex(8),dimension(Nspin,Ns,Ns) :: Hij,Hloc
-    complex(8),dimension(Nspin,Ns)    :: Hdiag
+    real(8),dimension(Nspin,Ns)       :: Hdiag
     !
     if(.not.Hsector%status)stop "directMatVec_cc ERROR: Hsector NOT allocated"
     isector=Hsector%index    
@@ -88,10 +88,10 @@ contains
     call Hij_get(Hij)
     call Hij_get(Hloc)
     do ispin=1,Nspin
-       Hdiag(ispin,:) = diagonal(Hloc(ispin,:,:))
+       Hdiag(ispin,:) = dreal(diagonal(Hloc(ispin,:,:)))
     enddo
     !
-    Hv=0d0
+    Hv=zero
     !
     !-----------------------------------------------!
     !LOCAL HAMILTONIAN PART: H_loc*vin = vout
@@ -108,13 +108,13 @@ contains
     if(MpiRank<mod(DimUp,MpiSize))MpiQup=MpiQup+1
     allocate(vt(mpiQup*DimDw))
     allocate(Hvt(mpiQup*DimDw))
-    vt=0d0
-    Hvt=0d0
+    vt=zero
+    Hvt=zero
     !
     call vector_transpose_MPI(DimUp,MpiQdw,Vin(1:DimUp*MpiQdw),DimDw,MpiQup,vt) !Vin^T --> Vt
     include "direct_mpi/HxV_dw.f90"
-    deallocate(vt) ; allocate(vt(DimUp*mpiQdw)) ;vt=0d0         !reallocate Vt
-    call vector_transpose_MPI(DimDw,mpiQup,Hvt,DimUp,mpiQdw,vt) !Hvt^T --> Vt
+    deallocate(vt) ; allocate(vt(DimUp*mpiQdw)) ;vt=zero         !reallocate Vt
+    call vector_transpose_MPI(DimDw,mpiQup,Hvt,DimUp,mpiQdw,vt)  !Hvt^T --> Vt
     Hv(1:DimUp*MpiQdw) = Hv(1:DimUp*MpiQdw) + Vt
     !
     deallocate(vt,Hvt)
@@ -124,7 +124,7 @@ contains
        N = 0
        call AllReduce_MPI(MpiComm,Nloc,N)
        !
-       allocate(vt(N)) ; vt = 0d0
+       allocate(vt(N)) ; vt = zero
        call allgather_vector_MPI(MpiComm,vin,vt)
        !
        include "direct_mpi/HxV_non_local.f90"

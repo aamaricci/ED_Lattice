@@ -25,8 +25,6 @@ MODULE ED_AUX_FUNX
   public :: allgather_vector_MPI
 #endif
   !
-  !SEARCH CHEMICAL POTENTIAL, this should go into DMFT_TOOLS I GUESS
-  public :: ed_search_variable
   !ALLOCATE/DEALLOCATE GRIDS
   public :: allocate_grids
   public :: deallocate_grids
@@ -152,8 +150,8 @@ contains
   !! Scatter V into the arrays Vloc on each thread: sum_threads(size(Vloc)) must be equal to size(v)
   subroutine scatter_vector_MPI(MpiComm,v,vloc)
     integer                          :: MpiComm
-    real(8),dimension(:)             :: v    !size[N]
-    real(8),dimension(:)             :: vloc !size[Nloc]
+    complex(8),dimension(:)          :: v    !size[N]
+    complex(8),dimension(:)          :: vloc !size[Nloc]
     integer                          :: i,irank,Nloc,N
     integer                          :: v_start,v_end,vloc_start,vloc_end
     integer,dimension(:),allocatable :: Counts,Offset
@@ -183,13 +181,13 @@ contains
        Offset(i) = Offset(i-1) + Counts(i-1)
     enddo
     !
-    Vloc=0d0
+    Vloc=zero
     v_start = 1
     v_end   = 1 ; if(MpiMaster)v_end = N
     vloc_start = 1
     vloc_end   = Nloc
-    call MPI_Scatterv(V(v_start:v_end),Counts,Offset,MPI_DOUBLE_PRECISION,&
-         Vloc(vloc_start:vloc_end),Nloc,MPI_DOUBLE_PRECISION,0,MpiComm,MpiIerr)
+    call MPI_Scatterv(V(v_start:v_end),Counts,Offset,MPI_DOUBLE_COMPLEX,&
+         Vloc(vloc_start:vloc_end),Nloc,MPI_DOUBLE_COMPLEX,0,MpiComm,MpiIerr)
     !
     return
   end subroutine scatter_vector_MPI
@@ -197,8 +195,8 @@ contains
 
   subroutine scatter_basis_MPI(MpiComm,v,vloc)
     integer                :: MpiComm
-    real(8),dimension(:,:) :: v    !size[N,N]
-    real(8),dimension(:,:) :: vloc !size[Nloc,Neigen]
+    complex(8),dimension(:,:) :: v    !size[N,N]
+    complex(8),dimension(:,:) :: vloc !size[Nloc,Neigen]
     integer                :: N,Nloc,Neigen,i
     N      = size(v,1)
     Nloc   = size(vloc,1)
@@ -216,8 +214,8 @@ contains
   !! AllGather Vloc on each thread into the array V: sum_threads(size(Vloc)) must be equal to size(v)
   subroutine gather_vector_MPI(MpiComm,vloc,v)
     integer                          :: MpiComm
-    real(8),dimension(:)             :: vloc !size[Nloc]
-    real(8),dimension(:)             :: v    !size[N]
+    complex(8),dimension(:)             :: vloc !size[Nloc]
+    complex(8),dimension(:)             :: v    !size[N]
     integer                          :: i,irank,Nloc,N
     integer                          :: v_start,v_end,vloc_start,vloc_end
     integer,dimension(:),allocatable :: Counts,Offset
@@ -251,8 +249,8 @@ contains
     v_end   = 1 ; if(MpiMaster)v_end = N
     vloc_start = 1
     vloc_end   = Nloc
-    call MPI_Gatherv(Vloc(vloc_start:vloc_end),Nloc,MPI_DOUBLE_PRECISION,&
-         V(v_start:v_end),Counts,Offset,MPI_DOUBLE_PRECISION,0,MpiComm,MpiIerr)
+    call MPI_Gatherv(Vloc(vloc_start:vloc_end),Nloc,MPI_DOUBLE_COMPLEX,&
+         V(v_start:v_end),Counts,Offset,MPI_DOUBLE_COMPLEX,0,MpiComm,MpiIerr)
     !
     return
   end subroutine gather_vector_MPI
@@ -261,8 +259,8 @@ contains
   !! AllGather Vloc on each thread into the array V: sum_threads(size(Vloc)) must be equal to size(v)
   subroutine allgather_vector_MPI(MpiComm,vloc,v)
     integer                          :: MpiComm
-    real(8),dimension(:)             :: vloc !size[Nloc]
-    real(8),dimension(:)             :: v    !size[N]
+    complex(8),dimension(:)             :: vloc !size[Nloc]
+    complex(8),dimension(:)             :: v    !size[N]
     integer                          :: i,iph,irank,Nloc,N
     integer                          :: v_start,v_end,vloc_start,vloc_end
     integer,dimension(:),allocatable :: Counts,Offset
@@ -297,8 +295,8 @@ contains
     v_end   = N
     vloc_start = 1
     vloc_end   = Nloc
-    call MPI_AllGatherv(Vloc(vloc_start:vloc_end),Nloc,MPI_DOUBLE_PRECISION,&
-         V(v_start:v_end),Counts,Offset,MPI_DOUBLE_PRECISION,MpiComm,MpiIerr)
+    call MPI_AllGatherv(Vloc(vloc_start:vloc_end),Nloc,MPI_DOUBLE_COMPLEX,&
+         V(v_start:v_end),Counts,Offset,MPI_DOUBLE_COMPLEX,MpiComm,MpiIerr)
     !
     return
   end subroutine Allgather_vector_MPI
@@ -337,124 +335,6 @@ contains
     if(allocated(wr))deallocate(wr)
     if(allocated(vr))deallocate(vr)
   end subroutine deallocate_grids
-
-
-
-
-
-
-
-
-
-
-  !##################################################################
-  !##################################################################
-  ! ROUTINES TO SEARCH CHEMICAL POTENTIAL UP TO SOME ACCURACY
-  ! can be used to fix any other *var so that  *ntmp == nread
-  !##################################################################
-  !##################################################################
-
-  !+------------------------------------------------------------------+
-  !PURPOSE  : 
-  !+------------------------------------------------------------------+
-  subroutine ed_search_variable(var,ntmp,converged)
-    real(8),intent(inout) :: var
-    real(8),intent(in)    :: ntmp
-    logical,intent(inout) :: converged
-    logical               :: bool
-    real(8),save          :: chich
-    real(8),save          :: nold
-    real(8),save          :: var_new
-    real(8),save          :: var_old
-    real(8)               :: var_sign
-    real(8)               :: delta_n,delta_v,chi_shift
-    !
-    real(8)               :: ndiff
-    integer,save          :: count=0,totcount=0,i
-    integer               :: unit
-    !
-    !check actual value of the density *ntmp* with respect to goal value *nread*
-    count=count+1
-    totcount=totcount+1
-    !  
-    if(count==1)then
-       chich = ndelta        !~0.2
-       inquire(file="var_compressibility.restart",EXIST=bool)
-       if(bool)then
-          write(LOGfile,"(A)")"Reading compressibility from file"
-          open(free_unit(unit),file="var_compressibility.restart")
-          read(unit,*)chich
-          close(unit)
-       endif
-       var_old = var
-    endif
-    !
-    ndiff=ntmp-nread
-    !
-    open(free_unit(unit),file="var_compressibility.used")
-    write(unit,*)chich
-    close(unit)
-    !
-    ! if(abs(ndiff)>nerr)then
-    !Get 'charge compressibility"
-    delta_n = ntmp-nold
-    delta_v = var-var_old
-    if(count>1)chich = delta_v/(delta_n+1d-10) !1d-4*nerr)  !((ntmp-nold)/(var-var_old))**-1
-    !
-    !Add here controls on chich: not to be too small....
-    if(chich>10d0)chich=2d0*chich/abs(chich) !do nothing?
-    !
-    chi_shift = ndiff*chich
-    !
-    !update chemical potential
-    var_new = var - chi_shift
-    !
-    !
-    !re-define variables:
-    nold    = ntmp
-    var_old = var
-    var     = var_new
-    !
-    !Print information
-    write(LOGfile,"(A11,F16.9,A,F15.9)")  "n      = ",ntmp,"| instead of",nread
-    write(LOGfile,"(A11,ES16.9,A,ES16.9)")"n_diff = ",ndiff,"/",nerr
-    write(LOGfile,"(A11,ES16.9,A,ES16.9)")"dv     = ",delta_v
-    write(LOGfile,"(A11,ES16.9,A,ES16.9)")"dn     = ",delta_n
-    write(LOGfile,"(A11,F16.9,A,F15.9)")  "dv/dn  = ",chich
-    var_sign = (var-var_old)/abs(var-var_old)
-    if(var_sign>0d0)then
-       write(LOGfile,"(A11,ES16.9,A4)")"shift    = ",chi_shift," ==>"
-    else
-       write(LOGfile,"(A11,ES16.9,A4)")"shift    = ",chi_shift," <=="
-    end if
-    write(LOGfile,"(A11,F16.9)")"var     = ",var
-    !
-    ! else
-    !    count=0
-    ! endif
-
-
-    !Save info about search variable iteration:
-    open(free_unit(unit),file="search_variable_iteration_info.ed",position="append")
-    ! if(count==1)write(unit,*)"#var,ntmp,ndiff"
-    write(unit,*)totcount,var,ntmp,ndiff
-    close(unit)
-    !
-    !If density is not converged set convergence to .false.
-    if(abs(ndiff)>nerr)converged=.false.
-    !
-    write(LOGfile,"(A18,I5)")"Search var count= ",count
-    write(LOGfile,"(A19,L2)")"Converged       = ",converged
-    print*,""
-    !
-    open(free_unit(unit),file="var_compressibility.restart")
-    write(unit,*)chich
-    close(unit)
-    !
-  end subroutine ed_search_variable
-
-
-
 
 
 

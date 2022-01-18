@@ -18,15 +18,15 @@ MODULE ED_GF_ELECTRON
   public :: build_sigma_normal
 
 
-  integer                               :: istate
-  integer                               :: isector,jsector
-  real(8),allocatable                   :: vvinit(:)
-  real(8),allocatable                   :: alfa_(:),beta_(:)
-  integer                               :: ialfa,jalfa
-  integer                               :: i,j
-  real(8)                               :: sgn,norm2
-  real(8),dimension(:),pointer          :: state_cvec
-  real(8)                               :: state_e
+  integer                         :: istate
+  integer                         :: isector,jsector
+  complex(8),allocatable          :: vvinit(:)
+  real(8),allocatable             :: alfa_(:),beta_(:)
+  integer                         :: ialfa,jalfa
+  integer                         :: i,j
+  real(8)                         :: sgn,norm2
+  complex(8),dimension(:),pointer :: state_cvec
+  real(8)                         :: state_e
 
 
 contains
@@ -47,7 +47,7 @@ contains
     do ispin=1,Nspin
        do iorb=1,Norb
           do isite=1,Nsites(iorb)
-             write(LOGfile,"(A)")"Get G:"//&
+             if(MPIMASTER)write(LOGfile,"(A)")"Get G:"//&
                   " site I"//str(isite,site_indx_padding)//&
                   " orb M"//str(iorb)//&
                   " spin"//str(ispin)
@@ -170,7 +170,7 @@ contains
              enddo
              call delete_sector(sectorJ)
           else
-             allocate(vvinit(1));vvinit=0.d0
+             allocate(vvinit(1));vvinit=zero
           endif
           !
           call tridiag_Hv_sector(jsector,vvinit,alfa_,beta_,norm2)
@@ -194,7 +194,7 @@ contains
              enddo
              call delete_sector(sectorJ)
           else
-             allocate(vvinit(1));vvinit=0.d0
+             allocate(vvinit(1));vvinit=zero
           endif
           !
           call tridiag_Hv_sector(jsector,vvinit,alfa_,beta_,norm2)
@@ -279,7 +279,7 @@ contains
              enddo
              call delete_sector(sectorJ)
           else
-             allocate(vvinit(1));vvinit=0.d0
+             allocate(vvinit(1));vvinit=zero
           endif
           !
           call tridiag_Hv_sector(jsector,vvinit,alfa_,beta_,norm2)
@@ -310,7 +310,7 @@ contains
              enddo
              call delete_sector(sectorJ)
           else
-             allocate(vvinit(1));vvinit=0.d0
+             allocate(vvinit(1));vvinit=zero
           endif
           !
           call tridiag_Hv_sector(jsector,vvinit,alfa_,beta_,norm2)
@@ -422,7 +422,7 @@ contains
     integer,intent(in) :: isite,iorb,ispin
     integer            :: io
     type(sector)       :: sectorI,sectorJ
-    real(8)            :: op_mat(2)
+    complex(8)            :: op_mat(2)
     real(8)            :: spectral_weight
     real(8)            :: sgn_cdg,sgn_c
     integer            :: m,i,j,li,rj
@@ -453,14 +453,14 @@ contains
                 call apply_op_CDG(li,rj,sgn_cdg,io,ialfa,ispin,sectorI,sectorJ)
                 if(sgn_cdg==0d0.OR.rj==0)cycle
                 !
-                op_mat(1)=op_mat(1) + (espace(jsector)%M(rj,j))*sgn_cdg*espace(isector)%M(li,i)
+                op_mat(1)=op_mat(1) + conjg(espace(jsector)%M(rj,j))*sgn_cdg*espace(isector)%M(li,i)
              enddo
              !
              do rj=1,sectorJ%Dim
                 call apply_op_C(rj,li,sgn_c,io,ialfa,ispin,sectorJ,sectorI)
                 if(sgn_c==0d0.OR.li==0)cycle
                 !
-                op_mat(2)=op_mat(2) + (espace(isector)%M(li,i))*sgn_c*espace(jsector)%M(rj,j)
+                op_mat(2)=op_mat(2) + conjg(espace(isector)%M(li,i))*sgn_c*espace(jsector)%M(rj,j)
              enddo
              !
              Ei=espace(isector)%e(i)
@@ -527,14 +527,14 @@ contains
                 call apply_op_CDG(li,rj,sgn_cdg,io,ialfa,ispin,sectorI,sectorJ)
                 if(sgn_cdg==0d0.OR.rj==0)cycle
                 !
-                op_mat(1)=op_mat(1) + (espace(jsector)%M(rj,j))*sgn_cdg*espace(isector)%M(li,i)
+                op_mat(1)=op_mat(1) + conjg(espace(jsector)%M(rj,j))*sgn_cdg*espace(isector)%M(li,i)
              enddo
              !
              do rj=1,sectorJ%Dim
                 call apply_op_C(rj,li,sgn_c,jo,jalfa,ispin,sectorJ,sectorI)
                 if(sgn_c==0d0.OR.li==0)cycle
                 !
-                op_mat(2)=op_mat(2) + (espace(isector)%M(li,i))*sgn_c*espace(jsector)%M(rj,j)
+                op_mat(2)=op_mat(2) + conjg(espace(isector)%M(li,i))*sgn_c*espace(jsector)%M(rj,j)
              enddo
              !
              Ei=espace(isector)%e(i)

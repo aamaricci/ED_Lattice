@@ -16,17 +16,17 @@ MODULE ED_CHI_SPIN
 
   public :: build_chi_spin
 
-  integer                      :: istate,iorb,jorb,ispin
-  integer                      :: isector
-  real(8),allocatable          :: vvinit(:)
-  real(8),allocatable          :: alfa_(:),beta_(:)
-  integer                      :: ialfa
-  integer                      :: jalfa
-  integer                      :: ipos,jpos
-  integer                      :: i,j
-  real(8)                      :: sgn,norm2
-  real(8),dimension(:),pointer :: state_cvec
-  real(8)                      :: state_e
+  integer                         :: istate,iorb,jorb,ispin
+  integer                         :: isector
+  complex(8),allocatable          :: vvinit(:)
+  real(8),allocatable             :: alfa_(:),beta_(:)
+  integer                         :: ialfa
+  integer                         :: jalfa
+  integer                         :: ipos,jpos
+  integer                         :: i,j
+  real(8)                         :: sgn,norm2
+  complex(8),dimension(:),pointer :: state_cvec
+  real(8)                         :: state_e
 
 
 
@@ -153,7 +153,7 @@ contains
              enddo
              call delete_sector(sectorI)
           else
-             allocate(vvinit(1));vvinit=0.d0
+             allocate(vvinit(1));vvinit=zero
           endif
           !
           call tridiag_Hv_sector(isector,vvinit,alfa_,beta_,norm2)
@@ -221,7 +221,7 @@ contains
           enddo
           call delete_sector(sectorI)
        else
-          allocate(vvinit(1));vvinit=0.d0
+          allocate(vvinit(1));vvinit=zero
        endif
        !
        call tridiag_Hv_sector(isector,vvinit,alfa_,beta_,norm2)
@@ -351,9 +351,9 @@ contains
              if(expterm<cutoff)cycle
              do ll=1,sectorI%Dim
                 call apply_op_Sz(i,Sio,io,ialfa,sectorI)
-                Chio   = Chio + espace(isector)%M(ll,i)*Sio*espace(isector)%M(ll,j)
+                Chio   = Chio + espace(isector)%M(ll,i)*Sio*conjg(espace(isector)%M(ll,j))
                 call apply_op_Sz(i,Sjo,jo,jalfa,sectorI)
-                Chjo   = Chjo + espace(isector)%M(ll,i)*Sjo*espace(isector)%M(ll,j)
+                Chjo   = Chjo + espace(isector)%M(ll,i)*Sjo*conjg(espace(isector)%M(ll,j))
              enddo
              Ei=espace(isector)%e(i)
              Ej=espace(isector)%e(j)

@@ -44,9 +44,9 @@ MODULE ED_VARS_GLOBAL
   !dbleMat*dbleVec
   abstract interface
      subroutine dd_sparse_HxV(Nloc,v,Hv)
-       integer                 :: Nloc
-       real(8),dimension(Nloc) :: v
-       real(8),dimension(Nloc) :: Hv
+       integer                    :: Nloc
+       complex(8),dimension(Nloc) :: v
+       complex(8),dimension(Nloc) :: Hv
      end subroutine dd_sparse_HxV
   end interface
 
@@ -158,7 +158,7 @@ MODULE ED_VARS_GLOBAL
   real(8)                                          :: ed_Dust,ed_Dund,ed_Dse,ed_Dph,ed_Dk
 
   real(8),allocatable,dimension(:)                 :: Drude_weight
-  complex(8),allocatable,dimension(:,:)            :: OptCond_w
+  real(8),allocatable,dimension(:,:)               :: OptCond_w
 
   !Frequency and time arrays:
   !=========================================================

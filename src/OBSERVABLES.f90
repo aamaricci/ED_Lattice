@@ -46,8 +46,7 @@ MODULE ED_OBSERVABLES
   integer                            :: i,j,ii
   integer                            :: isector,jsector
   !
-  real(8),dimension(:),allocatable   :: vvinit
-  real(8),dimension(:),pointer       :: state_cvec
+  complex(8),dimension(:),pointer       :: state_cvec
   logical                            :: Jcondition
   !
   type(sector)                       :: sectorI,sectorJ
@@ -221,7 +220,7 @@ contains
     integer,dimension(Ns_Ud,Ns_Orb) :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
     integer,dimension(Ns)           :: IbUp,IbDw  ![Ns]
     real(8),dimension(Ns)           :: nup,ndw,Sz,nt
-    real(8),dimension(:),pointer    :: evec
+    complex(8),dimension(:),pointer    :: evec
     !
     !
     !LOCAL OBSERVABLES:
@@ -253,7 +252,7 @@ contains
           evec => espace(isector)%M(:,istate)
           !
           do i=1,sectorI%Dim
-             state_weight=(evec(i))*evec(i)
+             state_weight=conjg(evec(i))*evec(i)
              weight = boltzman_weight*state_weight
              ! call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
              ! mup = sectorI%H(1)%map(Indices(1))
@@ -404,7 +403,7 @@ contains
                       jup = binary_search(sectorI%H(1)%map,k2)
                       j   = jup + (idw-1)*sectorI%DimUp
                       ed_Ekin = ed_Ekin + &
-                           Hij(1,io,jo)*sg1*sg2*state_cvec(i)*(state_cvec(j))*peso
+                           Hij(1,io,jo)*sg1*sg2*state_cvec(i)*conjg(state_cvec(j))*peso
                    endif
                 enddo
              enddo
@@ -424,7 +423,7 @@ contains
                       jdw = binary_search(sectorI%H(2)%map,k2)
                       j   = iup + (jdw-1)*sectorI%DimUp
                       ed_Ekin = ed_Ekin + &
-                           Hij(Nspin,io,jo)*sg1*sg2*state_cvec(i)*(state_cvec(j))*peso
+                           Hij(Nspin,io,jo)*sg1*sg2*state_cvec(i)*conjg(state_cvec(j))*peso
                    endif
                 enddo
              enddo
@@ -458,8 +457,8 @@ contains
                                jup=binary_search(sectorI%H(1)%map,k4)
                                j = jup + (jdw-1)*sectorI%DimUp
                                !
-                               ed_Epot = ed_Epot + Jx*sg1*sg2*sg3*sg4*state_cvec(i)*state_cvec(j)*peso
-                               ed_Dse = ed_Dse + sg1*sg2*sg3*sg4*state_cvec(i)*state_cvec(j)*peso
+                               ed_Epot = ed_Epot + Jx*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
+                               ed_Dse = ed_Dse + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
                                !
                             endif
                          enddo
@@ -495,8 +494,8 @@ contains
                                jup = binary_search(sectorI%H(1)%map,k4)
                                j = jup + (jdw-1)*sectorI%DimUp
                                !
-                               ed_Epot = ed_Epot + Jp*sg1*sg2*sg3*sg4*state_cvec(i)*state_cvec(j)*peso
-                               ed_Dph = ed_Dph + sg1*sg2*sg3*sg4*state_cvec(i)*state_cvec(j)*peso
+                               ed_Epot = ed_Epot + Jp*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
+                               ed_Dph = ed_Dph + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
                                !
                             endif
                          enddo
@@ -533,8 +532,8 @@ contains
                                jup = binary_search(sectorI%H(1)%map,k4)
                                j = jup + (jdw-1)*sectorI%DimUp
                                !
-                               ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*state_cvec(i)*state_cvec(j)*peso
-                               ed_Dk = ed_Dk + sg1*sg2*sg3*sg4*state_cvec(i)*state_cvec(j)*peso
+                               ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
+                               ed_Dk = ed_Dk + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
                             endif
                             !
                             ![cdg_jo c_io]_up [cdg_io c_jo]_dw
@@ -552,8 +551,8 @@ contains
                                jup = binary_search(sectorI%H(1)%map,k4)
                                j = jup + (jdw-1)*sectorI%DimUp
                                !
-                               ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*state_cvec(i)*state_cvec(j)*peso
-                               ed_Dk = ed_Dk + sg1*sg2*sg3*sg4*state_cvec(i)*state_cvec(j)*peso
+                               ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
+                               ed_Dk = ed_Dk + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
                             endif
                             !
                          enddo
@@ -668,20 +667,20 @@ contains
     ed_Ekin = ed_Ekin/Ns        !Rescale to avoid linear increasing with Ns
     ed_Epot = ed_Epot + ed_Ehartree
     !
-    if(ed_verbose>2)then
-       write(LOGfile,"(A,10f18.12)")"<K>     =",ed_Ekin
-       write(LOGfile,"(A,10f18.12)")"<V>     =",ed_Epot-ed_Ehartree
-       write(LOGfile,"(A,10f18.12)")"<Hint>  =",ed_Epot
-       write(LOGfile,"(A,10f18.12)")"<E0>    =",ed_Eknot
-       write(LOGfile,"(A,10f18.12)")"<Ehf>   =",ed_Ehartree    
-       write(LOGfile,"(A,10f18.12)")"Dust    =",ed_Dust
-       write(LOGfile,"(A,10f18.12)")"Dund    =",ed_Dund
-       write(LOGfile,"(A,10f18.12)")"Dph     =",ed_Dph
-       write(LOGfile,"(A,10f18.12)")"Dse     =",ed_Dse
-       write(LOGfile,"(A,10f18.12)")"Dk      =",ed_Dk
-    endif
-    !
     if(MPIMASTER)then
+       if(ed_verbose>2)then
+          write(LOGfile,"(A,10f18.12)")"<K>     =",ed_Ekin
+          write(LOGfile,"(A,10f18.12)")"<V>     =",ed_Epot-ed_Ehartree
+          write(LOGfile,"(A,10f18.12)")"<Hint>  =",ed_Epot
+          write(LOGfile,"(A,10f18.12)")"<E0>    =",ed_Eknot
+          write(LOGfile,"(A,10f18.12)")"<Ehf>   =",ed_Ehartree    
+          write(LOGfile,"(A,10f18.12)")"Dust    =",ed_Dust
+          write(LOGfile,"(A,10f18.12)")"Dund    =",ed_Dund
+          write(LOGfile,"(A,10f18.12)")"Dph     =",ed_Dph
+          write(LOGfile,"(A,10f18.12)")"Dse     =",ed_Dse
+          write(LOGfile,"(A,10f18.12)")"Dk      =",ed_Dk
+       endif
+       !
        call write_energy()
     endif
     !
@@ -704,7 +703,7 @@ contains
     real(8)                           :: weight
     real(8)                           :: norm,beta_
     real(8),dimension(Nspin,Norb)     :: eloc
-    real(8),dimension(:),pointer      :: evec
+    complex(8),dimension(:),pointer      :: evec
     integer                           :: iud(2),jud(2)
     integer,dimension(2*Ns_Ud)        :: Indices,Jndices
     integer,dimension(Ns_Ud,Ns_Orb)   :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
@@ -756,7 +755,7 @@ contains
              Ndw =  Ndws(1,:)
              Sz  = 0.5d0*(Nup-Ndw)
              !
-             state_weight = (evec(i))*evec(i)
+             state_weight = conjg(evec(i))*evec(i)
              weight = boltzman_weight*state_weight
              !
              !
@@ -785,7 +784,7 @@ contains
                       jup = binary_search(sectorI%H(1)%map,k2)
                       j   = jup + (idw-1)*sectorI%DimUp
                       ed_Ekin = ed_Ekin + &
-                           Hij(1,io,jo)*sg1*sg2*evec(i)*(evec(j))*peso
+                           Hij(1,io,jo)*sg1*sg2*evec(i)*conjg(evec(j))*peso
                    endif
                 enddo
              enddo
@@ -805,7 +804,7 @@ contains
                       jdw = binary_search(sectorI%H(2)%map,k2)
                       j   = iup + (jdw-1)*sectorI%DimUp
                       ed_Ekin = ed_Ekin + &
-                           Hij(Nspin,io,jo)*sg1*sg2*evec(i)*(evec(j))*peso
+                           Hij(Nspin,io,jo)*sg1*sg2*evec(i)*conjg(evec(j))*peso
                    endif
                 enddo
              enddo
@@ -838,8 +837,8 @@ contains
                                jup=binary_search(sectorI%H(1)%map,k4)
                                j = jup + (jdw-1)*sectorI%DimUp
                                !
-                               ed_Epot = ed_Epot + Jx*sg1*sg2*sg3*sg4*evec(i)*evec(j)*peso
-                               ed_Dse = ed_Dse + sg1*sg2*sg3*sg4*evec(i)*evec(j)*peso
+                               ed_Epot = ed_Epot + Jx*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*peso
+                               ed_Dse = ed_Dse + sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*peso
                                !
                             endif
                          enddo
@@ -875,8 +874,8 @@ contains
                                jup = binary_search(sectorI%H(1)%map,k4)
                                j = jup + (jdw-1)*sectorI%DimUp
                                !
-                               ed_Epot = ed_Epot + Jp*sg1*sg2*sg3*sg4*evec(i)*evec(j)*peso
-                               ed_Dph = ed_Dph + sg1*sg2*sg3*sg4*evec(i)*evec(j)*peso
+                               ed_Epot = ed_Epot + Jp*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))peso
+                               ed_Dph = ed_Dph + sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*peso
                                !
                             endif
                          enddo
@@ -913,8 +912,8 @@ contains
                                jup = binary_search(sectorI%H(1)%map,k4)
                                j = jup + (jdw-1)*sectorI%DimUp
                                !
-                               ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*evec(i)*evec(j)*peso
-                               ed_Dk = ed_Dk + sg1*sg2*sg3*sg4*evec(i)*evec(j)*peso
+                               ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))**peso
+                               ed_Dk = ed_Dk + sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*peso
                             endif
                             !
                             ![cdg_jo c_io]_up [cdg_io c_jo]_dw
@@ -932,8 +931,8 @@ contains
                                jup = binary_search(sectorI%H(1)%map,k4)
                                j = jup + (jdw-1)*sectorI%DimUp
                                !
-                               ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*evec(i)*evec(j)*peso
-                               ed_Dk = ed_Dk + sg1*sg2*sg3*sg4*evec(i)*evec(j)*peso
+                               ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*peso
+                               ed_Dk = ed_Dk + sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*peso
                             endif
                             !
                          enddo

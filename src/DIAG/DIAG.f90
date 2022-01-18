@@ -52,17 +52,17 @@ contains
   ! spectrum DOUBLE PRECISION
   !+------------------------------------------------------------------+
   subroutine ed_diag_d
-    integer             :: isector,Dim,istate
-    integer             :: DimUps(Ns_Ud),DimUp
-    integer             :: DimDws(Ns_Ud),DimDw
-    integer             :: Nups(Ns_Ud)
-    integer             :: Ndws(Ns_Ud)
-    integer             :: i,j,iter,unit,vecDim,PvecDim
-    integer             :: Nitermax,Neigen,Nblock
-    real(8)             :: oldzero,enemin,Ei
-    real(8),allocatable :: eig_values(:)
-    real(8),allocatable :: eig_basis(:,:),eig_basis_tmp(:,:)
-    logical             :: lanc_solve,Tflag,lanc_verbose,bool
+    integer                :: isector,Dim,istate
+    integer                :: DimUps(Ns_Ud),DimUp
+    integer                :: DimDws(Ns_Ud),DimDw
+    integer                :: Nups(Ns_Ud)
+    integer                :: Ndws(Ns_Ud)
+    integer                :: i,j,iter,unit,vecDim,PvecDim
+    integer                :: Nitermax,Neigen,Nblock
+    real(8)                :: oldzero,enemin,Ei
+    real(8),allocatable    :: eig_values(:)
+    complex(8),allocatable :: eig_basis(:,:),eig_basis_tmp(:,:)
+    logical                :: lanc_solve,Tflag,lanc_verbose,bool
     !
     if(state_list%status)call es_delete_espace(state_list)
     state_list=es_init_espace()
@@ -188,6 +188,7 @@ contains
           !
           if(MpiMaster.AND.ed_verbose>3)write(LOGfile,*)""
           call delete_Hv_sector()
+          call Bcast_MPI(MpiComm,eig_values)
           !
           !
        else                     !else LAPACK_SOLVE
@@ -327,7 +328,7 @@ contains
        if(ed_verbose>=3.AND.MPIMASTER)call start_timer()
        call build_Hv_sector(isector,espace(isector)%M)
        if(MpiMaster)call eigh(espace(isector)%M, espace(isector)%e)
-       if(dim==1)espace(isector)%M=1d0
+       if(dim==1)espace(isector)%M=one
        call delete_Hv_sector()
        if(ed_verbose>=3.AND.MPIMASTER)call stop_timer(unit=LOGfile)
        !

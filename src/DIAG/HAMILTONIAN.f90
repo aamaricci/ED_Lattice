@@ -40,11 +40,11 @@ contains
   !                 MAIN ROUTINES: BUILD/DELETE SECTOR
   !####################################################################
   subroutine build_Hv_sector(isector,Hmat)
-    integer                         :: isector,SectorDim
-    real(8),dimension(:,:),optional :: Hmat   
-    integer                         :: irank,ierr
-    integer                         :: i,iup,idw
-    integer                         :: j,jup,jdw
+    integer                            :: isector,SectorDim
+    complex(8),dimension(:,:),optional :: Hmat   
+    integer                            :: irank,ierr
+    integer                            :: i,iup,idw
+    integer                            :: j,jup,jdw
     !
     call build_sector(isector,Hsector)
     !
@@ -242,13 +242,12 @@ contains
 
 
   subroutine tridiag_Hv_sector(isector,vvinit,alanc,blanc,norm2)
-    integer                            :: isector
-    real(8),dimension(:)               :: vvinit
-    real(8),dimension(:),allocatable   :: alanc,blanc
-    real(8)                            :: norm2
-    !
-    real(8),dimension(:),allocatable   :: vvloc
-    integer                            :: vecDim
+    integer                             :: isector
+    complex(8),dimension(:)             :: vvinit
+    real(8),dimension(:),allocatable    :: alanc,blanc
+    real(8)                             :: norm2
+    complex(8),dimension(:),allocatable :: vvloc
+    integer                             :: vecDim
     !
     if(MpiMaster)then
        norm2=dot_product(vvinit,vvinit)

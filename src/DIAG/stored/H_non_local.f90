@@ -35,7 +35,7 @@
                        call c(jo,mup,k3,sg3)  !UP
                        call cdg(io,k3,k4,sg4) !UP
                        jup=binary_search(Hsector%H(1)%map,k4)
-                       htmp = Jx*sg1*sg2*sg3*sg4
+                       htmp = one*Jx*sg1*sg2*sg3*sg4
                        j = jup + (jdw-1)*DimUp
                        !
                        select case(MpiStatus)
@@ -75,7 +75,7 @@
                        call c(jo,mup,k3,sg3)       !c_jo_up
                        call cdg(io,k3,k4,sg4)      !c^+_io_up
                        jup = binary_search(Hsector%H(1)%map,k4)
-                       htmp = Jp*sg1*sg2*sg3*sg4
+                       htmp = one*Jp*sg1*sg2*sg3*sg4
                        j = jup + (jdw-1)*DimUp
                        !
                        select case(MpiStatus)
@@ -121,7 +121,7 @@
                        call c(jo,mup,k3,sg3)       !c_jo.up
                        call cdg(io,k3,k4,sg4)      !c^+_io.up
                        jup = binary_search(Hsector%H(1)%map,k4)
-                       htmp = Jk*sg1*sg2*sg3*sg4
+                       htmp = one*Jk*sg1*sg2*sg3*sg4
                        j = jup + (jdw-1)*DimUp
                        !
                        select case(MpiStatus)
@@ -145,7 +145,7 @@
                        call c(io,mup,k3,sg3)       !c_io.up
                        call cdg(jo,k3,k4,sg4)      !c^+_jo.up
                        jup = binary_search(Hsector%H(1)%map,k4)
-                       htmp = Jk*sg1*sg2*sg3*sg4
+                       htmp = one*Jk*sg1*sg2*sg3*sg4
                        j = jup + (jdw-1)*DimUp
                        !
                        select case(MpiStatus)

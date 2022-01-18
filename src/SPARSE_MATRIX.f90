@@ -11,9 +11,9 @@ MODULE ED_SPARSE_MATRIX  !THIS VERSION CONTAINS ONLY DBLE ELEMENT: (SYMMETRIC MA
 
 
   type sparse_row_csr
-     integer                                   :: size !actual 
-     real(8),dimension(:),allocatable          :: vals
-     integer,dimension(:),allocatable          :: cols
+     integer                             :: size !actual 
+     complex(8),dimension(:),allocatable :: vals
+     integer,dimension(:),allocatable    :: cols
   end type sparse_row_csr
 
   type sparse_matrix_csr
@@ -116,7 +116,7 @@ contains
     !
     !put here a delete statement to avoid problems
     if(sparse%status)stop "sp_init_matrix: already allocated can not init"
-    !
+    ! 
     sparse%Nrow=N
     sparse%Ncol=N 
     if(present(N1))sparse%Ncol=N1
@@ -238,7 +238,7 @@ contains
   !+------------------------------------------------------------------+
   subroutine sp_insert_element_csr(sparse,value,i,j)
     type(sparse_matrix_csr),intent(inout) :: sparse
-    real(8),intent(in)                    :: value
+    complex(8),intent(in)                 :: value
     integer,intent(in)                    :: i,j
     type(sparse_row_csr),pointer          :: row
     integer                               :: column,pos
@@ -270,7 +270,7 @@ contains
   subroutine mpi_sp_insert_element_csr(MpiComm,sparse,value,i,j)
     integer                               :: MpiComm
     type(sparse_matrix_csr),intent(inout) :: sparse
-    real(8),intent(in)                    :: value
+    complex(8),intent(in)                 :: value
     integer,intent(in)                    :: i,j
     type(sparse_row_csr),pointer          :: row
     integer                               :: column,pos
@@ -319,9 +319,9 @@ contains
   !PURPOSE: dump a sparse matrix into a regular 2dim array
   !+------------------------------------------------------------------+
   subroutine sp_dump_matrix_csr(sparse,matrix)
-    type(sparse_matrix_csr),intent(in)   :: sparse
-    real(8),dimension(:,:),intent(inout) :: matrix
-    integer                              :: i,j,Ndim1,Ndim2
+    type(sparse_matrix_csr),intent(in)      :: sparse
+    complex(8),dimension(:,:),intent(inout) :: matrix
+    integer                                 :: i,j,Ndim1,Ndim2
     !
     Ndim1=size(matrix,1)
     Ndim2=size(matrix,2)
@@ -337,11 +337,11 @@ contains
 
 #ifdef _MPI
   subroutine mpi_sp_dump_matrix_csr(MpiComm,sparse,matrix)
-    integer                              :: MpiComm
-    type(sparse_matrix_csr),intent(in)   :: sparse
-    real(8),dimension(:,:),intent(inout) :: matrix
-    real(8),dimension(:,:),allocatable   :: matrix_tmp
-    integer                              :: i,impi,j,N1_,N2_,Ndim1,Ndim2,Nrow,Ncol
+    integer                                 :: MpiComm
+    type(sparse_matrix_csr),intent(in)      :: sparse
+    complex(8),dimension(:,:),intent(inout) :: matrix
+    complex(8),dimension(:,:),allocatable   :: matrix_tmp
+    integer                                 :: i,impi,j,N1_,N2_,Ndim1,Ndim2,Nrow,Ncol
     !
     if(MpiComm==Mpi_Comm_Null)return
     !
@@ -382,9 +382,9 @@ contains
 
 #ifdef _MPI
   subroutine sp_set_mpi_matrix_csr(MpiComm,sparse,istart,iend,ishift)
-    integer                              :: MpiComm
+    integer                               :: MpiComm
     type(sparse_matrix_csr),intent(inout) :: sparse
-    integer                              :: istart,iend,ishift
+    integer                               :: istart,iend,ishift
     !
     if(MpiComm==Mpi_Comm_Null)return
     !
@@ -395,10 +395,10 @@ contains
   end subroutine sp_set_mpi_matrix_csr
 
   subroutine sp_test_matrix_mpi(MpiComm,sparse,text)
-    integer                              :: MpiComm
-    type(sparse_matrix_csr),intent(in)    :: sparse
-    character(len=*)                     :: text
-    integer                              :: MpiRank
+    integer                            :: MpiComm
+    type(sparse_matrix_csr),intent(in) :: sparse
+    character(len=*)                   :: text
+    integer                            :: MpiRank
     !
     if(MpiComm==Mpi_Comm_Null)stop "sp_test_matrix_mpi ERROR: called in with MpiComm = Mpi_Comm_Null"
     !

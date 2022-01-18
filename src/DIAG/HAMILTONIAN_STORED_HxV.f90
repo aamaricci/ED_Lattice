@@ -19,15 +19,15 @@ contains
 
 
   subroutine ed_buildh_main(Hmat)
-    real(8),dimension(:,:),optional    :: Hmat
-    integer                            :: isector,ispin,i,j
-    real(8),dimension(:,:),allocatable :: Htmp_up,Htmp_dw,Hrdx,Hmat_tmp
-    integer,dimension(2*Ns_Ud)         :: Indices    ![2-2*Norb]
-    integer,dimension(Ns_Ud,Ns_Orb)    :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
-    integer,dimension(Ns)              :: Nup,Ndw
-    real(8),dimension(Ns)              :: Sz 
-    complex(8),dimension(Nspin,Ns,Ns)  :: Hij,Hloc
-    complex(8),dimension(Nspin,Ns)     :: Hdiag
+    complex(8),dimension(:,:),optional    :: Hmat
+    integer                               :: isector,ispin,i,j
+    complex(8),dimension(:,:),allocatable :: Htmp_up,Htmp_dw,Hrdx,Hmat_tmp
+    integer,dimension(2*Ns_Ud)            :: Indices    ![2-2*Norb]
+    integer,dimension(Ns_Ud,Ns_Orb)       :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
+    integer,dimension(Ns)                 :: Nup,Ndw
+    real(8),dimension(Ns)                 :: Sz 
+    complex(8),dimension(Nspin,Ns,Ns)     :: Hij,Hloc
+    real(8),dimension(Nspin,Ns)           :: Hdiag
     !
 #ifdef _MPI
     if(Mpistatus .AND. MpiComm == MPI_COMM_NULL)return
@@ -39,10 +39,10 @@ contains
     if(present(Hmat))&
          call assert_shape(Hmat,[getdim(isector), getdim(isector)],"ed_buildh_main","Hmat")
     !
-    call Hij_get(Hij) ;Hij = dreal(Hij)
-    call Hij_get(Hloc);Hloc= dreal(Hloc)
+    call Hij_get(Hij)
+    call Hij_get(Hloc)
     do ispin=1,Nspin
-       Hdiag(ispin,:) = diagonal(Hloc(ispin,:,:))
+       Hdiag(ispin,:) = dreal(diagonal(Hloc(ispin,:,:)))
     enddo
     !
 #ifdef _MPI
@@ -84,10 +84,10 @@ contains
     !
     !-----------------------------------------------!
     if(present(Hmat))then
-       Hmat = 0d0
-       allocate(Htmp_up(DimUp,DimUp));Htmp_up=0d0
-       allocate(Htmp_dw(DimDw,DimDw));Htmp_dw=0d0
-       allocate(Hmat_tmp(DimUp*DimDw,DimUp*DimDw));Hmat_tmp=0.d0
+       Hmat = zero
+       allocate(Htmp_up(DimUp,DimUp));Htmp_up=zero
+       allocate(Htmp_dw(DimDw,DimDw));Htmp_dw=zero
+       allocate(Hmat_tmp(DimUp*DimDw,DimUp*DimDw));Hmat_tmp=zero
        !
 #ifdef _MPI
        if(MpiStatus)then
@@ -100,7 +100,7 @@ contains
 #endif
        !
        if(Jhflag)then
-          allocate(Hrdx(DimUp*DimDw,DimUp*DimDw));Hrdx=0d0
+          allocate(Hrdx(DimUp*DimDw,DimUp*DimDw));Hrdx=zero
 #ifdef _MPI
           if(MpiStatus)then
              call sp_dump_matrix(MpiComm,spH0nd,Hrdx)
@@ -153,14 +153,14 @@ contains
   ! - MPI
   !+------------------------------------------------------------------+
   subroutine spMatVec_main(Nloc,v,Hv)
-    integer                         :: Nloc
-    real(8),dimension(Nloc)         :: v
-    real(8),dimension(Nloc)         :: Hv
-    real(8)                         :: val
-    integer                         :: i,iup,idw,j,jup,jdw,jj
+    integer                    :: Nloc
+    complex(8),dimension(Nloc) :: v
+    complex(8),dimension(Nloc) :: Hv
+    complex(8)                 :: val
+    integer                    :: i,iup,idw,j,jup,jdw,jj
     !
     !
-    Hv=0d0
+    Hv=zero
     !
     !Local:
     do i = 1,Nloc
@@ -220,23 +220,23 @@ contains
 
 #ifdef _MPI
   subroutine spMatVec_mpi_main(Nloc,v,Hv)
-    integer                          :: Nloc
-    real(8),dimension(Nloc)          :: v
-    real(8),dimension(Nloc)          :: Hv
+    integer                             :: Nloc
+    complex(8),dimension(Nloc)          :: v
+    complex(8),dimension(Nloc)          :: Hv
     !
-    integer                          :: N
-    real(8),dimension(:),allocatable :: vt,Hvt
-    real(8),dimension(:),allocatable :: vin
-    real(8)                          :: val
-    integer                          :: i,iup,idw,j,jup,jdw,jj
-    integer                          :: irank
+    integer                             :: N
+    complex(8),dimension(:),allocatable :: vt,Hvt
+    complex(8),dimension(:),allocatable :: vin
+    complex(8)                          :: val
+    integer                             :: i,iup,idw,j,jup,jdw,jj
+    integer                             :: irank
     !
     ! if(MpiComm==Mpi_Comm_Null)return
     ! if(MpiComm==MPI_UNDEFINED)stop "spMatVec_mpi_cc ERROR: MpiComm = MPI_UNDEFINED"
     if(.not.MpiStatus)stop "spMatVec_mpi_cc ERROR: MpiStatus = F"
     !
     !Evaluate the local contribution: Hv_loc = Hloc*v
-    Hv=0d0
+    Hv=zero
     do i=1,Nloc                 !==spH0%Nrow
        do jj=1,spH0d%row(i)%Size
           val = spH0d%row(i)%vals(jj)
