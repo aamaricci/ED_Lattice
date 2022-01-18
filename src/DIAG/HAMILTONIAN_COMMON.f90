@@ -1,6 +1,6 @@
 MODULE ED_HAMILTONIAN_COMMON
   USE SF_MISC,    only: assert_shape
-  USE SF_LINALG,  only: kronecker_product,eye,diagonal
+  USE SF_LINALG,  only: kronecker_product,zeye,diagonal
   USE SF_SP_LINALG, only: sp_lanc_tridiag
   USE ED_INPUT_VARS
   USE ED_VARS_GLOBAL
@@ -10,34 +10,34 @@ MODULE ED_HAMILTONIAN_COMMON
   implicit none
 
   !
-  integer                               :: Dim
-  integer                               :: DimUp
-  integer                               :: DimDw
-  integer,allocatable,dimension(:)      :: DimUps
-  integer,allocatable,dimension(:)      :: DimDws
+  integer                          :: Dim
+  integer                          :: DimUp
+  integer                          :: DimDw
+  integer,allocatable,dimension(:) :: DimUps
+  integer,allocatable,dimension(:) :: DimDws
   !
-  type(sector)                          :: Hsector
+  type(sector)                     :: Hsector
   !
-  integer                               :: iiup,iidw,jjup,jjdw
-  integer                               :: iud,jj
-  integer                               :: ishift
-  integer                               :: isector,jsector
-  integer                               :: i,iup,idw
-  integer                               :: j,jup,jdw
-  integer                               :: m,mup,mdw
-  integer                               :: ms
-  integer                               :: impi
-  integer                               :: io,jo
-  integer                               :: is,js
-  integer                               :: iorb,jorb
-  integer                               :: isite,jsite
-  integer                               :: ispin
-  integer                               :: kp,k1,k2,k3,k4
-  integer                               :: ialfa,ibeta,indx
-  real(8)                               :: sg1,sg2,sg3,sg4
-  real(8)                               :: htmp,htmpup,htmpdw
-  logical                               :: Jcondition
-  integer                               :: Nfoo
+  integer                          :: iiup,iidw,jjup,jjdw
+  integer                          :: iud,jj
+  integer                          :: ishift
+  integer                          :: isector,jsector
+  integer                          :: i,iup,idw
+  integer                          :: j,jup,jdw
+  integer                          :: m,mup,mdw
+  integer                          :: ms
+  integer                          :: impi
+  integer                          :: io,jo
+  integer                          :: is,js
+  integer                          :: iorb,jorb
+  integer                          :: isite,jsite
+  integer                          :: ispin
+  integer                          :: kp,k1,k2,k3,k4
+  integer                          :: ialfa,ibeta,indx
+  real(8)                          :: sg1,sg2,sg3,sg4
+  complex(8)                       :: htmp,htmpup,htmpdw
+  logical                          :: Jcondition
+  integer                          :: Nfoo
   !
 
 
@@ -52,8 +52,8 @@ contains
 #ifdef _MPI
   subroutine vector_transpose_MPI(nrow,qcol,a,ncol,qrow,b)    
     integer                            :: nrow,ncol,qrow,qcol
-    complex(8)                            :: a(nrow,qcol)
-    complex(8)                            :: b(ncol,qrow)
+    complex(8)                         :: a(nrow,qcol)
+    complex(8)                         :: b(ncol,qrow)
     integer,allocatable,dimension(:,:) :: send_counts,send_offset
     integer,allocatable,dimension(:,:) :: recv_counts,recv_offset
     integer                            :: counts,Ntot

@@ -874,7 +874,7 @@ contains
                                jup = binary_search(sectorI%H(1)%map,k4)
                                j = jup + (jdw-1)*sectorI%DimUp
                                !
-                               ed_Epot = ed_Epot + Jp*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))peso
+                               ed_Epot = ed_Epot + Jp*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*peso
                                ed_Dph = ed_Dph + sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*peso
                                !
                             endif

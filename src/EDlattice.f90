@@ -31,8 +31,6 @@ MODULE EDLAT
        ed_Hij_info     => Hij_info     , &
        ed_Hij_write    => Hij_write
 
-  USE ED_AUX_FUNX, only: ed_search_variable
-
   USE ED_IO, only: &
        ed_get_sigma_matsubara , &
        ed_get_sigma_realaxis  , &

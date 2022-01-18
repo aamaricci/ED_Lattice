@@ -116,8 +116,8 @@ contains
        !
        call sp_dump_matrix(spH0ups(1),Htmp_up)
        call sp_dump_matrix(spH0dws(1),Htmp_dw)
-       Hmat_tmp = Hmat_tmp + kronecker_product(Htmp_dw,eye(DimUp))
-       Hmat_tmp = Hmat_tmp + kronecker_product(eye(DimDw),Htmp_up)
+       Hmat_tmp = Hmat_tmp + kronecker_product(Htmp_dw,zeye(DimUp))
+       Hmat_tmp = Hmat_tmp + kronecker_product(zeye(DimDw),Htmp_up)
        !
        Hmat = Hmat_tmp
        !
