@@ -80,7 +80,7 @@ contains
     type(sector)       :: sectorI
     !
     !
-    call es_trim_size(state_list,beta,cutoff)
+    call es_trim_size(state_list,temp,cutoff)
     do istate=1,state_list%trimd_size
        isector    =  es_return_sector(state_list,istate)
        state_e    =  es_return_energy(state_list,istate)
@@ -209,7 +209,7 @@ contains
     !
     pesoF  = vnorm2/zeta_function 
     pesoBZ = 1d0
-    if(finiteT)pesoBZ = exp(-beta*(Ei-Egs))
+    if(finiteT)pesoBZ = exp(-(Ei-Egs)/temp)
     !
 #ifdef _MPI
     if(MpiStatus)then
@@ -274,7 +274,7 @@ contains
        do i=1,sectorI%Dim 
           do j=1,sectorI%Dim
              Chio=zero
-             expterm=exp(-beta*espace(isector)%e(i))+exp(-beta*espace(isector)%e(j))
+             expterm=exp(-espace(isector)%e(i)/temp)+exp(-espace(isector)%e(j)/temp)
              if(expterm<cutoff)cycle
              do li=1,sectorI%Dim
                 iup = iup_index(li,sectorI%DimUp)

@@ -129,7 +129,7 @@ contains
     ialfa = 1
     io    = pack_indices(isite,iorb)
     !
-    call es_trim_size(state_list,beta,cutoff)
+    call es_trim_size(state_list,temp,cutoff)
     do istate=1,state_list%trimd_size
        isector    =  es_return_sector(state_list,istate)
        state_e    =  es_return_energy(state_list,istate)
@@ -194,7 +194,7 @@ contains
     io  = pack_indices(isite,iorb)
     jo  = pack_indices(jsite,jorb)
     !
-    call es_trim_size(state_list,beta,cutoff)
+    call es_trim_size(state_list,temp,cutoff)
     do istate=1,state_list%trimd_size
        isector    =  es_return_sector(state_list,istate)
        state_e    =  es_return_energy(state_list,istate)
@@ -252,7 +252,7 @@ contains
 
 
   subroutine add_to_lanczos_spinChi(vnorm2,Ei,alanc,blanc,io,jo)
-    real(8)                                    :: vnorm2,Ei,Ej,Egs,pesoF,pesoAB,pesoBZ,de,peso
+    real(8)                                    :: vnorm2,Ei,Ej,Egs,pesoF,pesoAB,pesoBZ,de,peso,beta
     integer                                    :: nlanc
     real(8),dimension(:)                       :: alanc
     real(8),dimension(size(alanc))             :: blanc 
@@ -266,9 +266,10 @@ contains
     !
     Nlanc = size(alanc)
     !
+    beta   = 1d0/temp
     pesoF  = vnorm2/zeta_function 
     pesoBZ = 1d0
-    if(finiteT)pesoBZ = exp(-beta*(Ei-Egs))
+    if(finiteT)pesoBZ = exp(-(Ei-Egs)*beta)
     !
 #ifdef _MPI
     if(MpiStatus)then
@@ -331,7 +332,7 @@ contains
     real(8)      :: Chio,Chjo,Sio,Sjo
     integer      :: i,j,ll,m,isector
     integer      :: idim,ia
-    real(8)      :: Ei,Ej,cc,peso,pesotot
+    real(8)      :: Ei,Ej,cc,peso,pesotot,beta
     real(8)      :: expterm,de,w0,it
     complex(8)   :: iw 
     !
@@ -342,6 +343,8 @@ contains
     jalfa = ialfa
     io  = pack_indices(isite,iorb)
     jo  = pack_indices(jsite,jorb)
+    !
+    beta= 1d0/temp
     !
     do isector=1,Nsectors !loop over <i| total particle number
        call get_Nup(isector,nups)

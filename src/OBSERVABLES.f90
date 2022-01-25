@@ -104,7 +104,7 @@ contains
     n2      = 0.d0
     s2tot   = 0.d0
     !
-    call es_trim_size(state_list,beta,cutoff)
+    call es_trim_size(state_list,temp,cutoff)
     do istate=1,state_list%trimd_size
        isector = es_return_sector(state_list,istate)
        Ei      = es_return_energy(state_list,istate)
@@ -120,7 +120,7 @@ contains
 #endif
        !
        !
-       peso = 1.d0 ; if(finiteT)peso=exp(-beta*(Ei-Egs))
+       peso = 1.d0 ; if(finiteT)peso=exp(-(Ei-Egs)/temp)
        peso = peso/zeta_function
        !
        if(MpiMaster)then
@@ -215,7 +215,7 @@ contains
     real(8)                         :: state_weight
     real(8)                         :: weight
     real(8)                         :: Ei
-    real(8)                         :: norm,beta_
+    real(8)                         :: norm,temp_
     integer                         :: Nud(2,Ns),iud(2),jud(2)
     integer,dimension(2*Ns_Ud)      :: Indices,Jndices
     integer,dimension(Ns_Ud)        :: Nups,Ndws
@@ -240,8 +240,8 @@ contains
     n2      = 0.d0
     s2tot   = 0.d0
     !
-    beta_ = beta
-    if(.not.finiteT)beta_=1000d0
+    temp_ = temp
+    if(.not.finiteT)temp_=0.001d0
     !
     do isector=1,Nsectors
        call get_Nup(isector,nups)
@@ -252,7 +252,7 @@ contains
        !
        do istate=1,sectorI%Dim
           Ei=espace(isector)%e(istate)
-          boltzman_weight=exp(-beta_*Ei)/zeta_function
+          boltzman_weight=exp(-Ei/temp_)/zeta_function
           if(boltzman_weight < cutoff)cycle
           !
           evec => espace(isector)%M(:,istate)
@@ -345,7 +345,7 @@ contains
     enddo
     !
     !
-    call es_trim_size(state_list,beta,cutoff)
+    call es_trim_size(state_list,temp,cutoff)
     do istate=1,state_list%trimd_size
        isector = es_return_sector(state_list,istate)
        Ei      = es_return_energy(state_list,istate)
@@ -359,7 +359,7 @@ contains
        state_cvec => es_return_cvector(state_list,istate)
 #endif
        !
-       peso = 1.d0 ; if(finiteT)peso=exp(-beta*(Ei-Egs))
+       peso = 1.d0 ; if(finiteT)peso=exp(-(Ei-Egs)/temp)
        peso = peso/zeta_function
        !
        !Master:
@@ -700,7 +700,7 @@ contains
     real(8)                           :: boltzman_weight
     real(8)                           :: state_weight
     real(8)                           :: weight
-    real(8)                           :: norm,beta_
+    real(8)                           :: norm,temp_
     real(8),dimension(Nspin,Norb)     :: eloc
     complex(8),dimension(:),pointer      :: evec
     integer                           :: iud(2),jud(2)
@@ -730,8 +730,8 @@ contains
        Hdiag(ispin,:) = diagonal(Hloc(ispin,:,:))
     enddo
     !
-    beta_ = beta
-    if(.not.finiteT)beta_=1000d0
+    temp_ = temp
+    if(.not.finiteT)temp_=0.001d0
     !
     do isector=1,Nsectors
        call get_Nup(isector,Iups)
@@ -742,7 +742,7 @@ contains
        !
        do istate=1,sectorI%Dim
           Ei=espace(isector)%e(istate)
-          boltzman_weight=exp(-beta_*Ei)/zeta_function
+          boltzman_weight=exp(-Ei/temp_)/zeta_function
           if(boltzman_weight < cutoff)cycle
           !
           evec => espace(isector)%M(:,istate)
@@ -1057,7 +1057,7 @@ contains
     integer :: io,jo,iorb
     unit = free_unit()
     open(unit,file="parameters_last"//reg(ed_file_suffix)//".ed")
-    write(unit,"(90F15.9)")xmu,beta,(uloc(iorb),iorb=1,Norb),Ust,Jh,Jx,Jp,Jk
+    write(unit,"(90F15.9)")xmu,temp,(uloc(iorb),iorb=1,Norb),Ust,Jh,Jx,Jp,Jk
     close(unit)
 
     unit = free_unit()

@@ -4,7 +4,8 @@ MODULE ED_SETUP
   USE ED_AUX_FUNX
   USE ED_SECTOR
   USE SF_TIMER
-  USE SF_IOTOOLS, only:free_unit,reg,file_length
+  USE SF_MISC, only: sort
+  USE SF_IOTOOLS, only:free_unit,reg,file_length,save_array
 #ifdef _MPI
   USE MPI
   USE SF_MPI
@@ -24,8 +25,11 @@ contains
   !+------------------------------------------------------------------+
   subroutine init_ed_structure()
     logical                          :: control
-    integer                          :: i,iud,iorb,jorb,ispin,jspin
+    integer                          :: i,iud,iorb,jorb,ispin,jspin,unit
     integer,dimension(:),allocatable :: DimUps,DimDws
+    integer                          :: Tstep
+    integer,allocatable              :: Tord(:)
+    logical                          :: Tbool
     !
     Jhflag=.FALSE.
     if(Norb>1.AND.(Jx/=0d0.OR.Jp/=0d0.OR.Jk/=0d0))Jhflag=.TRUE.
@@ -110,6 +114,28 @@ contains
        endif
     end select
     !
+    !
+    Tstep = 1
+    allocate(temperature_list(Tstep))
+    temperature_list = temp
+    if(finiteT)then
+       inquire(file=trim(Tfile)//".restart",exist=Tbool)
+       if(Tbool)then
+          deallocate(temperature_list)
+          write(LOGfile,"(A)")'Reading temperature list from file '//trim(Tfile)//".restart"
+          Tstep = file_length(trim(Tfile)//".restart")
+          open(free_unit(unit),file=trim(Tfile)//".restart")
+          allocate(temperature_list(Tstep),Tord(Tstep))
+          do i=1,Tstep
+             read(unit,*)temperature_list(i)
+          enddo
+          close(unit)
+          call sort(temperature_list,Tord)                !sort from smallest to largest
+          temperature_list = temperature_list(Tstep:1:-1) !invert order
+          call save_array(trim(Tfile)//".used",temperature_list)
+          temp             = temperature_list(1)          !set actual Temp to largest
+       endif
+    endif
     !
     !allocate functions
     allocate(impSmats(Nspin,Ns,Ns,Lmats))

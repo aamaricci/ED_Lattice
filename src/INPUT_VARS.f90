@@ -18,7 +18,7 @@ MODULE ED_INPUT_VARS
   real(8)              :: Jp                  !J_P: coupling constant for the Pair-hopping interaction term
   real(8)              :: Jk                  !J_Kondo: Kondo coupling
   real(8)              :: xmu                 !chemical potential
-  real(8)              :: beta                !inverse temperature
+  real(8)              :: temp                !temperature
   !
   real(8)              :: eps                 !broadening
   real(8)              :: wini,wfin           !frequency range
@@ -73,7 +73,7 @@ MODULE ED_INPUT_VARS
 
   !LOG AND Hamiltonian UNITS
   !=========================================================
-  character(len=100)   :: Bfile,SectorFile
+  character(len=100)   :: Tfile,SectorFile
   integer,save         :: LOGfile
 
   !THIS IS JUST A RELOCATED GLOBAL VARIABLE
@@ -119,7 +119,7 @@ contains
     call parse_input_variable(Jp,"JP",INPUTunit,default=0.d0,comment="P-H coupling")
     call parse_input_variable(Jk,"JK",INPUTunit,default=0.d0,comment="Kondo coupling")
     !
-    call parse_input_variable(beta,"BETA",INPUTunit,default=1000.d0,comment="Inverse temperature, at T=0 is used as a IR cut-off.")
+    call parse_input_variable(temp,"TEMP",INPUTunit,default=0.001d0,comment="temperature, at T=0 is used as a IR cut-off.")
     call parse_input_variable(ed_finite_temp,"ED_FINITE_TEMP",INPUTunit,default=.false.,comment="flag to select finite temperature method. note that if T then lanc_nstates_total must be > 1")
     !
     call parse_input_variable(xmu,"XMU",INPUTunit,default=0.d0,comment="Chemical potential. If HFMODE=T, xmu=0 indicates half-filling condition.")
@@ -168,7 +168,7 @@ contains
     call parse_input_variable(ndelta,"NDELTA",INPUTunit,default=0.1d0,comment="Initial step for fixed density calculations.")
     call parse_input_variable(ncoeff,"NCOEFF",INPUTunit,default=1d0,comment="multiplier for the initial ndelta read from a file (ndelta-->ndelta*ncoeff).")
     !
-    call parse_input_variable(Bfile,"Bfile",INPUTunit,default="beta",comment="File containing the step in temperature to take, if any.")
+    call parse_input_variable(Tfile,"Tfile",INPUTunit,default="temperature",comment="File containing the step in temperature to take, if any.")
     call parse_input_variable(LOGfile,"LOGFILE",INPUTunit,default=6,comment="LOG unit.")
 
 
@@ -185,7 +185,7 @@ contains
 #endif
     !
     !
-    Ltau=max(int(beta),Ltau)
+    Ltau=max(int(1d0/temp),Ltau)
     if(master)then
        call print_input()
        call save_input(INPUTunit)
@@ -195,8 +195,8 @@ contains
     !Act on the input variable only after printing.
     !In the new parser variables are hard-linked into the list:
     !any change to the variable is immediately copied into the list... (if you delete .ed it won't be printed out)
-    call substring_delete(Bfile,".restart")
-    call substring_delete(Bfile,".ed")
+    call substring_delete(Tfile,".restart")
+    call substring_delete(Tfile,".ed")
   end subroutine ed_read_input
 
 

@@ -1,6 +1,6 @@
 module ED_MAIN
   USE SF_IOTOOLS, only: str,reg,free_unit,file_length
-  USE SF_TIMER,only: start_timer,stop_timer
+  USE SF_TIMER,only: start_timer,stop_timer  
   USE ED_INPUT_VARS
   USE ED_VARS_GLOBAL
   USE ED_EIGENSPACE, only: state_list,es_delete_espace,delete_eigenspace
@@ -19,10 +19,7 @@ module ED_MAIN
   public :: ed_solve
 
 
-
-  integer             :: Bstep
-  logical             :: Bbool
-  real(8),allocatable :: Blist(:)
+  
 contains
 
 
@@ -33,7 +30,8 @@ contains
   ! PURPOSE: allocate Memory and Initialize ED -+!
   !+-----------------------------------------------------------------------------+!
   subroutine ed_init_solver()
-    integer :: unit,ibeta
+    integer             :: unit,itemp
+   
     !
     !SET THE LOCAL MPI COMMUNICATOR :
     call ed_set_MpiComm()
@@ -43,21 +41,6 @@ contains
     !Init ED Structure & memory
     call init_ed_structure()
     !
-    inquire(file=trim(Bfile)//".restart",exist=Bbool)
-    if(Bbool)then
-       write(LOGfile,"(A)")'Reading temperature list from file'//trim(Bfile)//".restart"
-       Bstep = file_length(trim(Bfile)//".restart")
-       open(free_unit(unit),file=trim(Bfile)//".restart")
-       allocate(Blist(Bstep))
-       do ibeta=1,Bstep
-          read(unit,*)Blist(ibeta)
-       enddo
-       close(unit)
-    else
-       Bstep = 1
-       allocate(Blist(Bstep))
-       Blist = beta
-    endif
     !
     !Check Hmatrix is allocated:
     if(.not.Hmatrix%status)stop "ED_INIT_SOLVER ERROR: Hmatrix is not allocated"
@@ -76,7 +59,7 @@ contains
   ! lattice site using ED. 
   !+-----------------------------------------------------------------------------+!
   subroutine ed_solve()
-    integer :: ibeta
+    integer :: itemp
     !
     !SET THE LOCAL MPI COMMUNICATOR
     call ed_set_MpiComm()
@@ -88,10 +71,13 @@ contains
     !
     !SOLVE THE QUANTUM IMPURITY PROBLEM:
     call diagonalize_lattice        !-> get state_list, independent of TEMP
-    !
-    do ibeta=1,Bstep
-       beta = Blist(ibeta)
-       if(Bstep>1)ed_file_suffix=str(beta)
+    do itemp=1,size(temperature_list)
+       temp = temperature_list(itemp)
+       if(size(temperature_list)>1)then
+          ed_file_suffix=str(temp,lead=6)
+          write(LOGfile,"(A)")""
+          write(LOGfile,"(A)")'Solving for temperature T='//str(temp,lead=6)
+       endif
        call partition_function_lattice !-> get trimmed state_list
        call observables_lattice        !-> get static observables
        call energy_lattice             !-> get energies 
@@ -99,6 +85,7 @@ contains
        if(gf_flag)call build_gf_lattice    !-> get gmatrix w/p
        if(chi_flag)call build_chi_lattice
        if(oc_flag)call build_oc_lattice
+       ed_file_suffix=""
     enddo
     !
     select case(ed_method)

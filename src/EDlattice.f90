@@ -10,7 +10,7 @@ MODULE EDLAT
        Jx            , &
        Jp            , &
        xmu           , &
-       beta          , &
+       temp          , &
        eps           , &
        wini          , &
        wfin          , &

@@ -100,7 +100,7 @@ contains        !some routine to perform simple operation on the lists
     space%trimd_size=0
     space%emax=-huge(1d0)
     space%emin= huge(1d0)
-    
+
   end function es_init_espace
 
 
@@ -432,14 +432,14 @@ contains        !some routine to perform simple operation on the lists
   !PURPOSE  :
   !check if the number of states is enough to reach the required accuracy:
   !the condition to fullfill is:
-  ! exp(-beta(Ec-Egs)) < \epsilon_c
+  ! exp(-(Ec-Egs)/T) < \epsilon_c
   ! if this condition is violated then required number of states is increased
   ! if number of states is larger than those required to fullfill the cutoff: 
   ! trim the list and number of states.
   !+------------------------------------------------------------------+
-  subroutine es_trim_size(space,beta,cutoff) 
+  subroutine es_trim_size(space,temp,cutoff) 
     type(sparse_espace),intent(inout) :: space
-    real(8),intent(in)             :: beta,cutoff
+    real(8),intent(in)             :: temp,cutoff
     integer                        :: size
     real(8)                        :: Egs,Ei,Ec
     integer                        :: isector,pos
@@ -451,7 +451,7 @@ contains        !some routine to perform simple operation on the lists
     Egs  = space%emin
     Ec   = space%emax
     !
-    if(exp(-beta*(Ec-Egs)) > cutoff)stop "es_return_size: exp(-beta*(Ei-Egs))>Cutoff condition not met, try increasing lanc_nstates_sector"
+    if(exp(-(Ec-Egs)/temp) > cutoff)stop "es_return_size: exp(-(Ei-Egs)/T)>Cutoff condition not met, try increasing lanc_nstates_sector"
     !
     c => space%root
     pos = 0
@@ -464,7 +464,7 @@ contains        !some routine to perform simple operation on the lists
        else
           Ei = c%twin%e
        endif
-       if( exp(-beta*(Ei-Egs)) <= cutoff )exit
+       if( exp(-(Ei-Egs)/temp) <= cutoff )exit
     enddo
     space%trimd_size = pos-1
     if(space%trimd_size==0)stop "es_return_size: list does not contain any node"    

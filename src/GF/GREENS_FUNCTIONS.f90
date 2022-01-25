@@ -70,7 +70,7 @@ contains
     if(allocated(simp))deallocate(simp)
     if(allocated(zimp))deallocate(zimp)
     allocate(simp(Nspin,Ns),zimp(Nspin,Ns))
-    wm1 = pi/beta ; wm2=3d0*pi/beta
+    wm1 = pi*temp ; wm2=3d0*pi*temp
     do ispin=1,Nspin
        do is=1,Ns
           simp(ispin,is) = dimag(impSmats(ispin,is,is,1)) - &

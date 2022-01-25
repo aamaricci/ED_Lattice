@@ -159,6 +159,10 @@ MODULE ED_VARS_GLOBAL
   real(8),allocatable,dimension(:)                 :: Drude_weight
   real(8),allocatable,dimension(:,:)               :: OptCond_w
 
+
+  real(8),dimension(:),allocatable                 :: temperature_list
+
+
   !Frequency and time arrays:
   !=========================================================
   real(8),dimension(:),allocatable                 :: wm,tau,wr,vm,vr

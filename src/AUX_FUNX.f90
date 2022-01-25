@@ -318,13 +318,13 @@ contains
     if(.not.allocated(wr))allocate(wr(Lreal))
     if(.not.allocated(vr))allocate(vr(Lreal))
     if(.not.allocated(tau))allocate(tau(0:Ltau))
-    wm     = pi/beta*real(2*arange(1,Lmats)-1,8)
+    wm     = pi*temp*(2*arange(1,Lmats)-1)
     do i=0,Lmats
-       vm(i) = pi/beta*2*i
+       vm(i) = pi*temp*2*i
     enddo
     wr     = linspace(wini,wfin,Lreal)
     vr     = linspace(0d0,wfin,Lreal)
-    tau(0:)= linspace(0d0,beta,Ltau+1)
+    tau(0:)= linspace(0d0,1d0/temp,Ltau+1)
   end subroutine allocate_grids
 
 

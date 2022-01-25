@@ -144,7 +144,7 @@ contains
     !  for the actual temperature using only ther trimmed states from Gmatrix and the spectral decomposition.
     !For, we need to import the data structure Gmatrix from DMFT_ED and to check temperature range is always
     !from largest to smallest.
-    call es_trim_size(state_list,beta,cutoff)
+    call es_trim_size(state_list,temp,cutoff)
     do istate=1,state_list%trimd_size
        isector    =  es_return_sector(state_list,istate)
        state_e    =  es_return_energy(state_list,istate)
@@ -247,7 +247,7 @@ contains
     io  = pack_indices(isite,iorb)
     jo  = pack_indices(jsite,jorb)
     !
-    call es_trim_size(state_list,beta,cutoff)
+    call es_trim_size(state_list,temp,cutoff)
     do istate=1,state_list%trimd_size
        isector    =  es_return_sector(state_list,istate)
        state_e    =  es_return_energy(state_list,istate)
@@ -370,8 +370,8 @@ contains
     !
     Nlanc = size(alanc)
     !
-    if((finiteT).and.(beta*(Ei-Egs).lt.200))then
-       pesoBZ = vnorm2*exp(-beta*(Ei-Egs))/zeta_function
+    if((finiteT).and.((Ei-Egs)/temp.lt.200))then
+       pesoBZ = vnorm2*exp(-(Ei-Egs)/temp)/zeta_function
     elseif(.not.finiteT)then
        pesoBZ = vnorm2/zeta_function
     else
@@ -379,7 +379,7 @@ contains
     endif
     !
     !pesoBZ = vnorm2/zeta_function
-    !if(finiteT)pesoBZ = vnorm2*exp(-beta*(Ei-Egs))/zeta_function
+    !if(finiteT)pesoBZ = vnorm2*exp(-(Ei-Egs)/temp)/zeta_function
     !
     !Only the nodes in Mpi_Comm_Group did get the alanc,blanc.
     !However after delete_sectorHv MpiComm returns to be the global one
@@ -460,7 +460,7 @@ contains
        do i=1,sectorI%Dim          !loop over the states in the i-th sect.
           do j=1,sectorJ%Dim       !loop over the states in the j-th sect.
              !
-             expterm=exp(-beta*espace(isector)%e(i))+exp(-beta*espace(jsector)%e(j))
+             expterm=exp(-espace(isector)%e(i)/temp)+exp(-espace(jsector)%e(j)/temp)
              if(expterm < cutoff)cycle
              !
              op_mat=0d0
@@ -542,7 +542,7 @@ contains
        do i=1,sectorI%Dim          !loop over the states in the i-th sect.
           do j=1,sectorJ%Dim       !loop over the states in the j-th sect.
              !
-             expterm=exp(-beta*espace(isector)%e(i))+exp(-beta*espace(jsector)%e(j))
+             expterm=exp(-espace(isector)%e(i)/temp)+exp(-espace(jsector)%e(j)/temp)
              if(expterm < cutoff)cycle
              !
              op_mat=0d0
