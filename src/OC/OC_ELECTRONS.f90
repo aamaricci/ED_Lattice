@@ -75,7 +75,7 @@ contains
     integer            :: k1,k2
     real(8)            :: sg1,sg2
     integer            :: nup(Ns),ndw(Ns)
-    integer            :: isite
+    integer            :: isite,jsite
     type(sector)       :: sectorI
     !
     !
@@ -108,21 +108,21 @@ contains
              nup = bdecomp(mup,Ns)
              ndw = bdecomp(mdw,Ns)
              !
-             !Apply J_{iorb} =  xi*\sum_sigma \sum_i
+             !Apply J_{iorb} =  -xi*\sum_sigma \sum_i
              !                  H(sigma,iorb,i,i+1) Cdg_{sigma,iorb,i}C_{sigma,iorb,i+1} -
              !                  H*(sigma,iorb,i+1,i) Cdg_{sigma,iorb,i+1}C_{sigma,iorb,i}
              !     == Jdg_{iorb}
-             do isite=1,Nsites(iorb)-1
-                ! i->i+1
-                io = pack_indices(isite,iorb)
-                jo = pack_indices(isite+1,iorb)
+             do isite=1,Nsites(iorb)
                 !H(sigma,iorb,i,i+1) Cdg_{sigma,iorb,i}C_{sigma,iorb,i+1} ==
-                !H(sigma,iorb,io,jo) Cdg_{sigma,iorb,io}C_{sigma,iorb,jo}
+                jsite = isite+1
+                if(isite==Nsites(iorb))jsite=1
+                io = pack_indices(isite,iorb)
+                jo = pack_indices(jsite,iorb)
                 ! UP
                 if((nup(jo)==1) .AND. (nup(io)==0) .AND. (Hij(1,io,jo)/=zero) )then
                    call c(jo,mup,k1,sg1)
                    call cdg(io,k1,k2,sg2)
-                   jup=binary_search(sectorI%H(1)%map,k2)
+                   jup= binary_search(sectorI%H(1)%map,k2)
                    j  = jup + (idw-1)*sectorI%DimUp                   
                    vvinit(j) = vvinit(j) + Hij(1,io,jo)*sg1*sg2*state_cvec(i)
                 endif
@@ -136,16 +136,16 @@ contains
                 endif
                 !
                 !
-                ! i+1->i
-                io = pack_indices(isite+1,iorb)
-                jo = pack_indices(isite,iorb)
                 !-H*(sigma,iorb,i+1,i) Cdg_{sigma,iorb,i+1}C_{sigma,iorb,i} == 
-                !-H*(sigma,iorb,io,jo) Cdg_{sigma,iorb,io}C_{sigma,iorb,jo}
+                jsite = isite+1
+                if(isite==Nsites(iorb))jsite=1
+                io = pack_indices(jsite,iorb)
+                jo = pack_indices(isite,iorb)
                 ! UP
                 if((nup(jo)==1) .AND. (nup(io)==0) .AND. (Hij(1,io,jo)/=zero) )then
                    call c(jo,mup,k1,sg1)
                    call cdg(io,k1,k2,sg2)
-                   jup=binary_search(sectorI%H(1)%map,k2)
+                   jup= binary_search(sectorI%H(1)%map,k2)
                    j  = jup + (idw-1)*sectorI%DimUp                   
                    vvinit(j) = vvinit(j) - conjg(Hij(1,io,jo))*sg1*sg2*state_cvec(i)
                 endif
@@ -163,7 +163,7 @@ contains
        else
           allocate(vvinit(1));vvinit=zero
        endif
-       vvinit = xi*vvinit
+       vvinit = -xi*vvinit
        !
        call tridiag_Hv_sector(isector,vvinit,alfa_,beta_,norm2)
        call add_to_lanczos_oc(norm2,state_e,alfa_,beta_,iorb)
@@ -250,7 +250,9 @@ contains
     integer      :: io,jo,mup,mdw,iup,idw,jup,jdw
     type(sector) :: sectorI,sectorJ
     real(8)      :: sg1,sg2
-    complex(8)      :: Chio
+    complex(8)   :: Chio
+    integer      :: Nups(Ns_Ud)
+    integer      :: Ndws(Ns_Ud)
     integer      :: i,j,ll,m,isector,k1,k2,li,rj
     integer      :: idim,ia,nup(Ns),ndw(Ns)
     real(8)      :: Ei,Ej,cc,peso,pesotot
@@ -258,10 +260,12 @@ contains
     complex(8)   :: iw 
     !
     !
-    !Spin susceptibility \X(tau). |<i|S_z|j>|^2
-    !
     !
     do isector=1,Nsectors !loop over <i| total particle number
+       call get_Nup(isector,nups)
+       call get_Ndw(isector,ndws)
+       if(ed_filling/=0 .AND. (sum(Nups)+sum(Ndws)/=ed_filling) )cycle
+       !
        call eta(isector,Nsectors,LOGfile)
        call build_sector(isector,sectorI)
        !

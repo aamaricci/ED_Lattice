@@ -276,7 +276,7 @@ contains
     integer                     :: Nitermax,Neigen,Nblock
     real(8)                     :: oldzero,enemin,Ei,egs
     real(8),dimension(Nsectors) :: e0
-    logical                     :: lanc_solve,Tflag,lanc_verbose,bool
+    logical                     :: lanc_solve,bool
     !
     if(state_list%status)call es_delete_espace(state_list)
     state_list=es_init_espace()
@@ -294,12 +294,8 @@ contains
        call get_Nup(isector,nups)
        call get_Ndw(isector,ndws)
        !
-       if(ed_filling/=0 .AND. (sum(Nups)+sum(Ndws)/=ed_filling) )cycle sector
-       if(.not.twin_mask(isector))cycle sector
+       if(ed_filling/=0 .AND. (abs(sum(Nups)+sum(Ndws)-ed_filling)>1) )cycle sector
        iter=iter+1
-       !
-       Tflag = twin_mask(isector).AND.ed_twin
-       Tflag = Tflag.AND.(any(nups/=ndws))
        !
        Dim      = getdim(isector)
        !
@@ -309,7 +305,7 @@ contains
        if(dim<=max(lanc_dim_threshold,MPISIZE))lanc_solve=.false.
        !
        if(MPIMASTER)then
-          if(ed_verbose>2)then
+          if(ed_verbose>1)then
              call get_DimUp(isector,DimUps) ; DimUp = product(DimUps)
              call get_DimDw(isector,DimDws) ; DimDw = product(DimDws)
              write(LOGfile,"(1X,I9,A,I9,A6,"&
@@ -318,12 +314,10 @@ contains
                   //str(Ns_Ud)//"I6,"//str(Ns_Ud)//"I6,I20)")&
                   iter,"-Solving sector:",isector,", nup:",nups,", ndw:",ndws,", dims=",&
                   DimUps,DimDws,getdim(isector)
-          elseif(ed_verbose<=2)then
-             call eta(iter,count(twin_mask),LOGfile)
           endif
        endif
        !
-       Nprint=min(dim,lanc_nstates_sector)
+
        !
        if(ed_verbose>=3.AND.MPIMASTER)call start_timer()
        call build_Hv_sector(isector,espace(isector)%M)
@@ -332,6 +326,7 @@ contains
        call delete_Hv_sector()
        if(ed_verbose>=3.AND.MPIMASTER)call stop_timer(unit=LOGfile)
        !
+       Nprint=min(dim,lanc_nstates_sector)
        if(ed_verbose>=4)then
           write(LOGfile,*)"EigValues: ",espace(isector)%e(:Nprint)
           write(LOGfile,*)""
@@ -347,14 +342,28 @@ contains
        !
        e0(isector)= minval(espace(isector)%e)
        !
-       enemin     = e0(isector)
-       if (enemin < oldzero-10.d0*gs_threshold)then
-          oldzero=enemin
-          call es_free_espace(state_list)
-          call es_add_state(state_list,enemin,espace(isector)%M(:,1),isector)
-       elseif(abs(enemin-oldzero) <= gs_threshold)then
-          oldzero=min(oldzero,enemin)
-          call es_add_state(state_list,enemin,espace(isector)%M(:,1),isector)
+       if(ed_filling==0)then
+          enemin     = e0(isector)
+          if (enemin < oldzero-10.d0*gs_threshold)then
+             oldzero=enemin
+             call es_free_espace(state_list)
+             call es_add_state(state_list,enemin,espace(isector)%M(:,1),isector)
+          elseif(abs(enemin-oldzero) <= gs_threshold)then
+             oldzero=min(oldzero,enemin)
+             call es_add_state(state_list,enemin,espace(isector)%M(:,1),isector)
+          endif
+       else
+          if(sum(Nups)+sum(Ndws)==ed_filling) then
+             enemin     = e0(isector)
+             if (enemin < oldzero-10.d0*gs_threshold)then
+                oldzero=enemin
+                call es_free_espace(state_list)
+                call es_add_state(state_list,enemin,espace(isector)%M(:,1),isector)
+             elseif(abs(enemin-oldzero) <= gs_threshold)then
+                oldzero=min(oldzero,enemin)
+                call es_add_state(state_list,enemin,espace(isector)%M(:,1),isector)
+             endif
+          endif
        endif
        !
     enddo sector
@@ -368,6 +377,9 @@ contains
     !Get the partition function Z
     zeta_function=0d0
     do isector=1,Nsectors
+       call get_Nup(isector,nups)
+       call get_Ndw(isector,ndws)
+       if(ed_filling/=0 .AND. (sum(Nups)+sum(Ndws)/=ed_filling) )cycle
        dim=getdim(isector)
        do i=1,dim
           zeta_function=zeta_function+exp(-beta*espace(isector)%e(i))

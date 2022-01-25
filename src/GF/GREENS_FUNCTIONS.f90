@@ -82,13 +82,13 @@ contains
     unit = free_unit()
     open(unit,file="zeta_last.ed")
     write(unit,"(90(F15.9,1X))")&
-         ((zimp(iorb,ispin),iorb=1,Norb),ispin=1,Nspin)
+         ((zimp(ispin,is),is=1,Ns),ispin=1,Nspin)
     close(unit)         
 
     unit = free_unit()
     open(unit,file="sig_last.ed")
     write(unit,"(90(F15.9,1X))")&
-         ((simp(iorb,ispin),iorb=1,Norb),ispin=1,Nspin)
+         ((simp(ispin,is),is=1,Ns),ispin=1,Nspin)
     close(unit)         
 
   end subroutine build_szr

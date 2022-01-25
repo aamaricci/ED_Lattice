@@ -27,8 +27,11 @@ contains
   ! SUSCEPTIBILITY CALCULATIONS
   !+------------------------------------------------------------------+
   subroutine build_oc_lattice()
-    integer :: iorb
-    real(8) :: K
+    integer :: iorb,unit
+    real(8) :: K,D(Norb)
+    character(len=32) :: suffix
+    !
+
     call allocate_grids
     !
     !BUILD OC
@@ -37,34 +40,33 @@ contains
     call build_oc_electrons()
     !
     K = -ed_Ekin
+    D = Drude_weight
+    !
     do iorb=1,Norb
        Drude_weight(iorb) = -pi*(K + 2/Nsites(iorb)*Drude_weight(iorb))
     enddo
     !
-    if(MPIMASTER)call ed_print_oc()
-    !
+    if(MPIMASTER)then
+       do iorb=1,Norb
+          suffix="OptCond"//"_l"//str(iorb)
+          call splot(reg(suffix)//"_realw.ed",vr,OptCond_w(iorb,:))
+       enddo
+       !
+       unit = free_unit()
+       open(unit,file="drude_weight.ed")
+       write(unit,"(10(F15.9,1X))")(Drude_weight(iorb),iorb=1,Norb)
+       close(unit)
+       !
+       unit = free_unit()
+       open(unit,file="drude1.ed")
+       write(unit,"(10(F15.9,1X))")(D(iorb),iorb=1,Norb)
+       close(unit)
+    endif
     call deallocate_grids
     !
   end subroutine build_oc_lattice
 
 
-
-
-  subroutine ed_print_oc
-    integer           :: iorb,unit
-    character(len=32) :: suffix
-    !
-    do iorb=1,Norb
-       suffix="OptCond"//"_l"//str(iorb)
-       call splot(reg(suffix)//"_realw.ed",vr,OptCond_w(iorb,:))
-    enddo
-    !
-    unit = free_unit()
-    open(unit,file="drude_weight.ed")
-    write(unit,"(10(F15.9,1X))")(Drude_weight(iorb),iorb=1,Norb)
-    close(unit)
-    !
-  end subroutine ed_print_oc
 
 
 end MODULE ED_OC_FUNCTIONS

@@ -422,7 +422,9 @@ contains
     integer,intent(in) :: isite,iorb,ispin
     integer            :: io
     type(sector)       :: sectorI,sectorJ
-    complex(8)            :: op_mat(2)
+    integer            :: Nups(Ns_Ud)
+    integer            :: Ndws(Ns_Ud)
+    complex(8)         :: op_mat(2)
     real(8)            :: spectral_weight
     real(8)            :: sgn_cdg,sgn_c
     integer            :: m,i,j,li,rj
@@ -435,6 +437,10 @@ contains
     io    = pack_indices(isite,iorb)
     !
     do isector=1,Nsectors
+       call get_Nup(isector,nups)
+       call get_Ndw(isector,ndws)
+       if(ed_filling/=0 .AND. (abs(sum(Nups)+sum(Ndws)-ed_filling)>1) )cycle
+       !
        jsector=getCDGsector(ialfa,ispin,isector)
        if(jsector==0)cycle
        !
@@ -465,7 +471,7 @@ contains
              !
              Ei=espace(isector)%e(i)
              Ej=espace(jsector)%e(j)
-             de=Ej-Ei
+             de=Ej-Ei;
              peso=expterm/zeta_function
              spectral_weight=peso*product(op_mat)
              !
@@ -484,6 +490,7 @@ contains
        call delete_sector(sectorI)
        call delete_sector(sectorJ)
     enddo
+
   end subroutine full_build_gf_normal_diag
 
 
@@ -494,6 +501,8 @@ contains
     integer      :: isite,jsite,iorb,jorb,ispin
     integer      :: io,jo
     type(sector) :: sectorI,sectorJ
+    integer      :: Nups(Ns_Ud)
+    integer      :: Ndws(Ns_Ud)
     complex(8)   :: op_mat(2)
     complex(8)   :: spectral_weight
     real(8)      :: sgn_cdg,sgn_c
@@ -508,6 +517,11 @@ contains
     jo  = pack_indices(jsite,jorb)
     !
     do isector=1,Nsectors
+       call get_Nup(isector,nups)
+       call get_Ndw(isector,ndws)
+       !
+       if(ed_filling/=0 .AND. (sum(Nups)+sum(Ndws)/=ed_filling) )cycle
+       !
        jsector=getCDGsector(ialfa,ispin,isector)
        if(jsector==0)cycle
        !
@@ -594,7 +608,6 @@ contains
     call Hij_get_g0inv(dcmplx(0d0,wm(:)),invG0mats)
     call Hij_get_g0inv(dcmplx(wr(:),eps),invG0real)
     !
-
     impSmats=zero
     impSreal=zero
     !Get Gimp^-1

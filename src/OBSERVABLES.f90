@@ -217,16 +217,17 @@ contains
     real(8)                         :: norm,beta_
     integer                         :: Nud(2,Ns),iud(2),jud(2)
     integer,dimension(2*Ns_Ud)      :: Indices,Jndices
-    integer,dimension(Ns_Ud,Ns_Orb) :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
+    integer,dimension(Ns_Ud)        :: Nups,Ndws
     integer,dimension(Ns)           :: IbUp,IbDw  ![Ns]
     real(8),dimension(Ns)           :: nup,ndw,Sz,nt
-    complex(8),dimension(:),pointer    :: evec
+    complex(8),dimension(:),pointer :: evec
     !
     !
     !LOCAL OBSERVABLES:
-    allocate(dens(Norb),dens_up(Norb),dens_dw(Norb))
-    allocate(docc(Norb))
-    allocate(magz(Norb),sz2(Norb,Norb),n2(Norb,Norb))
+    allocate(dens(Ns),dens_up(Ns),dens_dw(Ns))
+    allocate(docc(Ns))
+    allocate(magz(Ns),sz2(Ns,Ns),n2(Ns,Ns))
+
     !
     egs     = gs_energy
     dens    = 0.d0
@@ -242,6 +243,10 @@ contains
     if(.not.finiteT)beta_=1000d0
     !
     do isector=1,Nsectors
+       call get_Nup(isector,nups)
+       call get_Ndw(isector,ndws)
+       if(ed_filling/=0 .AND. (sum(Nups)+sum(Ndws)/=ed_filling) )cycle
+
        call build_sector(isector,sectorI)
        !
        do istate=1,sectorI%Dim
@@ -254,34 +259,26 @@ contains
           do i=1,sectorI%Dim
              state_weight=conjg(evec(i))*evec(i)
              weight = boltzman_weight*state_weight
-             ! call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
-             ! mup = sectorI%H(1)%map(Indices(1))
-             ! mdw = sectorI%H(1)%map(Indices(2))
-             ! IbUp = Bdecomp(mup,Ns) ![Norb,1+Nbath]
-             ! IbDw = Bdecomp(mdw,Ns)
              call build_op_Ns(i,IbUp,Ibdw,sectorI)
-             !
-             !
-             !Get operators:
              nup= dble(IbUp)
              ndw= dble(IbDw)
              sz = (nup-ndw)/2d0
              nt =  nup+ndw
              !
              !Evaluate averages of observables:
-             do iorb=1,Norb
-                dens(iorb)     = dens(iorb)      +  nt(iorb)*weight
-                dens_up(iorb)  = dens_up(iorb)   +  nup(iorb)*weight
-                dens_dw(iorb)  = dens_dw(iorb)   +  ndw(iorb)*weight
-                docc(iorb)     = docc(iorb)      +  nup(iorb)*ndw(iorb)*weight
-                magz(iorb)     = magz(iorb)      +  (nup(iorb)-ndw(iorb))*weight
-                sz2(iorb,iorb) = sz2(iorb,iorb)  +  (sz(iorb)*sz(iorb))*weight
-                n2(iorb,iorb)  = n2(iorb,iorb)   +  (nt(iorb)*nt(iorb))*weight
-                do jorb=iorb+1,Norb
-                   sz2(iorb,jorb) = sz2(iorb,jorb)  +  (sz(iorb)*sz(jorb))*weight
-                   sz2(jorb,iorb) = sz2(jorb,iorb)  +  (sz(jorb)*sz(iorb))*weight
-                   n2(iorb,jorb)  = n2(iorb,jorb)   +  (nt(iorb)*nt(jorb))*weight
-                   n2(jorb,iorb)  = n2(jorb,iorb)   +  (nt(jorb)*nt(iorb))*weight
+             do io=1,Ns
+                dens(io)     = dens(io)      +  nt(io)*weight
+                dens_up(io)  = dens_up(io)   +  nup(io)*weight
+                dens_dw(io)  = dens_dw(io)   +  ndw(io)*weight
+                docc(io)     = docc(io)      +  nup(io)*ndw(io)*weight
+                magz(io)     = magz(io)      +  (nup(io)-ndw(io))*weight
+                sz2(io,io) = sz2(io,io)  +  (sz(io)*sz(io))*weight
+                n2(io,io)  = n2(io,io)   +  (nt(io)*nt(io))*weight
+                do jo=io+1,Ns
+                   sz2(io,jo) = sz2(io,jo)  +  (sz(io)*sz(jo))*weight
+                   sz2(jo,io) = sz2(jo,io)  +  (sz(jo)*sz(io))*weight
+                   n2(io,jo)  = n2(io,jo)   +  (nt(io)*nt(jo))*weight
+                   n2(jo,io)  = n2(jo,io)   +  (nt(jo)*nt(io))*weight
                 enddo
              enddo
              s2tot = s2tot  + (sum(sz))**2*weight
@@ -711,6 +708,8 @@ contains
     logical                           :: Jcondition
     complex(8),dimension(Nspin,Ns,Ns) :: Hij,Hloc
     complex(8),dimension(Nspin,Ns)    :: Hdiag
+    integer            :: Iups(Ns_Ud)
+    integer            :: Idws(Ns_Ud)
     !
     !
     ed_Ehartree= 0.d0
@@ -733,6 +732,10 @@ contains
     if(.not.finiteT)beta_=1000d0
     !
     do isector=1,Nsectors
+       call get_Nup(isector,Iups)
+       call get_Ndw(isector,Idws)
+       if(ed_filling/=0 .AND. (sum(Iups)+sum(Idws)/=ed_filling) )cycle
+       !
        call build_sector(isector,sectorI)
        !
        do istate=1,sectorI%Dim
@@ -764,8 +767,8 @@ contains
              !LOCAL ENERGY
              !> H_Imp: Diagonal Elements, i.e. local part
              do io=1,Ns
-                ed_Eknot = ed_Eknot + Hdiag(1,io)*Nup(io)*state_weight
-                ed_Eknot = ed_Eknot + Hdiag(Nspin,io)*Ndw(io)*state_weight
+                ed_Eknot = ed_Eknot + Hdiag(1,io)*Nup(io)*boltzman_weight*state_weight
+                ed_Eknot = ed_Eknot + Hdiag(Nspin,io)*Ndw(io)*boltzman_weight*state_weight
              enddo
              !
              !> H_imp: Off-diagonal elements, i.e. non-local part.
@@ -784,7 +787,7 @@ contains
                       jup = binary_search(sectorI%H(1)%map,k2)
                       j   = jup + (idw-1)*sectorI%DimUp
                       ed_Ekin = ed_Ekin + &
-                           Hij(1,io,jo)*sg1*sg2*evec(i)*conjg(evec(j))*peso
+                           Hij(1,io,jo)*sg1*sg2*evec(i)*conjg(evec(j))*boltzman_weight
                    endif
                 enddo
              enddo
@@ -804,7 +807,7 @@ contains
                       jdw = binary_search(sectorI%H(2)%map,k2)
                       j   = iup + (jdw-1)*sectorI%DimUp
                       ed_Ekin = ed_Ekin + &
-                           Hij(Nspin,io,jo)*sg1*sg2*evec(i)*conjg(evec(j))*peso
+                           Hij(Nspin,io,jo)*sg1*sg2*evec(i)*conjg(evec(j))*boltzman_weight
                    endif
                 enddo
              enddo
@@ -837,8 +840,8 @@ contains
                                jup=binary_search(sectorI%H(1)%map,k4)
                                j = jup + (jdw-1)*sectorI%DimUp
                                !
-                               ed_Epot = ed_Epot + Jx*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*peso
-                               ed_Dse = ed_Dse + sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*peso
+                               ed_Epot = ed_Epot + Jx*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
+                               ed_Dse = ed_Dse + sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
                                !
                             endif
                          enddo
@@ -874,8 +877,8 @@ contains
                                jup = binary_search(sectorI%H(1)%map,k4)
                                j = jup + (jdw-1)*sectorI%DimUp
                                !
-                               ed_Epot = ed_Epot + Jp*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*peso
-                               ed_Dph = ed_Dph + sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*peso
+                               ed_Epot = ed_Epot + Jp*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
+                               ed_Dph = ed_Dph + sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
                                !
                             endif
                          enddo
@@ -912,8 +915,8 @@ contains
                                jup = binary_search(sectorI%H(1)%map,k4)
                                j = jup + (jdw-1)*sectorI%DimUp
                                !
-                               ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))**peso
-                               ed_Dk = ed_Dk + sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*peso
+                               ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
+                               ed_Dk = ed_Dk + sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
                             endif
                             !
                             ![cdg_jo c_io]_up [cdg_io c_jo]_dw
@@ -931,8 +934,8 @@ contains
                                jup = binary_search(sectorI%H(1)%map,k4)
                                j = jup + (jdw-1)*sectorI%DimUp
                                !
-                               ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*peso
-                               ed_Dk = ed_Dk + sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*peso
+                               ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
+                               ed_Dk = ed_Dk + sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
                             endif
                             !
                          enddo
@@ -961,10 +964,10 @@ contains
                             if(isite/=jsite)cycle !local interaction only:
                             io = pack_indices(isite,iorb)
                             jo = pack_indices(isite,jorb)
-                            ed_Epot = ed_Epot + Ust*(nup(io)*ndw(jo) + nup(jo)*ndw(io))*state_weight
-                            ed_Dust = ed_Dust + (nup(io)*ndw(jo) + nup(jo)*ndw(io))*state_weight
-                            ed_Epot = ed_Epot + (Ust-Jh)*(nup(io)*nup(jo) + ndw(io)*ndw(jo))*state_weight
-                            ed_Dund = ed_Dund + (nup(io)*nup(jo) + ndw(io)*ndw(jo))*state_weight
+                            ed_Epot = ed_Epot + Ust*(nup(io)*ndw(jo) + nup(jo)*ndw(io))*state_weight*boltzman_weight
+                            ed_Dust = ed_Dust + (nup(io)*ndw(jo) + nup(jo)*ndw(io))*state_weight*boltzman_weight
+                            ed_Epot = ed_Epot + (Ust-Jh)*(nup(io)*nup(jo) + ndw(io)*ndw(jo))*state_weight*boltzman_weight
+                            ed_Dund = ed_Dund + (nup(io)*nup(jo) + ndw(io)*ndw(jo))*state_weight*boltzman_weight
                          enddo
                       enddo
                    enddo
@@ -976,8 +979,8 @@ contains
                    do jorb=iorb+1,Norb
                       do isite=1,Nsites(iorb)
                          do jsite=1,Nsites(jorb)
-                            ed_Epot = ed_Epot - 2*Jk*Sz(io)*Sz(jo)*state_weight
-                            ed_Dk = ed_Dk + Sz(io)*Sz(jo)*state_weight
+                            ed_Epot = ed_Epot - 2*Jk*Sz(io)*Sz(jo)*state_weight*boltzman_weight
+                            ed_Dk = ed_Dk + Sz(io)*Sz(jo)*state_weight*boltzman_weight
                          enddo
                       enddo
                    enddo
@@ -989,7 +992,7 @@ contains
                 do iorb=1,Norb
                    do isite=1,Nsites(iorb)          
                       io = pack_indices(isite,iorb)
-                      ed_Ehartree=ed_Ehartree - 0.5d0*Uloc(iorb)*(nup(io)+ndw(io))*state_weight
+                      ed_Ehartree=ed_Ehartree - 0.5d0*Uloc(iorb)*(nup(io)+ndw(io))*state_weight*boltzman_weight
                    enddo
                 enddo
                 !
@@ -1001,8 +1004,8 @@ contains
                                if(isite/=jsite)cycle !local interaction only:
                                io = pack_indices(isite,iorb)
                                jo = pack_indices(isite,jorb)
-                               ed_Ehartree=ed_Ehartree - 0.5d0*Ust*(nup(io)+ndw(io)+nup(jo)+ndw(jo))*state_weight
-                               ed_Ehartree=ed_Ehartree - 0.5d0*(Ust-Jh)*(nup(io)+ndw(io)+nup(jo)+ndw(jo))*state_weight
+                               ed_Ehartree=ed_Ehartree - 0.5d0*Ust*(nup(io)+ndw(io)+nup(jo)+ndw(jo))*state_weight*boltzman_weight
+                               ed_Ehartree=ed_Ehartree - 0.5d0*(Ust-Jh)*(nup(io)+ndw(io)+nup(jo)+ndw(jo))*state_weight*boltzman_weight
                             enddo
                          enddo
                       enddo

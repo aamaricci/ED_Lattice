@@ -324,6 +324,8 @@ contains
     integer      :: isite,jsite,iorb,jorb
     integer      :: io,jo
     type(sector) :: sectorI,sectorJ
+    integer            :: Nups(Ns_Ud)
+    integer            :: Ndws(Ns_Ud)
     real(8)      :: Chio,Chjo,Sio,Sjo
     integer      :: i,j,ll,m,isector
     integer      :: idim,ia
@@ -340,6 +342,10 @@ contains
     jo  = pack_indices(jsite,jorb)
     !
     do isector=1,Nsectors !loop over <i| total particle number
+       call get_Nup(isector,nups)
+       call get_Ndw(isector,ndws)
+       if(ed_filling/=0 .AND. (sum(Nups)+sum(Ndws)/=ed_filling) )cycle
+       !
        call eta(isector,Nsectors,LOGfile)
        call build_sector(isector,sectorI)
        !
