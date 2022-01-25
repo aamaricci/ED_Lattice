@@ -55,10 +55,10 @@ contains
     !
     select case(ed_method)
     case default
-       call es_trim_size(state_list,temp,cutoff)
-       write(LOGfile,"(A,I4)")"Adjusting list_size to:",state_list%trimd_size
        Egs = state_list%emin
        if(finiteT)then
+          call es_trim_size(state_list,temp,cutoff)
+          write(LOGfile,"(A,I4)")"Adjusting list_size to:",state_list%trimd_size
           do istate=1,state_list%size
              Ei            = es_return_energy(state_list,istate)
              zeta_function = zeta_function + exp(-(Ei-Egs)/temp)
@@ -102,6 +102,10 @@ contains
     real(8),allocatable    :: eig_values(:)
     complex(8),allocatable :: eig_basis(:,:),eig_basis_tmp(:,:)
     logical                :: lanc_solve,Tflag,lanc_verbose,bool
+    integer                :: is
+    integer                :: nstates_below_cutoff
+    real(8)                :: Ec
+
     !
     if(state_list%status)call es_delete_espace(state_list)
     state_list=es_init_espace()
@@ -311,6 +315,31 @@ contains
           call get_Ndw(isector,Ndws)
           write(LOGfile,"(A,F20.12,"//str(Ns_Ud)//"I4,"//str(Ns_Ud)//"I4)")'Egs =',Egs,nups,ndws
        enddo
+    endif
+    !
+    !if finite T and loop over T we diagonalize first at the largest temperature.
+    !to avoid keeping useless state we prune those above the cutoff at this T_max.
+    if(finiteT)then
+       !check if the number of states is enough to reach the required accuracy:
+       !the condition to fullfill is:
+       ! exp(-(Ec-Egs)/T) < \epsilon_c
+       ! if this condition is violated then required number of states is increased
+       ! if number of states is larger than those required to fullfill the cutoff: 
+       ! trim the list and number of states.
+       Egs  = state_list%emin
+       Ec   = state_list%emax
+       if(exp(-(Ec-Egs)/temp) > cutoff)then
+          if(MPIMASTER)write(LOGfile,"(A,I4)")"Must Increase lanc_nstates_total:",lanc_nstates_total
+       else
+          write(LOGfile,*)
+          Ei = es_return_energy(state_list,state_list%size)
+          do while ( exp(-(Ei-Egs)/temp) <= cutoff )
+             call es_pop_state(state_list)
+             Ei = es_return_energy(state_list,state_list%size)
+          enddo
+          write(LOGfile,"(A,I4)")"Adjusting lanc_nstates_total to:",state_list%size
+          !
+       endif
     endif
   end subroutine ed_diag_d
 
