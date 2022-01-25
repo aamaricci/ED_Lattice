@@ -121,58 +121,59 @@ contains
 
 
 
-     subroutine lanc_ed_build_spinChi_diag(isite,iorb)
-       integer,intent(in) :: isite,iorb
-       integer            :: io
-       type(sector)       :: sectorI,sectorJ
-       !
-       ialfa = 1
-       io    = pack_indices(isite,iorb)
-       !
-       do istate=1,state_list%size
-          isector    =  es_return_sector(state_list,istate)
-          state_e    =  es_return_energy(state_list,istate)
+  subroutine lanc_ed_build_spinChi_diag(isite,iorb)
+    integer,intent(in) :: isite,iorb
+    integer            :: io
+    type(sector)       :: sectorI,sectorJ
+    !
+    ialfa = 1
+    io    = pack_indices(isite,iorb)
+    !
+    call es_trim_size(state_list,beta,cutoff)
+    do istate=1,state_list%trimd_size
+       isector    =  es_return_sector(state_list,istate)
+       state_e    =  es_return_energy(state_list,istate)
 #ifdef _MPI
-          if(MpiStatus)then
-             state_cvec => es_return_cvector(MpiComm,state_list,istate)
-          else
-             state_cvec => es_return_cvector(state_list,istate)
-          endif
-#else
+       if(MpiStatus)then
+          state_cvec => es_return_cvector(MpiComm,state_list,istate)
+       else
           state_cvec => es_return_cvector(state_list,istate)
-#endif
-          !
-          if(MpiMaster)then
-             call build_sector(isector,sectorI)
-             if(ed_verbose>=3)write(LOGfile,"(A,I6,20I4)")&
-                  'Apply Sz  :',isector,sectorI%Nups,sectorI%Ndws
-             allocate(vvinit(sectorI%Dim)) ; vvinit=zero
-             do i=1,sectorI%Dim
-                call apply_op_Sz(i,sgn,io,ialfa,sectorI)            
-                vvinit(i) = sgn*state_cvec(i)
-             enddo
-             call delete_sector(sectorI)
-          else
-             allocate(vvinit(1));vvinit=zero
-          endif
-          !
-          call tridiag_Hv_sector(isector,vvinit,alfa_,beta_,norm2)
-          call add_to_lanczos_spinChi(norm2,state_e,alfa_,beta_,io,io)
-          deallocate(alfa_,beta_)
-          if(allocated(vvinit))deallocate(vvinit)
-          !
-#ifdef _MPI
-          if(MpiStatus)then
-             if(associated(state_cvec))deallocate(state_cvec)
-          else
-             if(associated(state_cvec))nullify(state_cvec)
-          endif
+       endif
 #else
-          if(associated(state_cvec))nullify(state_cvec)
+       state_cvec => es_return_cvector(state_list,istate)
 #endif
-       enddo
-       return
-     end subroutine lanc_ed_build_spinChi_diag
+       !
+       if(MpiMaster)then
+          call build_sector(isector,sectorI)
+          if(ed_verbose>=3)write(LOGfile,"(A,I6,20I4)")&
+               'Apply Sz  :',isector,sectorI%Nups,sectorI%Ndws
+          allocate(vvinit(sectorI%Dim)) ; vvinit=zero
+          do i=1,sectorI%Dim
+             call apply_op_Sz(i,sgn,io,ialfa,sectorI)            
+             vvinit(i) = sgn*state_cvec(i)
+          enddo
+          call delete_sector(sectorI)
+       else
+          allocate(vvinit(1));vvinit=zero
+       endif
+       !
+       call tridiag_Hv_sector(isector,vvinit,alfa_,beta_,norm2)
+       call add_to_lanczos_spinChi(norm2,state_e,alfa_,beta_,io,io)
+       deallocate(alfa_,beta_)
+       if(allocated(vvinit))deallocate(vvinit)
+       !
+#ifdef _MPI
+       if(MpiStatus)then
+          if(associated(state_cvec))deallocate(state_cvec)
+       else
+          if(associated(state_cvec))nullify(state_cvec)
+       endif
+#else
+       if(associated(state_cvec))nullify(state_cvec)
+#endif
+    enddo
+    return
+  end subroutine lanc_ed_build_spinChi_diag
 
 
 
@@ -193,7 +194,8 @@ contains
     io  = pack_indices(isite,iorb)
     jo  = pack_indices(jsite,jorb)
     !
-    do istate=1,state_list%size
+    call es_trim_size(state_list,beta,cutoff)
+    do istate=1,state_list%trimd_size
        isector    =  es_return_sector(state_list,istate)
        state_e    =  es_return_energy(state_list,istate)
 #ifdef _MPI

@@ -156,9 +156,9 @@ contains
           suffix="spinChi"//&
                "_i"//str(ilat,site_indx_padding)//&
                "_l"//str(iorb)
-          call splot(reg(suffix)//"_tau.ed",tau,spinChi_tau(io,io,0:))
-          call splot(reg(suffix)//"_realw.ed",vr,spinChi_w(io,io,:))
-          call splot(reg(suffix)//"_iv.ed",vm,spinChi_iv(io,io,:))
+          call splot(reg(suffix)//"_tau"//reg(ed_file_suffix)//".ed",tau,spinChi_tau(io,io,0:))
+          call splot(reg(suffix)//"_realw"//reg(ed_file_suffix)//".ed",vr,spinChi_w(io,io,:))
+          call splot(reg(suffix)//"_iv"//reg(ed_file_suffix)//".ed",vm,spinChi_iv(io,io,:))
        enddo
     enddo
     if(offdiag_chispin_flag.AND.Norb>1)then
@@ -173,9 +173,9 @@ contains
                    suffix="spinChi"//&
                         "_i"//str(ilat,site_indx_padding)//"j"//str(jlat,site_indx_padding)//&
                         "_l"//str(iorb)//"m"//str(jorb)
-                   call splot(reg(suffix)//"_tau.ed",tau,spinChi_tau(io,jo,0:))
-                   call splot(reg(suffix)//"_realw.ed",vr,spinChi_w(io,jo,:))
-                   call splot(reg(suffix)//"_iv.ed",vm,spinChi_iv(io,jo,:))
+                   call splot(reg(suffix)//"_tau"//reg(ed_file_suffix)//".ed",tau,spinChi_tau(io,jo,0:))
+                   call splot(reg(suffix)//"_realw"//reg(ed_file_suffix)//".ed",vr,spinChi_w(io,jo,:))
+                   call splot(reg(suffix)//"_iv"//reg(ed_file_suffix)//".ed",vm,spinChi_iv(io,jo,:))
                 enddo
              enddo
           enddo
@@ -239,7 +239,7 @@ contains
                         "_i"//str(ilat,site_indx_padding)//&
                         "_l"//str(iorb)//&
                         "_s"//str(ispin)//&
-                        str(w_suffix)//str(gf_suffix)
+                        str(w_suffix)//reg(ed_file_suffix)//str(gf_suffix)
                    call splot(reg(suffix),zeta,Func(ispin,io,io,:))
                 enddo
              enddo
@@ -259,7 +259,7 @@ contains
                            "_i"//str(ilat,site_indx_padding)//"j"//str(jlat,site_indx_padding)//&
                            "_l"//str(iorb)//&
                            "_s"//str(ispin)//&
-                           str(w_suffix)//str(gf_suffix)
+                           str(w_suffix)//reg(ed_file_suffix)//str(gf_suffix)
                       call splot(reg(suffix),zeta,Func(ispin,io,jo,:))
                    enddo
                 enddo
@@ -281,7 +281,7 @@ contains
                               "_i"//str(ilat,site_indx_padding)//"j"//str(jlat,site_indx_padding)//&
                               "_l"//str(iorb)//"m"//str(jorb)//&
                               "_s"//str(ispin)//&
-                              str(w_suffix)//reg(gf_suffix)
+                              str(w_suffix)//reg(ed_file_suffix)//str(gf_suffix)
                          call splot(reg(suffix),zeta,Func(ispin,io,jo,:))
                       enddo
                    enddo

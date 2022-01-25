@@ -104,7 +104,6 @@ MODULE ED_VARS_GLOBAL
 
 
 
-
   !Impurity Green's function and Self-Energies: (Ns,Ns,:)
   !PRIVATE (now public but accessible thru routine)
   !=========================================================
@@ -174,6 +173,7 @@ MODULE ED_VARS_GLOBAL
 
   !File suffixes for printing fine tuning.
   !=========================================================
+  character(len=32)                                :: ed_file_suffix=""       !suffix string attached to the output files.
   integer                                          :: site_indx_padding=4
   logical                                          :: Jhflag              !spin-exchange and pair-hopping flag.
   logical                                          :: finiteT             !flag for finite temperature calculation

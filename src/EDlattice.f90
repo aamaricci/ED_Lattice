@@ -19,7 +19,6 @@ MODULE EDLAT
        nerr          , &
        Lmats         , &
        Lreal         , &
-       Hfile         , &
        LOGfile   
 
   USE ED_GRAPH_MATRIX, only: &

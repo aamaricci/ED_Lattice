@@ -104,7 +104,8 @@ contains
     n2      = 0.d0
     s2tot   = 0.d0
     !
-    do istate=1,state_list%size
+    call es_trim_size(state_list,beta,cutoff)
+    do istate=1,state_list%trimd_size
        isector = es_return_sector(state_list,istate)
        Ei      = es_return_energy(state_list,istate)
        !
@@ -344,7 +345,8 @@ contains
     enddo
     !
     !
-    do istate=1,state_list%size
+    call es_trim_size(state_list,beta,cutoff)
+    do istate=1,state_list%trimd_size
        isector = es_return_sector(state_list,istate)
        Ei      = es_return_energy(state_list,istate)
 #ifdef _MPI
@@ -1054,49 +1056,49 @@ contains
     integer :: unit
     integer :: io,jo,iorb
     unit = free_unit()
-    open(unit,file="parameters_last.ed")
+    open(unit,file="parameters_last"//reg(ed_file_suffix)//".ed")
     write(unit,"(90F15.9)")xmu,beta,(uloc(iorb),iorb=1,Norb),Ust,Jh,Jx,Jp,Jk
     close(unit)
 
     unit = free_unit()
-    open(unit,file="dens.ed")
+    open(unit,file="dens"//reg(ed_file_suffix)//".ed")
     write(unit,"(90(F20.12,1X))")(dens(io),io=1,Ns)
     close(unit)         
 
     unit = free_unit()
-    open(unit,file="dens_up.ed")
+    open(unit,file="dens_up"//reg(ed_file_suffix)//".ed")
     write(unit,"(90(F20.12,1X))")(dens_up(io),io=1,Ns)
     close(unit)         
 
     unit = free_unit()
-    open(unit,file="dens_dw.ed")
+    open(unit,file="dens_dw"//reg(ed_file_suffix)//".ed")
     write(unit,"(90(F20.12,1X))")(dens_dw(io),io=1,Ns)
     close(unit)         
 
     unit = free_unit()
-    open(unit,file="docc.ed")
+    open(unit,file="docc"//reg(ed_file_suffix)//".ed")
     write(unit,"(90(F20.12,1X))")(docc(io),io=1,Ns)
     close(unit)
 
     unit = free_unit()
-    open(unit,file="magz.ed")
+    open(unit,file="magz"//reg(ed_file_suffix)//".ed")
     write(unit,"(90(F20.12,1X))")(magz(io),io=1,Ns)
     close(unit)         
 
     unit = free_unit()
-    open(unit,file="egs.ed")
+    open(unit,file="egs"//reg(ed_file_suffix)//".ed")
     write(unit,*)egs
     close(unit)
 
     unit = free_unit()
-    open(unit,file="Sz_corr.ed")
+    open(unit,file="Sz_corr"//reg(ed_file_suffix)//".ed")
     do io=1,Ns
        write(unit,"(90(F15.9,1X))")(sz2(io,jo),jo=1,Ns)
     enddo
     close(unit)         
 
     unit = free_unit()
-    open(unit,file="N_corr.ed")
+    open(unit,file="N_corr"//reg(ed_file_suffix)//".ed")
     do io=1,Ns
        write(unit,"(90(F15.9,1X))")(n2(io,jo),jo=1,Ns)
     enddo
@@ -1123,7 +1125,7 @@ contains
     close(unit)
 
     unit = free_unit()
-    open(unit,file="energy_last.ed")
+    open(unit,file="energy_last"//reg(ed_file_suffix)//".ed")
     write(unit,"(90F15.9)")&
          ed_Ekin,ed_Epot,ed_Epot-ed_Ehartree,ed_Eknot,ed_Ehartree,&
          ed_Dust,ed_Dund,ed_Dse,ed_Dph,ed_Dk

@@ -35,10 +35,10 @@ MODULE ED_INPUT_VARS
   logical              :: offdiag_gf_flag     !flag to select the calculation of the off-diagonal impurity GF.
   logical              :: offdiag_chispin_flag!flag to select the calculation of the off-diagonal spin Chi.
   logical              :: oc_flag             !evaluate Optical Conductivity and Drude Weight per orbital
-
+  !
   !
   integer              :: ed_filling          !Total number of allowed electrons 
-  logical              :: ed_finite_temp      !flag to select finite temperature method. note that if T then lanc_nstates_total must be > 1 
+  logical              :: ed_finite_temp      !flag to select finite temperature method. note that if T then lanc_nstates_total must be > 1
   logical              :: ed_sparse_H         !flag to select  storage of sparse matrix H (mem--, cpu++) if TRUE, or direct on-the-fly H*v product (mem++, cpu--
   character(len=12)    :: ed_method           !select the diagonalization method: lanczos (see lanc_method then) or lapack (full diagonalization)
 
@@ -73,11 +73,11 @@ MODULE ED_INPUT_VARS
 
   !LOG AND Hamiltonian UNITS
   !=========================================================
-  character(len=100)   :: Hfile,SectorFile
+  character(len=100)   :: Bfile,SectorFile
   integer,save         :: LOGfile
 
   !THIS IS JUST A RELOCATED GLOBAL VARIABLE
-  character(len=200)                                 :: ed_input_file=""
+  character(len=200)   :: ed_input_file=""
 
 
 contains
@@ -110,6 +110,8 @@ contains
     call parse_input_variable(Nsites,"NSITES",INPUTunit,default=[2,0,0,0,0],comment="Number of sites per orbital species (Norb values considered)")
     call parse_input_variable(Nspin,"NSPIN",INPUTunit,default=1,comment="Number of spin degeneracy (max 2)")
     !
+    call parse_input_variable(ed_filling,"ED_FILLING",INPUTunit,default=0,comment="Total number of allowed electrons")
+    !
     call parse_input_variable(uloc,"ULOC",INPUTunit,default=[2d0,0d0,0d0,0d0,0d0],comment="Values of the local interaction per orbital (max 5)")
     call parse_input_variable(ust,"UST",INPUTunit,default=0.d0,comment="Value of the inter-orbital interaction term")
     call parse_input_variable(Jh,"JH",INPUTunit,default=0.d0,comment="Hunds coupling")
@@ -118,6 +120,8 @@ contains
     call parse_input_variable(Jk,"JK",INPUTunit,default=0.d0,comment="Kondo coupling")
     !
     call parse_input_variable(beta,"BETA",INPUTunit,default=1000.d0,comment="Inverse temperature, at T=0 is used as a IR cut-off.")
+    call parse_input_variable(ed_finite_temp,"ED_FINITE_TEMP",INPUTunit,default=.false.,comment="flag to select finite temperature method. note that if T then lanc_nstates_total must be > 1")
+    !
     call parse_input_variable(xmu,"XMU",INPUTunit,default=0.d0,comment="Chemical potential. If HFMODE=T, xmu=0 indicates half-filling condition.")
     call parse_input_variable(sb_field,"SB_FIELD",INPUTunit,default=0.1d0,comment="Value of a symmetry breaking field for magnetic solutions.")
     !
@@ -127,8 +131,7 @@ contains
     call parse_input_variable(Lmats,"LMATS",INPUTunit,default=4096,comment="Number of Matsubara frequencies.")
     call parse_input_variable(Lreal,"LREAL",INPUTunit,default=5000,comment="Number of real-axis frequencies.")
     call parse_input_variable(Ltau,"LTAU",INPUTunit,default=1024,comment="Number of imaginary time points.")
-    !
-
+    !    
     call parse_input_variable(gf_flag,"GF_FLAG",INPUTunit,default=.false.,comment="Flag to activate Greens functions calculation")
     call parse_input_variable(chispin_flag,"CHISPIN_FLAG",INPUTunit,default=.false.,comment="Flag to activate spin susceptibility calculation.")
     call parse_input_variable(chidens_flag,"CHIDENS_FLAG",INPUTunit,default=.false.,comment="Flag to activate density susceptibility calculation.")
@@ -144,12 +147,8 @@ contains
     call parse_input_variable(gs_threshold,"GS_THRESHOLD",INPUTunit,default=1.d-9,comment="Energy threshold for ground state degeneracy loop up")
     !
     call parse_input_variable(ed_method,"ED_METHOD",INPUTunit,default="lanczos",comment="select the diagonalization method: lanczos (see lanc_method then) or lapack (full diagonalization)")
-
-    call parse_input_variable(ed_filling,"ED_FILLING",INPUTunit,default=0,comment="Total number of allowed electrons")
-    call parse_input_variable(ed_finite_temp,"ED_FINITE_TEMP",INPUTunit,default=.false.,comment="flag to select finite temperature method. note that if T then lanc_nstates_total must be > 1")
     call parse_input_variable(ed_twin,"ED_TWIN",INPUTunit,default=.false.,comment="flag to reduce (T) or not (F,default) the number of visited sector using twin symmetry.")
     call parse_input_variable(ed_sparse_H,"ED_SPARSE_H",INPUTunit,default=.true.,comment="flag to select  storage of sparse matrix H (mem--, cpu++) if TRUE, or direct on-the-fly H*v product (mem++, cpu--) if FALSE ")
-
     call parse_input_variable(ed_print_Sigma,"ED_PRINT_SIGMA",INPUTunit,default=.true.,comment="flag to print impurity Self-energies")
     call parse_input_variable(ed_print_G,"ED_PRINT_G",INPUTunit,default=.true.,comment="flag to print impurity Greens function")
     call parse_input_variable(ed_print_G0,"ED_PRINT_G0",INPUTunit,default=.true.,comment="flag to print non-interacting impurity Greens function")
@@ -169,7 +168,7 @@ contains
     call parse_input_variable(ndelta,"NDELTA",INPUTunit,default=0.1d0,comment="Initial step for fixed density calculations.")
     call parse_input_variable(ncoeff,"NCOEFF",INPUTunit,default=1d0,comment="multiplier for the initial ndelta read from a file (ndelta-->ndelta*ncoeff).")
     !
-    call parse_input_variable(Hfile,"Hfile",INPUTunit,default="hmatrix",comment="File containing the Hamiltonian matrix, ie setting the Hamiltonian problem")
+    call parse_input_variable(Bfile,"Bfile",INPUTunit,default="beta",comment="File containing the step in temperature to take, if any.")
     call parse_input_variable(LOGfile,"LOGFILE",INPUTunit,default=6,comment="LOG unit.")
 
 
@@ -196,8 +195,8 @@ contains
     !Act on the input variable only after printing.
     !In the new parser variables are hard-linked into the list:
     !any change to the variable is immediately copied into the list... (if you delete .ed it won't be printed out)
-    call substring_delete(Hfile,".restart")
-    call substring_delete(Hfile,".ed")
+    call substring_delete(Bfile,".restart")
+    call substring_delete(Bfile,".ed")
   end subroutine ed_read_input
 
 

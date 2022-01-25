@@ -136,7 +136,16 @@ contains
     io    = pack_indices(isite,iorb)
     !
     !
-    do istate=1,state_list%size
+    !>TODO: this has to be changed to avoid duplication of the evaluation of the weights/poles.
+    !1. set the temperature to the largest value (smallest beta)
+    !2. trim the state_list to the largest number of states
+    !3. save the contributions from all such states in distinct entries in Gmatrix object
+    !4. separate the evaluation of lattice GF from this module. The GF will be evaluated
+    !  for the actual temperature using only ther trimmed states from Gmatrix and the spectral decomposition.
+    !For, we need to import the data structure Gmatrix from DMFT_ED and to check temperature range is always
+    !from largest to smallest.
+    call es_trim_size(state_list,beta,cutoff)
+    do istate=1,state_list%trimd_size
        isector    =  es_return_sector(state_list,istate)
        state_e    =  es_return_energy(state_list,istate)
 #ifdef _MPI
@@ -238,7 +247,8 @@ contains
     io  = pack_indices(isite,iorb)
     jo  = pack_indices(jsite,jorb)
     !
-    do istate=1,state_list%size
+    call es_trim_size(state_list,beta,cutoff)
+    do istate=1,state_list%trimd_size
        isector    =  es_return_sector(state_list,istate)
        state_e    =  es_return_energy(state_list,istate)
 #ifdef _MPI

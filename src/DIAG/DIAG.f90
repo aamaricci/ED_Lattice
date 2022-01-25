@@ -17,6 +17,7 @@ module ED_DIAG
 
 
   public :: diagonalize_lattice
+  public :: partition_function_lattice
 
   real(8),dimension(:),pointer       :: state_cvec
 
@@ -36,11 +37,49 @@ contains
     select case(ed_method)
     case default
        call ed_diag_d
-       call ed_post_diag
     case('lapack','full')
        call ed_full_d
     end select
   end subroutine diagonalize_lattice
+
+
+
+  subroutine partition_function_lattice
+    integer :: i,istate,isector
+    integer :: Dim
+    real(8) :: Egs,Ei
+    integer :: Nups(Ns_Ud)
+    integer :: Ndws(Ns_Ud)
+    !
+    zeta_function=0d0
+    !
+    select case(ed_method)
+    case default
+       call es_trim_size(state_list,beta,cutoff)
+       write(LOGfile,"(A,I4)")"Adjusting list_size to:",state_list%trimd_size
+       Egs = state_list%emin
+       if(finiteT)then
+          do istate=1,state_list%size
+             Ei            = es_return_energy(state_list,istate)
+             zeta_function = zeta_function + exp(-beta*(Ei-Egs))
+          enddo
+       else
+          zeta_function=dble(state_list%size)
+       end if
+    case('lapack','full')
+       do isector=1,Nsectors
+          call get_Nup(isector,nups)
+          call get_Ndw(isector,ndws)
+          if(ed_filling/=0 .AND. (sum(Nups)+sum(Ndws)/=ed_filling) )cycle
+          do i=1,getdim(isector)
+             zeta_function=zeta_function+exp(-beta*espace(isector)%e(i))
+          enddo
+       enddo
+    end select
+    !
+    if(MPIMASTER.AND.ed_verbose>=2)write(LOGfile,"(A,F20.12)")'Z   =',zeta_function
+    !
+  end subroutine partition_function_lattice
 
 
 
@@ -59,7 +98,7 @@ contains
     integer                :: Ndws(Ns_Ud)
     integer                :: i,j,iter,unit,vecDim,PvecDim
     integer                :: Nitermax,Neigen,Nblock
-    real(8)                :: oldzero,enemin,Ei
+    real(8)                :: oldzero,enemin,Ei,Egs
     real(8),allocatable    :: eig_values(:)
     complex(8),allocatable :: eig_basis(:,:),eig_basis_tmp(:,:)
     logical                :: lanc_solve,Tflag,lanc_verbose,bool
@@ -244,9 +283,9 @@ contains
           enddo
        endif
        !
+       !Print a list of the collected eigenvalues:
        if(MPIMASTER)then
-          unit=free_unit()
-          open(unit,file="eigenvalues_list.ed",position='append',action='write')
+          open(free_unit(unit),file="eigenvalues_list.ed",position='append',action='write')
           call print_eigenvalues_list(isector,eig_values(1:Neigen),unit,lanc_solve,mpiAllThreads)
           close(unit)
        endif
@@ -257,7 +296,28 @@ contains
        !
     enddo sector
     if(MPIMASTER)call stop_timer(unit=LOGfile)
+    !
+    !
+    !Print the obtained state_list, before any cut
+    call save_state_list()
+    if(ed_verbose>=2)call print_state_list(LOGfile)
+    !
+    !Print info about the ground state(s)
+    if(MPIMASTER.AND.ed_verbose>=2)then
+       do istate=1,es_return_gs_degeneracy(state_list,gs_threshold)
+          isector = es_return_sector(state_list,istate)
+          Egs     = es_return_energy(state_list,istate)
+          call get_Nup(isector,Nups)
+          call get_Ndw(isector,Ndws)
+          write(LOGfile,"(A,F20.12,"//str(Ns_Ud)//"I4,"//str(Ns_Ud)//"I4)")'Egs =',Egs,nups,ndws
+       enddo
+    endif
   end subroutine ed_diag_d
+
+
+
+
+
 
 
 
@@ -374,18 +434,6 @@ contains
     gs_energy=egs
     forall(isector=1:Nsectors)espace(isector)%e = espace(isector)%e - egs
     !
-    !Get the partition function Z
-    zeta_function=0d0
-    do isector=1,Nsectors
-       call get_Nup(isector,nups)
-       call get_Ndw(isector,ndws)
-       if(ed_filling/=0 .AND. (sum(Nups)+sum(Ndws)/=ed_filling) )cycle
-       dim=getdim(isector)
-       do i=1,dim
-          zeta_function=zeta_function+exp(-beta*espace(isector)%e(i))
-       enddo
-    enddo
-    !
     write(LOGfile,"(A)")"DIAG resume:"
     open(free_unit(unit),file='egs.ed',position='append')
     do istate=1,state_list%size
@@ -397,7 +445,7 @@ contains
        write(unit,"(A,F20.12,"//str(Ns_Ud)//"I4,"//str(Ns_Ud)//"I4)")'Egs =',Ei,nups,ndws
     enddo
     close(unit)
-    write(LOGfile,"(A,F20.12)")'Z   =',zeta_function
+
     if(state_list%status)call es_delete_espace(state_list)
     return
     !
@@ -418,112 +466,20 @@ contains
   !    POST-PROCESSING ROUTINES
   !
   !###################################################################################################
-  !+-------------------------------------------------------------------+
-  !PURPOSE  : analyse the spectrum and print some information after 
-  !lanczos diagonalization. 
-  !+------------------------------------------------------------------+
-  subroutine ed_post_diag()
-    integer             :: nup,ndw,sz,n,isector,dim
-    integer             :: istate
-    integer             :: i,unit
-    integer             :: nups(Ns_Ud),ndws(Ns_Ud),Indices(2*Ns_Ud)
-    integer             :: Nsize,NtoBremoved,nstates_below_cutoff
-    integer             :: numgs
-    real(8)             :: Egs,Ei,Ec,Etmp
-    integer,allocatable :: list_sector(:),count_sector(:)    
-    !POST PROCESSING:
+  subroutine save_state_list()
+    integer :: indices(2*Ns_Ud),isector
+    integer :: istate
+    integer :: unit
     if(MPIMASTER)then
        open(free_unit(unit),file="state_list.ed")
-       call save_state_list(unit)
+       do istate=1,state_list%size
+          isector = es_return_sector(state_list,istate)
+          call get_QuantumNumbers(isector,Ns_Orb,Indices)
+          write(unit,"(i8,i12,"//str(2*Ns_Ud)//"i8)")istate,isector,Indices
+       enddo
        close(unit)
     endif
-    if(ed_verbose>=2)call print_state_list(LOGfile)
-    !
-    zeta_function=0d0
-    Egs = state_list%emin
-    if(finiteT)then
-       do i=1,state_list%size
-          ei   = es_return_energy(state_list,i)
-          zeta_function = zeta_function + exp(-beta*(Ei-Egs))
-       enddo
-    else
-       zeta_function=real(state_list%size,8)
-    end if
-    !
-    !
-    numgs=es_return_gs_degeneracy(state_list,gs_threshold)
-    ! if(numgs>Nsectors)stop "ED_POST_DIAG_NORMAL: Deg(GS) > Nsectors!"
-    if(MPIMASTER.AND.ed_verbose>=2)then
-       do istate=1,numgs
-          isector = es_return_sector(state_list,istate)
-          Egs     = es_return_energy(state_list,istate)
-          call get_Nup(isector,Nups)
-          call get_Ndw(isector,Ndws)
-          write(LOGfile,"(A,F20.12,"//str(Ns_Ud)//"I4,"//str(Ns_Ud)//"I4)")'Egs =',Egs,nups,ndws
-       enddo
-       write(LOGfile,"(A,F20.12)")'Z   =',zeta_function
-    endif
-    !
-    !
-    !
-    if(finiteT)then
-       !
-       !
-       allocate(list_sector(state_list%size),count_sector(Nsectors))
-       !get the list of actual sectors contributing to the list
-       do i=1,state_list%size
-          list_sector(i) = es_return_sector(state_list,i)
-       enddo
-       !count how many times a sector appears in the list
-       do i=1,Nsectors
-          count_sector(i) = count(list_sector==i)
-       enddo
-       !adapt the number of required Neig for each sector based on how many
-       !appeared in the list.
-       do i=1,Nsectors
-          if(any(list_sector==i))then !if(count_sector(i)>1)then
-             neigen_sector(i)=neigen_sector(i)+1
-          else
-             neigen_sector(i)=neigen_sector(i)-1
-          endif
-          !prevent Neig(i) from growing unbounded but 
-          !try to put another state in the list from sector i
-          if(neigen_sector(i) > count_sector(i))neigen_sector(i)=count_sector(i)+1
-          if(neigen_sector(i) <= 0)neigen_sector(i)=1
-       enddo
-       !check if the number of states is enough to reach the required accuracy:
-       !the condition to fullfill is:
-       ! exp(-beta(Ec-Egs)) < \epsilon_c
-       ! if this condition is violated then required number of states is increased
-       ! if number of states is larger than those required to fullfill the cutoff: 
-       ! trim the list and number of states.
-       Egs  = state_list%emin
-       Ec   = state_list%emax
-       Nsize= state_list%size
-       if(exp(-beta*(Ec-Egs)) > cutoff)then
-          if(MPIMASTER)write(LOGfile,"(A,I4)")"Must Increase lanc_nstates_total:",lanc_nstates_total
-       else
-          ! !Find the energy level beyond which cutoff condition is verified & cut the list to that size
-          write(LOGfile,*)
-          isector = es_return_sector(state_list,state_list%size)
-          Ei      = es_return_energy(state_list,state_list%size)
-          do while ( exp(-beta*(Ei-Egs)) <= cutoff )
-             if(ed_verbose>=1.AND.MPIMASTER)write(LOGfile,"(A,I4,I5)")"Trimming state:",isector,state_list%size
-             call es_pop_state(state_list)
-             isector = es_return_sector(state_list,state_list%size)
-             Ei      = es_return_energy(state_list,state_list%size)
-          enddo
-          if(ed_verbose>=1.AND.MPIMASTER)then
-             write(LOGfile,*)"Trimmed state list:"          
-             call print_state_list(LOGfile)
-          endif
-          !
-          lanc_nstates_total=state_list%size
-          write(LOGfile,"(A,I4)")"Adjusting lanc_nstates_total to:",lanc_nstates_total
-          !
-       endif
-    endif
-  end subroutine ed_post_diag
+  end subroutine save_state_list
 
 
   subroutine print_state_list(unit)
@@ -544,19 +500,6 @@ contains
     endif
   end subroutine print_state_list
 
-
-  subroutine save_state_list(unit)
-    integer :: indices(2*Ns_Ud),isector
-    integer :: istate
-    integer :: unit
-    if(MPIMASTER)then
-       do istate=1,state_list%size
-          isector = es_return_sector(state_list,istate)
-          call get_QuantumNumbers(isector,Ns_Orb,Indices)
-          write(unit,"(i8,i12,"//str(2*Ns_Ud)//"i8)")istate,isector,Indices
-       enddo
-    endif
-  end subroutine save_state_list
 
 
   subroutine print_eigenvalues_list(isector,eig_values,unit,lanc,allt)
@@ -597,3 +540,129 @@ end MODULE ED_DIAG
 
 
 
+
+
+
+
+! !+-------------------------------------------------------------------+
+! !PURPOSE  : analyse the spectrum and print some information after 
+! !lanczos diagonalization. 
+! !+------------------------------------------------------------------+
+! subroutine ed_post_diag()
+!   integer             :: istate,is
+!   integer             :: Nsize
+!   integer             :: nstates_below_cutoff
+!   real(8)             :: Egs,Ei,Ec
+!   if(finiteT)then
+!      !check if the number of states is enough to reach the required accuracy:
+!      !the condition to fullfill is:
+!      ! exp(-beta(Ec-Egs)) < \epsilon_c
+!      ! if this condition is violated then required number of states is increased
+!      ! if number of states is larger than those required to fullfill the cutoff: 
+!      ! trim the list and number of states.
+!      nstates_below_cutoff = es_trim_size(state_list, beta, cutoff)
+!      write(LOGfile,"(A,I4)")"Adjusting lanc_nstates_total to:",nstates_below_cutoff
+!      Egs  = state_list%emin
+!      Ec   = state_list%emax
+!      Nsize= state_list%size
+!      if(exp(-beta*(Ec-Egs)) > cutoff)then
+!         if(MPIMASTER)write(LOGfile,"(A,I4)")"Must Increase lanc_nstates_total:",lanc_nstates_total
+!      else
+!         write(LOGfile,*)
+!         Ei      = es_return_energy(state_list,state_list%size)
+!         do while ( exp(-beta*(Ei-Egs)) <= cutoff )
+!            call es_pop_state(state_list)
+!            Ei      = es_return_energy(state_list,state_list%size)
+!         enddo
+!         write(LOGfile,"(A,I4)")"Adjusting lanc_nstates_total to:",state_list%size
+!         !
+!      endif
+!   endif
+!   stop
+! end subroutine ed_post_diag
+
+
+
+
+! !+-------------------------------------------------------------------+
+! !PURPOSE  : analyse the spectrum and print some information after 
+! !lanczos diagonalization. 
+! !+------------------------------------------------------------------+
+! subroutine ed_post_diag()
+!   integer             :: nup,ndw,sz,n,isector,dim
+!   integer             :: istate
+!   integer             :: i,unit
+!   integer             :: nups(Ns_Ud),ndws(Ns_Ud),Indices(2*Ns_Ud)
+!   integer             :: Nsize,NtoBremoved,nstates_below_cutoff
+!   integer             :: numgs
+!   real(8)             :: Egs,Ei,Ec,Etmp
+!   integer,allocatable :: list_sector(:),count_sector(:)    
+!   !POST PROCESSING:
+!   if(MPIMASTER)then
+!      open(free_unit(unit),file="state_list.ed")
+!      call save_state_list(unit)
+!      close(unit)
+!   endif
+!   if(ed_verbose>=2)call print_state_list(LOGfile)
+!   !
+!   zeta_function=0d0
+!   Egs = state_list%emin
+!   if(finiteT)then
+!      do i=1,state_list%size
+!         ei   = es_return_energy(state_list,i)
+!         zeta_function = zeta_function + exp(-beta*(Ei-Egs))
+!      enddo
+!   else
+!      zeta_function=real(state_list%size,8)
+!   end if
+!   !
+!   !
+!   numgs=es_return_gs_degeneracy(state_list,gs_threshold)
+!   ! if(numgs>Nsectors)stop "ED_POST_DIAG_NORMAL: Deg(GS) > Nsectors!"
+!   if(MPIMASTER.AND.ed_verbose>=2)then
+!      do istate=1,numgs
+!         isector = es_return_sector(state_list,istate)
+!         Egs     = es_return_energy(state_list,istate)
+!         call get_Nup(isector,Nups)
+!         call get_Ndw(isector,Ndws)
+!         write(LOGfile,"(A,F20.12,"//str(Ns_Ud)//"I4,"//str(Ns_Ud)//"I4)")'Egs =',Egs,nups,ndws
+!      enddo
+!      write(LOGfile,"(A,F20.12)")'Z   =',zeta_function
+!   endif
+!   !
+!   !
+!   !
+!   if(finiteT)then
+!      !check if the number of states is enough to reach the required accuracy:
+!      !the condition to fullfill is:
+!      ! exp(-beta(Ec-Egs)) < \epsilon_c
+!      ! if this condition is violated then required number of states is increased
+!      ! if number of states is larger than those required to fullfill the cutoff: 
+!      ! trim the list and number of states.
+!      Egs  = state_list%emin
+!      Ec   = state_list%emax
+!      Nsize= state_list%size
+!      if(exp(-beta*(Ec-Egs)) > cutoff)then
+!         if(MPIMASTER)write(LOGfile,"(A,I4)")"Must Increase lanc_nstates_total:",lanc_nstates_total
+!      else
+!         ! !Find the energy level beyond which cutoff condition is verified & cut the list to that size
+!         write(LOGfile,*)
+!         isector = es_return_sector(state_list,state_list%size)
+!         Ei      = es_return_energy(state_list,state_list%size)
+!         do while ( exp(-beta*(Ei-Egs)) <= cutoff )
+!            if(ed_verbose>=1.AND.MPIMASTER)write(LOGfile,"(A,I4,I5)")"Trimming state:",isector,state_list%size
+!            call es_pop_state(state_list)
+!            isector = es_return_sector(state_list,state_list%size)
+!            Ei      = es_return_energy(state_list,state_list%size)
+!         enddo
+!         if(ed_verbose>=1.AND.MPIMASTER)then
+!            write(LOGfile,*)"Trimmed state list:"          
+!            call print_state_list(LOGfile)
+!         endif
+!         !
+!         lanc_nstates_total=state_list%size
+!         write(LOGfile,"(A,I4)")"Adjusting lanc_nstates_total to:",lanc_nstates_total
+!         !
+!      endif
+!   endif
+! end subroutine ed_post_diag

@@ -49,16 +49,16 @@ contains
     if(MPIMASTER)then
        do iorb=1,Norb
           suffix="OptCond"//"_l"//str(iorb)
-          call splot(reg(suffix)//"_realw.ed",vr,OptCond_w(iorb,:))
+          call splot(reg(suffix)//"_realw"//reg(ed_file_suffix)//".ed",vr,OptCond_w(iorb,:))
        enddo
        !
        unit = free_unit()
-       open(unit,file="drude_weight.ed")
+       open(unit,file="drude_weight"//reg(ed_file_suffix)//".ed")
        write(unit,"(10(F15.9,1X))")(Drude_weight(iorb),iorb=1,Norb)
        close(unit)
        !
        unit = free_unit()
-       open(unit,file="drude1.ed")
+       open(unit,file="drude1"//reg(ed_file_suffix)//".ed")
        write(unit,"(10(F15.9,1X))")(D(iorb),iorb=1,Norb)
        close(unit)
     endif

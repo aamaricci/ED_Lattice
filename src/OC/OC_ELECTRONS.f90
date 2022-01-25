@@ -51,6 +51,7 @@ contains
        end select
        if(MPIMASTER)call stop_timer(unit=LOGfile)
     enddo
+    deallocate(Hij)
     !
   end subroutine build_oc_electrons
 
@@ -79,7 +80,8 @@ contains
     type(sector)       :: sectorI
     !
     !
-    do istate=1,state_list%size
+    call es_trim_size(state_list,beta,cutoff)
+    do istate=1,state_list%trimd_size
        isector    =  es_return_sector(state_list,istate)
        state_e    =  es_return_energy(state_list,istate)
 #ifdef _MPI

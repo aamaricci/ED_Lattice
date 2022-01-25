@@ -25,6 +25,7 @@ module ED_EIGENSPACE
 
   type sparse_espace
      integer                      :: size
+     integer                      :: trimd_size
      real(8)                      :: emax,emin
      logical                      :: status=.false.
      type(sparse_estate),pointer  :: root=>null()       !head/root of the list\== list itself
@@ -62,6 +63,8 @@ module ED_EIGENSPACE
   public :: es_add_state        !add a state w/ costraint        !checked
   public :: es_pop_state        !pop a state                     !checked
   !
+  public :: es_trim_size        !return trimmed size (i: e**(Ei-E0)<err)
+  !
   public :: es_return_sector       !get the sector of a state       !checked
   public :: es_return_energy       !get the energy of a state       !checked
   public :: es_return_cvector      !get the vector of a state       !checked
@@ -94,8 +97,10 @@ contains        !some routine to perform simple operation on the lists
     space%status=.true.
     space%root%next => null()
     space%size=0
+    space%trimd_size=0
     space%emax=-huge(1d0)
     space%emin= huge(1d0)
+    
   end function es_init_espace
 
 
@@ -146,6 +151,9 @@ contains        !some routine to perform simple operation on the lists
     space%emin=huge(1.d0)
     if(associated(p))nullify(p)
   end subroutine es_free_espace
+
+
+
 
 
 
@@ -391,6 +399,8 @@ contains        !some routine to perform simple operation on the lists
 
 
 
+
+
   !+------------------------------------------------------------------+
   !PURPOSE  : 
   !+------------------------------------------------------------------+
@@ -417,6 +427,50 @@ contains        !some routine to perform simple operation on the lists
     endif
     if(associated(c))nullify(c)
   end function es_return_energy
+
+  !+------------------------------------------------------------------+
+  !PURPOSE  :
+  !check if the number of states is enough to reach the required accuracy:
+  !the condition to fullfill is:
+  ! exp(-beta(Ec-Egs)) < \epsilon_c
+  ! if this condition is violated then required number of states is increased
+  ! if number of states is larger than those required to fullfill the cutoff: 
+  ! trim the list and number of states.
+  !+------------------------------------------------------------------+
+  subroutine es_trim_size(space,beta,cutoff) 
+    type(sparse_espace),intent(inout) :: space
+    real(8),intent(in)             :: beta,cutoff
+    integer                        :: size
+    real(8)                        :: Egs,Ei,Ec
+    integer                        :: isector,pos
+    type(sparse_estate),pointer    :: c
+    integer                        :: i
+    !
+    if(.not.space%status) stop "es_return_size: espace not allocated"
+    !
+    Egs  = space%emin
+    Ec   = space%emax
+    !
+    if(exp(-beta*(Ec-Egs)) > cutoff)stop "es_return_size: exp(-beta*(Ei-Egs))>Cutoff condition not met, try increasing lanc_nstates_sector"
+    !
+    c => space%root
+    pos = 0
+    do
+       c => c%next
+       pos = pos+1
+       if(.not.associated(c))exit
+       if(.not.c%itwin)then
+          Ei = c%e
+       else
+          Ei = c%twin%e
+       endif
+       if( exp(-beta*(Ei-Egs)) <= cutoff )exit
+    enddo
+    space%trimd_size = pos-1
+    if(space%trimd_size==0)stop "es_return_size: list does not contain any node"    
+    if(associated(c))nullify(c)
+  end subroutine es_trim_size
+
 
 
 
@@ -530,6 +584,8 @@ contains        !some routine to perform simple operation on the lists
     if(associated(c))nullify(c)
   end function es_return_cvector_mpi
 #endif
+
+
 
 
 
