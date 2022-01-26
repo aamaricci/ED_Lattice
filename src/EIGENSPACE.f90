@@ -447,31 +447,27 @@ contains        !some routine to perform simple operation on the lists
     integer                        :: i
     !
     if(.not.space%status) stop "es_return_size: espace not allocated"
-    if(finiteT)then
-       Egs  = space%emin
-       Ec   = space%emax
-       !
-       if(exp(-(Ec-Egs)/temp) > cutoff)stop "es_return_size: exp(-(Ei-Egs)/T)>Cutoff condition not met, try increasing lanc_nstates_sector"
-       !
-       c => space%root
-       pos = 0
-       do
-          c => c%next
-          pos = pos+1
-          if(.not.associated(c))exit
-          if(.not.c%itwin)then
-             Ei = c%e
-          else
-             Ei = c%twin%e
-          endif
-          if( exp(-(Ei-Egs)/temp) <= cutoff )exit
-       enddo
-       space%trimd_size = pos-1
-       if(space%trimd_size==0)stop "es_return_size: list does not contain any node"    
-       if(associated(c))nullify(c)
-    else
-       space%trimd_size=space%size
-    endif
+    space%trimd_size=space%size
+    if(.not.finiteT)return
+    Egs  = space%emin
+    Ec   = space%emax
+    !
+    c => space%root
+    pos = 0
+    do
+       c => c%next
+       pos = pos+1
+       if(.not.associated(c))exit
+       if(.not.c%itwin)then
+          Ei = c%e
+       else
+          Ei = c%twin%e
+       endif
+       if( exp(-(Ei-Egs)/temp) <= cutoff )exit
+    enddo
+    space%trimd_size = pos-1
+    if(space%trimd_size==0)stop "es_return_size: list does not contain any node"    
+    if(associated(c))nullify(c)
   end subroutine es_trim_size
 
 
