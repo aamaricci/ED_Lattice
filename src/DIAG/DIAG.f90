@@ -328,18 +328,15 @@ contains
        ! trim the list and number of states.
        Egs  = state_list%emin
        Ec   = state_list%emax
-       if(exp(-(Ec-Egs)/temp) > cutoff)then
-          if(MPIMASTER)write(LOGfile,"(A,I4)")"Must Increase lanc_nstates_total:",lanc_nstates_total
-       else
-          write(LOGfile,*)
+       if(exp(-(Ec-Egs)/temp) > cutoff)stop "ED_DIAG:  exp(-(Ei-Egs)/T)>Cutoff condition not met, try increasing lanc_nstates_sector"
+       write(LOGfile,*)
+       Ei = es_return_energy(state_list,state_list%size)
+       do while ( exp(-(Ei-Egs)/temp) <= cutoff )
+          call es_pop_state(state_list)
           Ei = es_return_energy(state_list,state_list%size)
-          do while ( exp(-(Ei-Egs)/temp) <= cutoff )
-             call es_pop_state(state_list)
-             Ei = es_return_energy(state_list,state_list%size)
-          enddo
-          write(LOGfile,"(A,I4)")"Adjusting lanc_nstates_total to:",state_list%size
-          !
-       endif
+       enddo
+       write(LOGfile,"(A,I4)")"Adjusting lanc_nstates_total to:",state_list%size
+       !
     endif
   end subroutine ed_diag_d
 
