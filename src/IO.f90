@@ -136,21 +136,23 @@ contains
   end subroutine ed_print_impG0
 
 
-  !+------------------------------------------------------------------+
-  !                         PRINT CHI:
-  !+------------------------------------------------------------------+  
+
   subroutine ed_print_impChi
-    if(chispin_flag)call print_chi_spin
+    if(any(chispin_flag))call print_chi_spin
     ! if(chidens_flag)call print_chi_dens
     ! if(chipair_flag)call print_chi_pair
     ! if(chiexct_flag)call print_chi_exct
   end subroutine ed_print_impChi
+
+
+  
 
   !                         SPIN-SPIN
   subroutine print_chi_spin
     integer :: iorb,jorb,ilat,jlat,io,jo
     call allocate_grids()
     do iorb=1,Norb
+       if(.not.chispin_flag(iorb))cycle
        do ilat=1,Nsites(iorb)
           io = pack_indices(ilat,iorb)
           suffix="spinChi"//&
@@ -164,6 +166,7 @@ contains
     if(offdiag_chispin_flag.AND.Norb>1)then
        do iorb=1,Norb
           do jorb=1,Norb
+             if(.not.chispin_flag(iorb).AND..not.chispin_flag(jorb))cycle
              do ilat=1,Nsites(iorb)
                 do jlat=1,Nsites(jorb)
                    io  = pack_indices(ilat,iorb)

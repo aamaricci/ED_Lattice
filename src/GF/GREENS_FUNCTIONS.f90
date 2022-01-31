@@ -17,6 +17,8 @@ MODULE ED_GREENS_FUNCTIONS
   private 
 
   public :: build_gf_lattice
+  public :: eval_gf_lattice
+
   logical,save                       :: iolegend=.true.
   real(8),dimension(:,:),allocatable :: zimp,simp
 contains
@@ -26,6 +28,17 @@ contains
   ! GF CALCULATIONS
   !+------------------------------------------------------------------+
   subroutine build_gf_lattice()
+    !
+    write(LOGfile,"(A)")"Build lattice Greens functions:"
+    call build_gf_normal()
+    !
+    if(MPIMASTER)&
+         call write_GFmatrix(impGmatrix,"gfmatrix"//str(ed_file_suffix)//".restart")
+  end subroutine build_gf_lattice
+
+
+
+  subroutine eval_gf_lattice()
     !
     call allocate_grids
     !
@@ -38,9 +51,9 @@ contains
     impG0mats=zero
     impG0real=zero
     !
-    write(LOGfile,"(A)")"Get impurity Greens functions:"
-    call build_gf_normal()
-    call build_sigma_normal()
+    write(LOGfile,"(A)")"Eval lattice Greens functions:"
+    call eval_gf_normal()
+    call eval_sigma_normal()
     !
     if(MPIMASTER)then
        if(ed_print_Sigma)call ed_print_impSigma()
@@ -52,8 +65,7 @@ contains
     !
     call deallocate_grids
     !
-  end subroutine build_gf_lattice
-
+  end subroutine eval_gf_lattice
 
 
 

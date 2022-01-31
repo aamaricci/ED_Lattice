@@ -15,7 +15,7 @@ MODULE ED_CHI_SPIN
 
 
   public :: build_chi_spin
-
+  public :: eval_chi_spin
   integer                         :: istate,iorb,jorb,ispin
   integer                         :: isector
   complex(8),allocatable          :: vvinit(:)
@@ -48,17 +48,75 @@ contains
     integer :: isite,jsite
     integer :: io,jo
     !
+    call deallocate_GFmatrix(SpinChiMatrix)
+    !
+    select case(ed_method)
+    case ('lapack','full')
+       !do nothing
+       return
+    case default
+       do iorb=1,Norb
+          if(.not.chispin_flag(iorb))cycle
+          do isite=1,Nsites(iorb)
+             io  = pack_indices(isite,iorb)
+             if(MPIMASTER)write(LOGfile,"(A)")"Build spinChi:"//&
+                  " site I"//str(isite,site_indx_padding)//&
+                  " orb M"//str(iorb)
+             if(MPIMASTER)call start_timer
+             call allocate_GFmatrix(SpinChiMatrix(io,io),Nstate=state_list%size)
+             call lanc_ed_build_spinChi_diag(isite,iorb)
+             if(MPIMASTER)call stop_timer(unit=LOGfile)
+          enddo
+       enddo
+       !
+       if(offdiag_chispin_flag.AND.Norb>1)then
+          do iorb=1,Norb
+             do jorb=1,Norb
+                if(.not.chispin_flag(iorb).AND..not.chispin_flag(jorb))cycle
+                do isite=1,Nsites(iorb)
+                   do jsite=1,Nsites(jorb)
+                      io  = pack_indices(isite,iorb)
+                      jo  = pack_indices(jsite,jorb)
+                      if(io==jo)cycle
+                      if(MPIMASTER)write(LOGfile,"(A)")"Build spinChi:"//&
+                           " sites I"//str(isite,site_indx_padding)//&
+                           "J"//str(jsite,site_indx_padding)//&
+                           " orb M"//str(iorb)//"L"//str(jorb)
+                      if(MPIMASTER)call start_timer
+                      call allocate_GFmatrix(SpinChiMatrix(io,jo),Nstate=state_list%size)
+                      call lanc_ed_build_spinChi_mix(isite,jsite,iorb,jorb)
+                      if(MPIMASTER)call stop_timer(unit=LOGfile)
+                   enddo
+                enddo
+             enddo
+          enddo
+       endif
+       !
+    end select
+  end subroutine build_chi_spin
+
+
+
+
+  subroutine eval_chi_spin()
+    integer :: ispin,i
+    integer :: iorb,jorb
+    integer :: isite,jsite
+    integer :: io,jo
+    !
     do iorb=1,Norb
+       if(.not.chispin_flag(iorb))cycle
        do isite=1,Nsites(iorb)
-          write(LOGfile,"(A)")"Get spinChi:"//&
+          if(MPIMASTER)write(LOGfile,"(A)")"Eval spinChi:"//&
                " site I"//str(isite,site_indx_padding)//&
                " orb M"//str(iorb)
+          io  = pack_indices(isite,iorb)
           if(MPIMASTER)call start_timer
           select case(ed_method)
           case default
-             call lanc_ed_build_spinChi_diag(isite,iorb)
+             call lanc_ed_eval_spinChi(isite,isite,iorb,iorb)
           case ('lapack','full')
-             call full_ed_build_spinChi_main(isite,isite,iorb,iorb)
+             call full_ed_eval_spinChi(isite,isite,iorb,iorb)
           end select
           if(MPIMASTER)call stop_timer(unit=LOGfile)
        enddo
@@ -67,21 +125,22 @@ contains
     if(offdiag_chispin_flag.AND.Norb>1)then
        do iorb=1,Norb
           do jorb=1,Norb
+             if(.not.chispin_flag(iorb).AND..not.chispin_flag(jorb))cycle
              do isite=1,Nsites(iorb)
                 do jsite=1,Nsites(jorb)
                    io  = pack_indices(isite,iorb)
                    jo  = pack_indices(jsite,jorb)
                    if(io==jo)cycle
-                   write(LOGfile,"(A)")"Get spinChi:"//&
+                   if(MPIMASTER)write(LOGfile,"(A)")"Eval spinChi:"//&
                         " sites I"//str(isite,site_indx_padding)//&
                         "J"//str(jsite,site_indx_padding)//&
                         " orb M"//str(iorb)//"L"//str(jorb)
                    if(MPIMASTER)call start_timer
                    select case(ed_method)
                    case default
-                      call lanc_ed_build_spinChi_mix(isite,jsite,iorb,jorb)
+                      call lanc_ed_eval_spinChi(isite,jsite,iorb,jorb)
                    case ('lapack','full')
-                      call full_ed_build_spinChi_main(isite,isite,iorb,iorb)
+                      call full_ed_eval_spinChi(isite,isite,iorb,iorb)
                    end select
                    if(MPIMASTER)call stop_timer(unit=LOGfile)
                 enddo
@@ -90,22 +149,26 @@ contains
        enddo
        !
        !
-       do io=1,Ns
-          do jo=1,Ns
-             if(io==jo)cycle
-             spinChi_w(io,jo,:)   = 0.5d0*(spinChi_w(io,jo,:) - spinChi_w(io,io,:) - spinChi_w(jo,jo,:))
-             spinChi_tau(io,jo,:) = 0.5d0*(spinChi_tau(io,jo,:) - spinChi_tau(io,io,:) - spinChi_tau(jo,jo,:))
-             spinChi_iv(io,jo,:)  = 0.5d0*(spinChi_iv(io,jo,:) - spinChi_iv(io,io,:) - spinChi_iv(jo,jo,:))
-             !
-             spinChi_w(jo,io,:)   = spinChi_w(io,jo,:)
-             spinChi_tau(jo,io,:) = spinChi_tau(io,jo,:)
-             spinChi_iv(jo,io,:)  = spinChi_iv(io,jo,:)
+       select case(ed_method)
+       case default
+          do io=1,Ns
+             do jo=1,Ns
+                if(io==jo)cycle
+                spinChi_w(io,jo,:)   = 0.5d0*(spinChi_w(io,jo,:) - spinChi_w(io,io,:) - spinChi_w(jo,jo,:))
+                spinChi_tau(io,jo,:) = 0.5d0*(spinChi_tau(io,jo,:) - spinChi_tau(io,io,:) - spinChi_tau(jo,jo,:))
+                spinChi_iv(io,jo,:)  = 0.5d0*(spinChi_iv(io,jo,:) - spinChi_iv(io,io,:) - spinChi_iv(jo,jo,:))
+                !
+                spinChi_w(jo,io,:)   = spinChi_w(io,jo,:)
+                spinChi_tau(jo,io,:) = spinChi_tau(io,jo,:)
+                spinChi_iv(jo,io,:)  = spinChi_iv(io,jo,:)
+             enddo
           enddo
-       enddo
+       case ('lapack','full')
+          continue
+       end select
     endif
     !
-  end subroutine build_chi_spin
-
+  end subroutine eval_chi_spin
 
 
 
@@ -129,8 +192,10 @@ contains
     ialfa = 1
     io    = pack_indices(isite,iorb)
     !
-    call es_trim_size(state_list,temp,cutoff)
-    do istate=1,state_list%trimd_size
+    do istate=1,state_list%size
+       !
+       call allocate_GFmatrix(SpinChiMatrix(io,io),istate,Nchan=1)
+       !
        isector    =  es_return_sector(state_list,istate)
        state_e    =  es_return_energy(state_list,istate)
 #ifdef _MPI
@@ -158,7 +223,7 @@ contains
        endif
        !
        call tridiag_Hv_sector(isector,vvinit,alfa_,beta_,norm2)
-       call add_to_lanczos_spinChi(norm2,state_e,alfa_,beta_,io,io)
+       call add_to_lanczos_spinChi(norm2,state_e,alfa_,beta_,io,io,ichan=1,istate=istate)
        deallocate(alfa_,beta_)
        if(allocated(vvinit))deallocate(vvinit)
        !
@@ -194,8 +259,10 @@ contains
     io  = pack_indices(isite,iorb)
     jo  = pack_indices(jsite,jorb)
     !
-    call es_trim_size(state_list,temp,cutoff)
-    do istate=1,state_list%trimd_size
+    do istate=1,state_list%size
+       !
+       call allocate_GFmatrix(SpinChiMatrix(io,jo),istate,Nchan=1)
+       !
        isector    =  es_return_sector(state_list,istate)
        state_e    =  es_return_energy(state_list,istate)
 #ifdef _MPI
@@ -227,7 +294,7 @@ contains
        endif
        !
        call tridiag_Hv_sector(isector,vvinit,alfa_,beta_,norm2)
-       call add_to_lanczos_spinChi(norm2,state_e,alfa_,beta_,io,jo)
+       call add_to_lanczos_spinChi(norm2,state_e,alfa_,beta_,io,jo,ichan=1,istate=istate)
        deallocate(alfa_,beta_)
        if(allocated(vvinit))deallocate(vvinit)
        !
@@ -251,12 +318,12 @@ contains
   !################################################################
 
 
-  subroutine add_to_lanczos_spinChi(vnorm2,Ei,alanc,blanc,io,jo)
+  subroutine add_to_lanczos_spinChi(vnorm2,Ei,alanc,blanc,io,jo,ichan,istate)
     real(8)                                    :: vnorm2,Ei,Ej,Egs,pesoF,pesoAB,pesoBZ,de,peso,beta
     integer                                    :: nlanc
     real(8),dimension(:)                       :: alanc
     real(8),dimension(size(alanc))             :: blanc 
-    integer                                    :: io,jo
+    integer                                    :: io,jo,ichan,istate
     real(8),dimension(size(alanc),size(alanc)) :: Z
     real(8),dimension(size(alanc))             :: diag,subdiag
     integer                                    :: i,j,ierr
@@ -266,10 +333,10 @@ contains
     !
     Nlanc = size(alanc)
     !
-    beta   = 1d0/temp
-    pesoF  = vnorm2/zeta_function 
-    pesoBZ = 1d0
-    if(finiteT)pesoBZ = exp(-(Ei-Egs)*beta)
+    pesoF  = vnorm2
+    ! beta   = 1d0/temp
+    ! pesoBZ = 1d0/zeta_function
+    ! if(finiteT)pesoBZ = exp(-(Ei-Egs)*beta)/zeta_function
     !
 #ifdef _MPI
     if(MpiStatus)then
@@ -281,33 +348,39 @@ contains
     subdiag(2:Nlanc) = blanc(2:Nlanc)
     call eigh(diag(1:Nlanc),subdiag(2:Nlanc),Ev=Z(:Nlanc,:Nlanc))
     !
+    call allocate_GFmatrix(SpinChiMatrix(io,jo),istate,ichan,Nlanc)
+    !
     do j=1,nlanc
        Ej     = diag(j)
        dE     = Ej-Ei
        pesoAB = Z(1,j)*Z(1,j)
-       peso   = pesoF*pesoAB*pesoBZ
-       ! the correct behavior for beta*dE << 1 is recovered only by assuming that v_n is still finite
-       ! beta*dE << v_n for v_n--> 0 slower. First limit beta*dE--> 0 and only then v_n -->0.
-       ! This ensures that the correct null contribution is obtained.
-       ! So we impose that: if (beta*dE is larger than a small qty) we sum up the contribution, else
-       ! we do not include the contribution (because we are in the situation described above).
-       ! For the real-axis case this problem is circumvented by the usual i*0+ = xi*eps
-       if(beta*dE > 1d-3)spinChi_iv(io,jo,0)=spinChi_iv(io,jo,0) + peso*2*(1d0-exp(-beta*dE))/dE 
-       do i=1,Lmats
-          spinChi_iv(io,jo,i)=spinChi_iv(io,jo,i) + peso*(1d0-exp(-beta*dE))*2d0*dE/(vm(i)**2+dE**2)
-       enddo
-       !Symmetrize for low-T /large-beta, mostly occurring for zero T calculations
-       do i=0,Ltau/2-1
-          spinChi_tau(io,jo,i)=spinChi_tau(io,jo,i) + peso*exp(-tau(i)*dE)
-       enddo
-       spinChi_tau(io,jo,Ltau/2)=spinChi_tau(io,jo,Ltau/2) + peso*0.5d0*(exp(-tau(Ltau/2)*dE)+exp(-(beta-tau(Ltau/2))*dE))
-       do i=Ltau/2+1,Ltau
-          spinChi_tau(io,jo,i)=spinChi_tau(io,jo,i) + peso*exp(-(beta-tau(i))*dE)
-       enddo
+       peso   = pesoF*pesoAB!*pesoBZ
        !
-       do i=1,Lreal
-          spinChi_w(io,jo,i)=spinChi_w(io,jo,i) - peso*(1d0-exp(-beta*dE))*(1d0/(dcmplx(vr(i),eps) - dE) - 1d0/(dcmplx(vr(i),eps) + dE))
-       enddo
+       SpinChiMatrix(io,jo)%state(istate)%channel(ichan)%weight(j) = peso
+       SpinChiMatrix(io,jo)%state(istate)%channel(ichan)%poles(j)  = de
+       !
+       ! ! the correct behavior for beta*dE << 1 is recovered only by assuming that v_n is still finite
+       ! ! beta*dE << v_n for v_n--> 0 slower. First limit beta*dE--> 0 and only then v_n -->0.
+       ! ! This ensures that the correct null contribution is obtained.
+       ! ! So we impose that: if (beta*dE is larger than a small qty) we sum up the contribution, else
+       ! ! we do not include the contribution (because we are in the situation described above).
+       ! ! For the real-axis case this problem is circumvented by the usual i*0+ = xi*eps
+       ! if(beta*dE > 1d-3)spinChi_iv(io,jo,0)=spinChi_iv(io,jo,0) + peso*2*(1d0-exp(-beta*dE))/dE 
+       ! do i=1,Lmats
+       !    spinChi_iv(io,jo,i)=spinChi_iv(io,jo,i) + peso*(1d0-exp(-beta*dE))*2d0*dE/(vm(i)**2+dE**2)
+       ! enddo
+       ! !Symmetrize for low-T /large-beta, mostly occurring for zero T calculations
+       ! do i=0,Ltau/2-1
+       !    spinChi_tau(io,jo,i)=spinChi_tau(io,jo,i) + peso*exp(-tau(i)*dE)
+       ! enddo
+       ! spinChi_tau(io,jo,Ltau/2)=spinChi_tau(io,jo,Ltau/2) + peso*0.5d0*(exp(-tau(Ltau/2)*dE)+exp(-(beta-tau(Ltau/2))*dE))
+       ! do i=Ltau/2+1,Ltau
+       !    spinChi_tau(io,jo,i)=spinChi_tau(io,jo,i) + peso*exp(-(beta-tau(i))*dE)
+       ! enddo
+       ! !
+       ! do i=1,Lreal
+       !    spinChi_w(io,jo,i)=spinChi_w(io,jo,i) - peso*(1d0-exp(-beta*dE))*(1d0/(dcmplx(vr(i),eps) - dE) - 1d0/(dcmplx(vr(i),eps) + dE))
+       ! enddo
     enddo
   end subroutine add_to_lanczos_spinChi
 
@@ -322,8 +395,85 @@ contains
 
 
 
+  subroutine lanc_ed_eval_spinChi(isite,jsite,iorb,jorb)
+    integer,intent(in) :: isite,jsite,iorb,jorb
+    integer            :: Nstates,istate
+    integer            :: Nchannels,ichan
+    integer            :: Nexcs,iexc,io,jo
+    real(8)            :: peso,de,pesoBZ,beta,Ei,Egs
+    !
+    io  = pack_indices(isite,iorb)
+    jo  = pack_indices(jsite,jorb)
+    !    
+    if(.not.allocated(SpinChiMatrix(io,jo)%state)) then
+       print*, "GF_NORMAL WARNING: SpinChiMatrix%state not allocated. Nothing to do"
+       return
+    endif
+    !
+    beta= 1d0/temp
+    Egs = state_list%emin
+    pesoBZ = 1d0/zeta_function
+    !
+    !this is the total number of available states  == state_list%size
+    Nstates = size(SpinChiMatrix(io,jo)%state) 
+    !Get trimmed state for the actual value of temp == state_list%trimd_size
+    call es_trim_size(state_list,temp,cutoff) 
+    do istate=1,state_list%trimd_size     !Nstates
+       if(.not.allocated(SpinChiMatrix(io,jo)%state(istate)%channel))cycle
+       Ei =  es_return_energy(state_list,istate)
+       if(finiteT)pesoBZ = exp(-beta*(Ei-Egs))/zeta_function
+       Nchannels = size(SpinChiMatrix(io,jo)%state(istate)%channel)
+       do ichan=1,Nchannels
+          Nexcs  = size(SpinChiMatrix(io,jo)%state(istate)%channel(ichan)%poles)
+          if(Nexcs==0)cycle
+          do iexc=1,Nexcs
+             peso  = SpinChiMatrix(io,jo)%state(istate)%channel(ichan)%weight(iexc)
+             peso  = peso*pesoBZ
+             dE    = SpinChiMatrix(io,jo)%state(istate)%channel(ichan)%poles(iexc)
 
-  subroutine full_ed_build_spinChi_main(isite,jsite,iorb,jorb)
+             ! the correct behavior for beta*dE << 1 is recovered only by assuming that v_n is still finite
+             ! beta*dE << v_n for v_n--> 0 slower. First limit beta*dE--> 0 and only then v_n -->0.
+             ! This ensures that the correct null contribution is obtained.
+             ! So we impose that: if (beta*dE is larger than a small qty) we sum up the contribution, else
+             ! we do not include the contribution (because we are in the situation described above).
+             ! For the real-axis case this problem is circumvented by the usual i*0+ = xi*eps
+             if(beta*dE > 1d-3)spinChi_iv(io,jo,0)=spinChi_iv(io,jo,0) + 2*peso*(1d0-exp(-beta*dE))/dE 
+             do i=1,Lmats
+                spinChi_iv(io,jo,i)=spinChi_iv(io,jo,i) + peso*(1d0-exp(-beta*dE))*2d0*dE/(vm(i)**2+dE**2)
+             enddo
+             !Symmetrize for low-T /large-beta, mostly occurring for zero T calculations
+             do i=0,Ltau/2-1
+                spinChi_tau(io,jo,i)=spinChi_tau(io,jo,i) + peso*exp(-tau(i)*dE)
+             enddo
+             spinChi_tau(io,jo,Ltau/2)=spinChi_tau(io,jo,Ltau/2) + peso*0.5d0*(exp(-tau(Ltau/2)*dE)+exp(-(beta-tau(Ltau/2))*dE))
+             do i=Ltau/2+1,Ltau
+                spinChi_tau(io,jo,i)=spinChi_tau(io,jo,i) + peso*exp(-(beta-tau(i))*dE)
+             enddo
+             !
+             do i=1,Lreal
+                spinChi_w(io,jo,i)=spinChi_w(io,jo,i) - peso*(1d0-exp(-beta*dE))*(1d0/(dcmplx(vr(i),eps) - dE) - 1d0/(dcmplx(vr(i),eps) + dE))
+             enddo
+          enddo
+       enddo
+    enddo
+    return
+  end subroutine lanc_ed_eval_spinChi
+
+
+
+
+
+  !############################################################################################
+  !############################################################################################
+  !############################################################################################
+  !############################################################################################
+  !############################################################################################
+  !############################################################################################
+
+
+
+
+  subroutine full_ed_eval_spinChi(isite,jsite,iorb,jorb)
     integer      :: isite,jsite,iorb,jorb
     integer      :: io,jo
     type(sector) :: sectorI,sectorJ
@@ -393,7 +543,7 @@ contains
        enddo
        call delete_sector(sectorI)
     enddo
-  end subroutine full_ed_build_spinChi_main
+  end subroutine full_ed_eval_spinChi
 
 
 

@@ -19,25 +19,42 @@ MODULE ED_OC_FUNCTIONS
   private 
 
   public :: build_oc_lattice
+  public :: eval_oc_lattice
 
 contains
 
 
   !+------------------------------------------------------------------+
-  ! SUSCEPTIBILITY CALCULATIONS
+  ! OC DRUDE CALCULATIONS
   !+------------------------------------------------------------------+
   subroutine build_oc_lattice()
     integer :: iorb,unit
     real(8) :: K,D(Norb)
     character(len=32) :: suffix
     !
+    write(LOGfile,"(A)")"Build lattice OC Drude:"
 
+    call build_oc_electrons()
+    !
+    if(MPIMASTER)&
+         call write_GFmatrix(OcMatrix,"OcMatrix"//str(ed_file_suffix)//".restart")
+  end subroutine build_oc_lattice
+
+
+
+
+  subroutine eval_oc_lattice()
+    integer :: iorb,unit
+    real(8) :: K,D(Norb)
+    character(len=32) :: suffix
+    !
     call allocate_grids
     !
-    !BUILD OC
     Drude_weight = zero
     OptCond_w    = zero
-    call build_oc_electrons()
+    !
+    write(LOGfile,"(A)")"Eval lattice OC Drude:"
+    call eval_oc_electrons()
     !
     K = -ed_Ekin
     D = Drude_weight
@@ -64,8 +81,7 @@ contains
     endif
     call deallocate_grids
     !
-  end subroutine build_oc_lattice
-
+  end subroutine eval_oc_lattice
 
 
 

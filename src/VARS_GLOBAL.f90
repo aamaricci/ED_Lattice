@@ -171,7 +171,7 @@ MODULE ED_VARS_GLOBAL
   complex(8),allocatable,dimension(:,:,:,:)        :: impGreal
   complex(8),allocatable,dimension(:,:,:,:)        :: impG0mats
   complex(8),allocatable,dimension(:,:,:,:)        :: impG0real
-  type(GFmatrix),allocatable,dimension(:,:,:,:)    :: impGmatrix    
+  type(GFmatrix),allocatable,dimension(:,:,:)      :: ImpGMatrix    
 
 
   !Spin Susceptibilities
@@ -179,7 +179,7 @@ MODULE ED_VARS_GLOBAL
   real(8),allocatable,dimension(:,:,:)             :: spinChi_tau
   complex(8),allocatable,dimension(:,:,:)          :: spinChi_w
   complex(8),allocatable,dimension(:,:,:)          :: spinChi_iv
-  type(GFmatrix),allocatable,dimension(:,:)        :: spinChimatrix
+  type(GFmatrix),allocatable,dimension(:,:)        :: SpinChiMatrix
 
 
   ! !Diagonal/Off-diagonal charge-charge Susceptibilities
@@ -218,7 +218,7 @@ MODULE ED_VARS_GLOBAL
 
   real(8),allocatable,dimension(:)                 :: Drude_weight
   real(8),allocatable,dimension(:,:)               :: OptCond_w
-  type(GFmatrix),allocatable,dimension(:,:)        :: DMatrix
+  type(GFmatrix),allocatable,dimension(:)          :: OcMatrix
 
   real(8),dimension(:),allocatable                 :: temperature_list
 
@@ -329,9 +329,6 @@ contains
   subroutine allocate_gfmatrix_Nstate(self,Nstate)
     type(GFmatrix) :: self
     integer        :: Nstate
-#ifdef _DEBUG
-    if(ed_verbose>2)write(Logfile,"(A)")"DEBUG allocate_gfmatrix_Nstate: allocate self"
-#endif
     if(allocated(self%state))deallocate(self%state)
     allocate(self%state(Nstate))
     self%status=.true.
@@ -340,9 +337,6 @@ contains
   subroutine allocate_gfmatrix_Nchan(self,istate,Nchan)
     type(GFmatrix) :: self
     integer        :: istate,Nchan
-#ifdef _DEBUG
-    if(ed_verbose>3)write(Logfile,"(A)")"DEBUG allocate_gfmatrix_Nchan: allocate self, istate:"//str(istate)
-#endif
     if(allocated(self%state(istate)%channel))deallocate(self%state(istate)%channel)
     allocate(self%state(istate)%channel(Nchan))
 
@@ -353,9 +347,6 @@ contains
     type(GFmatrix) :: self
     integer        :: istate,ichan
     integer        :: Nexc
-#ifdef _DEBUG
-    if(ed_verbose>4)write(Logfile,"(A,2I8)")"DEBUG allocate_gfmatrix_Nchan: allocate self, istate:"//str(istate)//", ichan:"//str(ichan)
-#endif
     if(allocated(self%state(istate)%channel(ichan)%weight))&
          deallocate(self%state(istate)%channel(ichan)%weight)
     if(allocated(self%state(istate)%channel(ichan)%poles))&
@@ -372,9 +363,6 @@ contains
   subroutine deallocate_gfmatrix_single(self)
     type(GFmatrix) :: self
     integer        :: istate,ichan
-#ifdef _DEBUG
-    if(ed_verbose>3)write(Logfile,"(A)")"DEBUG deallocate_gfmatrix_single: deallocate self"
-#endif
     if(self%status)then
        do istate=1,size(self%state)
           if(allocated(self%state(istate)%channel))then
@@ -446,9 +434,6 @@ contains
     class(GFmatrix)    :: self
     character(len=*)   :: file
     integer            :: unit_
-#ifdef _DEBUG
-    if(ed_verbose>3)write(Logfile,"(A)")"DEBUG write_gfmatrix_single: write self"
-#endif
     unit_=free_unit()
     open(unit_,file=str(file))
     call write_formatted_gfmatrix(self,unit_)
@@ -530,9 +515,6 @@ contains
     character(len=*) :: file
     integer          :: unit_
     integer          :: i1,i2,i3,i4
-#ifdef _DEBUG
-    if(ed_verbose>4)write(Logfile,"(A)")"DEBUG reading_gfmatrix_single: reading self"
-#endif
     call deallocate_GFmatrix(self)
     unit_=free_unit()
     open(unit_,file=str(file))

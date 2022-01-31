@@ -70,7 +70,11 @@ contains
     call Hij_write(unit=LOGfile)
     !
     !SOLVE THE QUANTUM IMPURITY PROBLEM:
-    call diagonalize_lattice        !-> get state_list, independent of TEMP
+    call diagonalize_lattice            !-> store state_list, independent of TEMP
+    if(gf_flag)call build_gf_lattice    !-> store impGmatri
+    if(chi_flag)call build_chi_lattice  !-> store ChiSpinMatrix
+    if(any(oc_flag))call build_oc_lattice    !-> store OcMatrix
+    !
     do itemp=1,size(temperature_list)
        temp = temperature_list(itemp)
        if(size(temperature_list)>1)then
@@ -81,10 +85,9 @@ contains
        call partition_function_lattice !-> get trimmed state_list
        call observables_lattice        !-> get static observables
        call energy_lattice             !-> get energies 
-       !
-       if(gf_flag)call build_gf_lattice    !-> get gmatrix w/p
-       if(chi_flag)call build_chi_lattice
-       if(oc_flag)call build_oc_lattice
+       if(gf_flag)call eval_gf_lattice    !-> Eval GF
+       if(chi_flag)call eval_chi_lattice  !-> Eval Chi_spin
+       if(any(oc_flag))call eval_oc_lattice    !-> Eval Sigma(w), Drude
        ed_file_suffix=""
     enddo
     !

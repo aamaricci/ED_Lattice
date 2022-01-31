@@ -22,6 +22,7 @@ MODULE ED_CHI_FUNCTIONS
   private 
 
   public :: build_chi_lattice
+  public :: eval_chi_lattice
 
 contains
 
@@ -31,6 +32,22 @@ contains
   !+------------------------------------------------------------------+
   subroutine build_chi_lattice()
     !
+    !BUILD SPIN SUSCEPTIBILITY
+    if(any(chispin_flag))call build_chi_spin()
+    ! if(chidens_flag)call build_chi_dens()
+    ! if(chipair_flag)call build_chi_pair()
+    ! if(chiexct_flag)call build_chi_exct()
+    if(MPIMASTER)then
+       call write_GFmatrix(SpinChiMatrix,"ChiSpinMatrix"//str(ed_file_suffix)//".restart")
+    endif
+    !
+  end subroutine build_chi_lattice
+
+
+
+
+  subroutine eval_chi_lattice()
+    !
     call allocate_grids
     !
     !
@@ -38,27 +55,27 @@ contains
     spinChi_tau=zero
     spinChi_w=zero
     spinChi_iv=zero
-    if(chispin_flag)call build_chi_spin()
     !
-    !
-    ! !BUILD CHARGE SUSCEPTIBILITY
+    !BUILD CHARGE SUSCEPTIBILITY
     ! densChi_tau=zero
     ! densChi_w=zero
     ! densChi_iv=zero
-    ! if(chidens_flag)call build_chi_dens()
-    ! !
-    ! !
-    ! !BUILD PAIR SUSCEPTIBILITY
+    ! 
+    !BUILD PAIR SUSCEPTIBILITY
     ! pairChi_tau=zero
     ! pairChi_w=zero
     ! pairChi_iv=zero
-    ! if(chipair_flag)call build_chi_pair()
-    ! !
-    ! !BUILD EXCITON SUSCEPTIBILITY
+    ! 
+    !BUILD EXCITON SUSCEPTIBILITY
     ! exctChi_tau=zero
     ! exctChi_w=zero
     ! exctChi_iv=zero
-    ! if(chiexct_flag)call build_chi_exct()
+    !
+    !
+    if(any(chispin_flag))call eval_chi_spin()
+    ! if(chidens_flag)call eval_chi_dens()
+    ! if(chipair_flag)call eval_chi_pair()
+    ! if(chiexct_flag)call eval_chi_exct()
     !
     !
     !PRINTING:
@@ -66,8 +83,7 @@ contains
     !
     call deallocate_grids
     !
-  end subroutine build_chi_lattice
-
+  end subroutine eval_chi_lattice
 
 
 

@@ -15,6 +15,7 @@ MODULE ED_OC_ELECTRONS
 
 
   public :: build_oc_electrons
+  public :: eval_oc_electrons
 
   integer                                 :: istate,iorb,jorb,ispin
   integer                                 :: isector
@@ -37,24 +38,46 @@ contains
   subroutine build_oc_electrons()
     integer :: iorb
     !
-    allocate(Hij(Nspin,Ns,Ns))
-    call Hij_get(Hij)
-    do iorb=1,Norb
-       if(MPIMASTER)write(LOGfile,"(A)")"Get OC:"//&
-            " orb M"//str(iorb)
-       if(MPIMASTER)call start_timer
-       select case(ed_method)
-       case default
+    call deallocate_GFmatrix(OcMatrix)
+    !
+    select case(ed_method)
+    case ('lapack','full')
+       !do nothing
+       return
+    case default
+       allocate(Hij(Nspin,Ns,Ns))
+       call Hij_get(Hij)
+       do iorb=1,Norb
+          if(.not.oc_flag(iorb))cycle
+          if(MPIMASTER)write(LOGfile,"(A)")"Build OC:"//" orb M"//str(iorb)
+          if(MPIMASTER)call start_timer
+          call allocate_GFmatrix(OcMatrix(iorb),Nstate=state_list%size)
           call lanc_ed_build_oc(iorb)
-       case ('lapack','full')
-          call full_ed_build_oc(iorb)
-       end select
-       if(MPIMASTER)call stop_timer(unit=LOGfile)
-    enddo
-    deallocate(Hij)
+          if(MPIMASTER)call stop_timer(unit=LOGfile)
+       enddo
+       deallocate(Hij)
+    end select
     !
   end subroutine build_oc_electrons
 
+
+  subroutine eval_oc_electrons()
+    integer :: iorb
+    !
+    do iorb=1,Norb
+       if(.not.oc_flag(iorb))cycle
+       if(MPIMASTER)write(LOGfile,"(A)")"Eval OC:"//" orb M"//str(iorb)
+       if(MPIMASTER)call start_timer
+       select case(ed_method)
+       case default
+          call lanc_ed_eval_oc(iorb)
+       case ('lapack','full')
+          call full_ed_eval_oc(iorb)
+       end select
+       if(MPIMASTER)call stop_timer(unit=LOGfile)
+    enddo
+    !
+  end subroutine eval_oc_electrons
 
 
 
@@ -80,8 +103,10 @@ contains
     type(sector)       :: sectorI
     !
     !
-    call es_trim_size(state_list,temp,cutoff)
-    do istate=1,state_list%trimd_size
+    do istate=1,state_list%size
+       !
+       call allocate_GFmatrix(OcMatrix(iorb),istate,Nchan=1)
+       !
        isector    =  es_return_sector(state_list,istate)
        state_e    =  es_return_energy(state_list,istate)
 #ifdef _MPI
@@ -168,7 +193,7 @@ contains
        vvinit = -xi*vvinit
        !
        call tridiag_Hv_sector(isector,vvinit,alfa_,beta_,norm2)
-       call add_to_lanczos_oc(norm2,state_e,alfa_,beta_,iorb)
+       call add_to_lanczos_oc(norm2,state_e,alfa_,beta_,iorb,ichan=1,istate=istate)
        deallocate(alfa_,beta_)
        if(allocated(vvinit))deallocate(vvinit)
        !
@@ -192,12 +217,12 @@ contains
 
 
 
-  subroutine add_to_lanczos_oc(vnorm2,Ei,alanc,blanc,io)
+  subroutine add_to_lanczos_oc(vnorm2,Ei,alanc,blanc,io,ichan,istate)
     real(8)                                    :: vnorm2,Ei,Ej,Egs,pesoF,pesoAB,pesoBZ,de,peso
     integer                                    :: nlanc
     real(8),dimension(:)                       :: alanc
     real(8),dimension(size(alanc))             :: blanc 
-    integer                                    :: io
+    integer                                    :: io,ichan,istate
     real(8),dimension(size(alanc),size(alanc)) :: Z
     real(8),dimension(size(alanc))             :: diag,subdiag
     integer                                    :: i,j,ierr
@@ -207,9 +232,9 @@ contains
     !
     Nlanc = size(alanc)
     !
-    pesoF  = vnorm2/zeta_function 
-    pesoBZ = 1d0
-    if(finiteT)pesoBZ = exp(-(Ei-Egs)/temp)
+    pesoF  = vnorm2 
+    ! pesoBZ = 1d0/zeta_function
+    ! if(finiteT)pesoBZ = exp(-(Ei-Egs)/temp)/zeta_function
     !
 #ifdef _MPI
     if(MpiStatus)then
@@ -221,23 +246,77 @@ contains
     subdiag(2:Nlanc) = blanc(2:Nlanc)
     call eigh(diag(1:Nlanc),subdiag(2:Nlanc),Ev=Z(:Nlanc,:Nlanc))
     !
+    call allocate_GFmatrix(OcMatrix(io),istate,ichan,Nlanc)
+    !
     do j=1,nlanc
        Ej     = diag(j)
        dE     = Ej-Ei
        pesoAB = Z(1,j)*Z(1,j)
-       peso   = pesoF*pesoAB*pesoBZ
-       if( (isnan(peso/de)).OR.(isinfty(peso/de)) )cycle
-       if(abs(dE)<1d-12)cycle
-       Drude_weight(io) = Drude_weight(io) + peso/dE
-       do i=1,Lreal
-          OptCond_w(io,i)=OptCond_w(io,i) + peso/dE*eps/( (vr(i)-dE)**2 + eps**2 )
-       enddo
+       peso   = pesoF*pesoAB!*pesoBZ
+       !
+       OcMatrix(io)%state(istate)%channel(ichan)%weight(j) = peso
+       OcMatrix(io)%state(istate)%channel(ichan)%poles(j)  = de
+
     enddo
   end subroutine add_to_lanczos_oc
 
 
 
 
+  !################################################################
+  !################################################################
+  !################################################################
+  !################################################################
+
+
+
+  subroutine lanc_ed_eval_oc(iorb)
+    integer,intent(in) :: iorb
+    integer            :: Nstates,istate
+    integer            :: Nchannels,ichan
+    integer            :: Nexcs,iexc
+    real(8)            :: peso,de,pesoBZ,beta,Ei,Egs
+    !
+    !    
+    if(.not.allocated(OcMatrix(iorb)%state)) then
+       print*, "GF_NORMAL WARNING: OcMatrix%state not allocated. Nothing to do"
+       return
+    endif
+    !
+    beta= 1d0/temp
+    Egs = state_list%emin
+    pesoBZ = 1d0/zeta_function
+    !
+    !this is the total number of available states  == state_list%size
+    Nstates = size(OcMatrix(iorb)%state) 
+    !Get trimmed state for the actual value of temp == state_list%trimd_size
+    call es_trim_size(state_list,temp,cutoff) 
+    do istate=1,state_list%trimd_size     !Nstates
+       if(.not.allocated(OcMatrix(iorb)%state(istate)%channel))cycle
+       Ei =  es_return_energy(state_list,istate)
+       if(finiteT)pesoBZ = exp(-beta*(Ei-Egs))/zeta_function
+       Nchannels = size(OcMatrix(iorb)%state(istate)%channel)
+       do ichan=1,Nchannels
+          Nexcs  = size(OcMatrix(iorb)%state(istate)%channel(ichan)%poles)
+          if(Nexcs==0)cycle
+          do iexc=1,Nexcs
+             peso  = OcMatrix(iorb)%state(istate)%channel(ichan)%weight(iexc)
+             peso  = peso*pesoBZ
+             dE    = OcMatrix(iorb)%state(istate)%channel(ichan)%poles(iexc)
+             !
+             if( (isnan(peso/de)).OR.(isinfty(peso/de)) )cycle
+             if(abs(dE)<1d-12)cycle
+             Drude_weight(iorb) = Drude_weight(iorb) + peso/dE
+             do i=1,Lreal
+                OptCond_w(iorb,i)=OptCond_w(iorb,i) + peso/dE*eps/( (vr(i)-dE)**2 + eps**2 )
+             enddo
+          enddo
+       enddo
+    enddo
+    return
+  end subroutine lanc_ed_eval_oc
+
+
 
   !################################################################
   !################################################################
@@ -247,7 +326,7 @@ contains
 
 
 
-  subroutine full_ed_build_oc(iorb)
+  subroutine full_ed_eval_oc(iorb)
     integer      :: isite,jsite,iorb,jorb
     integer      :: io,jo,mup,mdw,iup,idw,jup,jdw
     type(sector) :: sectorI,sectorJ
@@ -357,7 +436,7 @@ contains
        call delete_sector(sectorI)
     enddo
 
-  end subroutine full_ed_build_oc
+  end subroutine full_ed_eval_oc
 
 
 

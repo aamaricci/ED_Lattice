@@ -153,6 +153,10 @@ contains
     impG0mats=zero
     impG0real=zero
     !
+    allocate(impGMatrix(Nspin,Ns,Ns))
+    allocate(SpinChiMatrix(Ns,Ns))
+    allocate(OcMatrix(Norb))
+    !
     chi_flag=.false.
     if(any([chispin_flag,chidens_flag,chipair_flag,chiexct_flag]))chi_flag=.true.
     !

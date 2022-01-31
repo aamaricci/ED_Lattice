@@ -15,7 +15,8 @@ MODULE ED_GF_ELECTRON
 
 
   public :: build_gf_normal
-  public :: build_sigma_normal
+  public :: eval_gf_normal
+  public :: eval_sigma_normal
 
 
   integer                         :: istate
@@ -33,30 +34,88 @@ contains
 
 
 
-  !+------------------------------------------------------------------+
-  !                        NORMAL
-  !+------------------------------------------------------------------+
-  !PURPOSE  : Evaluate the Green's function of the impurity electrons
+  !PURPOSE  : Build and Store the Green's functions weights and poles structure
   subroutine build_gf_normal()
     integer :: ispin,i
     integer :: iorb,jorb
     integer :: isite,jsite
     integer :: io,jo
     !
+    call deallocate_GFmatrix(impGmatrix)
+    !
+    select case(ed_method)
+    case ('lapack','full')
+       !do nothing
+       return
+    case default
+       do ispin=1,Nspin
+          do iorb=1,Norb
+             do isite=1,Nsites(iorb)
+                io    = pack_indices(isite,iorb)
+                if(MPIMASTER)call start_timer
+                if(MPIMASTER)write(LOGfile,"(A)")"Build G:"//&
+                     " site I"//str(isite,site_indx_padding)//&
+                     " orb M"//str(iorb)//&
+                     " spin"//str(ispin)
+                call allocate_GFmatrix(impGmatrix(ispin,io,io),Nstate=state_list%size)
+                call lanc_build_gf_normal_diag(isite,iorb,ispin)
+                if(MPIMASTER)call stop_timer(unit=LOGfile)
+             enddo
+          enddo
+       enddo
+       !
+       if(offdiag_gf_flag.AND.Norb>1)then     
+          do ispin=1,Nspin
+             do iorb=1,Norb
+                do jorb=1,Norb
+                   do isite=1,Nsites(iorb)
+                      do jsite=1,Nsites(jorb)
+                         io  = pack_indices(isite,iorb)
+                         jo  = pack_indices(jsite,jorb)
+                         if(io==jo)cycle
+                         write(LOGfile,"(A)")"Build G:"//&
+                              " sites I"//str(isite,site_indx_padding)//&
+                              "J"//str(jsite,site_indx_padding)//&
+                              " orb M"//str(iorb)//"L"//str(jorb)//&
+                              " spin"//str(ispin)
+                         if(MPIMASTER)call start_timer
+                         call allocate_GFmatrix(impGmatrix(ispin,io,jo),Nstate=state_list%size)
+                         call lanc_build_gf_normal_mix(isite,jsite,iorb,jorb,ispin)
+                         if(MPIMASTER)call stop_timer(unit=LOGfile)
+                      enddo
+                   enddo
+                enddo
+             enddo
+          enddo
+       end if
+       !
+    end select
+  end subroutine build_gf_normal
 
+
+
+
+  !Evaluate the Green's functions from knowledge of the weights+poles for a given case
+  subroutine eval_gf_normal()
+    integer :: ispin,i
+    integer :: iorb,jorb
+    integer :: isite,jsite
+    integer :: io,jo
+    !
     do ispin=1,Nspin
        do iorb=1,Norb
           do isite=1,Nsites(iorb)
-             if(MPIMASTER)write(LOGfile,"(A)")"Get G:"//&
+             if(MPIMASTER)write(LOGfile,"(A)")"Eval G:"//&
                   " site I"//str(isite,site_indx_padding)//&
                   " orb M"//str(iorb)//&
                   " spin"//str(ispin)
+             io    = pack_indices(isite,iorb)
              if(MPIMASTER)call start_timer
              select case(ed_method)
              case default
-                call lanc_build_gf_normal_diag(isite,iorb,ispin)
+                call lanc_eval_gf_normal(isite,isite,iorb,iorb,ispin)
              case ('lapack','full')
-                call full_build_gf_normal_diag(isite,iorb,ispin)
+                call full_eval_gf_normal_diag(isite,iorb,ispin)
              end select
              if(MPIMASTER)call stop_timer(unit=LOGfile)
           enddo
@@ -72,7 +131,7 @@ contains
                       io  = pack_indices(isite,iorb)
                       jo  = pack_indices(jsite,jorb)
                       if(io==jo)cycle
-                      write(LOGfile,"(A)")"Get G:"//&
+                      write(LOGfile,"(A)")"Eval G:"//&
                            " sites I"//str(isite,site_indx_padding)//&
                            "J"//str(jsite,site_indx_padding)//&
                            " orb M"//str(iorb)//"L"//str(jorb)//&
@@ -80,9 +139,9 @@ contains
                       if(MPIMASTER)call start_timer
                       select case(ed_method)
                       case default
-                         call lanc_build_gf_normal_mix(isite,jsite,iorb,jorb,ispin)
+                         call lanc_eval_gf_normal(isite,jsite,iorb,jorb,ispin)
                       case ('lapack','full')
-                         call full_build_gf_normal_mix(isite,jsite,iorb,jorb,ispin)
+                         call full_eval_gf_normal_mix(isite,jsite,iorb,jorb,ispin)
                       end select
                       if(MPIMASTER)call stop_timer(unit=LOGfile)
                    enddo
@@ -111,7 +170,9 @@ contains
        end select
     end if
     !
-  end subroutine build_gf_normal
+  end subroutine eval_gf_normal
+
+
 
 
 
@@ -136,16 +197,10 @@ contains
     io    = pack_indices(isite,iorb)
     !
     !
-    !>TODO: this has to be changed to avoid duplication of the evaluation of the weights/poles.
-    !1. set the temperature to the largest value (smallest beta)
-    !2. trim the state_list to the largest number of states
-    !3. save the contributions from all such states in distinct entries in Gmatrix object
-    !4. separate the evaluation of lattice GF from this module. The GF will be evaluated
-    !  for the actual temperature using only ther trimmed states from Gmatrix and the spectral decomposition.
-    !For, we need to import the data structure Gmatrix from DMFT_ED and to check temperature range is always
-    !from largest to smallest.
-    call es_trim_size(state_list,temp,cutoff)
-    do istate=1,state_list%trimd_size
+    do istate=1,state_list%size
+       !
+       call allocate_GFmatrix(impGmatrix(ispin,io,io),istate,Nchan=2) !2=particle/hole exc
+       !
        isector    =  es_return_sector(state_list,istate)
        state_e    =  es_return_energy(state_list,istate)
 #ifdef _MPI
@@ -183,9 +238,11 @@ contains
           endif
           !
           call tridiag_Hv_sector(jsector,vvinit,alfa_,beta_,norm2)
-          call add_to_lanczos_gf_normal(one*norm2,state_e,alfa_,beta_,1,io,io,ispin)
+          call add_to_lanczos_gf_normal(one*norm2,state_e,alfa_,beta_,1,io,io,ispin,ichan=1,istate=istate)
           deallocate(alfa_,beta_)
           if(allocated(vvinit))deallocate(vvinit)
+       else
+          call allocate_GFmatrix(impGmatrix(ispin,io,io),istate,1,Nexc=0)
        endif
        !
        !REMOVE ONE PARTICLE:
@@ -207,9 +264,11 @@ contains
           endif
           !
           call tridiag_Hv_sector(jsector,vvinit,alfa_,beta_,norm2)
-          call add_to_lanczos_gf_normal(one*norm2,state_e,alfa_,beta_,-1,io,io,ispin)
+          call add_to_lanczos_gf_normal(one*norm2,state_e,alfa_,beta_,-1,io,io,ispin,ichan=2,istate=istate)
           deallocate(alfa_,beta_)
           if(allocated(vvinit))deallocate(vvinit)
+       else
+          call allocate_GFmatrix(impGmatrix(ispin,io,io),istate,2,Nexc=0)
        endif
        !
        if(MpiMaster)call delete_sector(sectorI)
@@ -247,8 +306,10 @@ contains
     io  = pack_indices(isite,iorb)
     jo  = pack_indices(jsite,jorb)
     !
-    call es_trim_size(state_list,temp,cutoff)
-    do istate=1,state_list%trimd_size
+    do istate=1,state_list%size
+       !
+       call allocate_GFmatrix(impGmatrix(ispin,io,jo),istate,Nchan=2)
+       !
        isector    =  es_return_sector(state_list,istate)
        state_e    =  es_return_energy(state_list,istate)
 #ifdef _MPI
@@ -293,9 +354,11 @@ contains
           endif
           !
           call tridiag_Hv_sector(jsector,vvinit,alfa_,beta_,norm2)
-          call add_to_lanczos_gf_normal(one*norm2,state_e,alfa_,beta_,1,io,jo,ispin)
+          call add_to_lanczos_gf_normal(one*norm2,state_e,alfa_,beta_,1,io,jo,ispin,ichan=1,istate=istate)
           deallocate(alfa_,beta_)
-          if(allocated(vvinit))deallocate(vvinit)          
+          if(allocated(vvinit))deallocate(vvinit)
+       else
+          call allocate_GFmatrix(impGmatrix(ispin,io,jo),istate,1,Nexc=0)
        endif
        !
        !EVALUATE (c_io + c_jo)|gs>
@@ -324,9 +387,11 @@ contains
           endif
           !
           call tridiag_Hv_sector(jsector,vvinit,alfa_,beta_,norm2)
-          call add_to_lanczos_gf_normal(one*norm2,state_e,alfa_,beta_,-1,io,jo,ispin)
+          call add_to_lanczos_gf_normal(one*norm2,state_e,alfa_,beta_,-1,io,jo,ispin,2,istate)
           deallocate(alfa_,beta_)
-          if(allocated(vvinit))deallocate(vvinit)          
+          if(allocated(vvinit))deallocate(vvinit)
+       else
+          call allocate_GFmatrix(impGmatrix(ispin,io,jo),istate,2,Nexc=0)
        endif
        !
        if(MpiMaster)call delete_sector(sectorI)
@@ -354,13 +419,13 @@ contains
 
 
 
-  subroutine add_to_lanczos_gf_normal(vnorm2,Ei,alanc,blanc,isign,io,jo,ispin)
+  subroutine add_to_lanczos_gf_normal(vnorm2,Ei,alanc,blanc,isign,io,jo,ispin,ichan,istate)
     complex(8)                                 :: vnorm2,pesoBZ,peso
     real(8)                                    :: Ei,Egs,de
     integer                                    :: nlanc,itype
     real(8),dimension(:)                       :: alanc
     real(8),dimension(size(alanc))             :: blanc 
-    integer                                    :: isign,io,jo,ispin
+    integer                                    :: isign,io,jo,ispin,ichan,istate
     real(8),dimension(size(alanc),size(alanc)) :: Z
     real(8),dimension(size(alanc))             :: diag,subdiag
     integer                                    :: i,j,ierr
@@ -369,17 +434,6 @@ contains
     Egs = state_list%emin       !get the gs energy
     !
     Nlanc = size(alanc)
-    !
-    if((finiteT).and.((Ei-Egs)/temp.lt.200))then
-       pesoBZ = vnorm2*exp(-(Ei-Egs)/temp)/zeta_function
-    elseif(.not.finiteT)then
-       pesoBZ = vnorm2/zeta_function
-    else
-       pesoBZ=0.d0
-    endif
-    !
-    !pesoBZ = vnorm2/zeta_function
-    !if(finiteT)pesoBZ = vnorm2*exp(-(Ei-Egs)/temp)/zeta_function
     !
     !Only the nodes in Mpi_Comm_Group did get the alanc,blanc.
     !However after delete_sectorHv MpiComm returns to be the global one
@@ -397,23 +451,73 @@ contains
     subdiag(2:Nlanc) = blanc(2:Nlanc)
     call eigh(diag(1:Nlanc),subdiag(2:Nlanc),Ev=Z(:Nlanc,:Nlanc))
     !
+    call allocate_GFmatrix(impGmatrix(ispin,io,jo),istate,ichan,Nlanc)
+    !
     do j=1,nlanc
        de = diag(j)-Ei
-       peso = pesoBZ*Z(1,j)*Z(1,j)
-       do i=1,Lmats
-          iw=xi*wm(i)
-          impGmats(ispin,io,jo,i)=impGmats(ispin,io,jo,i) + peso/(iw-isign*de)
-       enddo
-       do i=1,Lreal
-          iw=dcmplx(wr(i),eps)
-          impGreal(ispin,io,jo,i)=impGreal(ispin,io,jo,i) + peso/(iw-isign*de)
-       enddo
+       peso = Z(1,j)*Z(1,j)*vnorm2
+       impGmatrix(ispin,io,jo)%state(istate)%channel(ichan)%weight(j) = peso
+       impGmatrix(ispin,io,jo)%state(istate)%channel(ichan)%poles(j)  = isign*de
     enddo
   end subroutine add_to_lanczos_gf_normal
 
 
 
 
+  !################################################################
+  !################################################################
+  !################################################################
+  !################################################################
+
+
+
+
+
+
+  subroutine lanc_eval_gf_normal(isite,jsite,iorb,jorb,ispin)
+    integer,intent(in) :: isite,jsite,iorb,jorb,ispin
+    integer            :: Nstates,istate
+    integer            :: Nchannels,ichan
+    integer            :: Nexcs,iexc,io,jo
+    real(8)            :: peso,de,pesoBZ,Ei,Egs,beta
+    !
+    io  = pack_indices(isite,iorb)
+    jo  = pack_indices(jsite,jorb)
+    !    
+    if(.not.allocated(impGmatrix(ispin,io,jo)%state)) then
+       print*, "GF_NORMAL WARNING: impGmatrix%state not allocated. Nothing to do"
+       return
+    endif
+    !
+    beta= 1d0/temp
+    Egs = state_list%emin
+    pesoBZ = 1d0/zeta_function
+    !
+    !this is the total number of available states  == state_list%size
+    Nstates = size(impGmatrix(ispin,io,jo)%state) 
+    !Get trimmed state for the actual value of temp == state_list%trimd_size
+    call es_trim_size(state_list,temp,cutoff) 
+    do istate=1,state_list%trimd_size     !Nstates
+       if(.not.allocated(impGmatrix(ispin,io,jo)%state(istate)%channel))cycle
+       Ei =  es_return_energy(state_list,istate)
+       if(finiteT)pesoBZ = exp(-beta*(Ei-Egs))/zeta_function
+       Nchannels = size(impGmatrix(ispin,io,jo)%state(istate)%channel)
+       do ichan=1,Nchannels
+          Nexcs  = size(impGmatrix(ispin,io,jo)%state(istate)%channel(ichan)%poles)
+          if(Nexcs==0)cycle
+          do iexc=1,Nexcs
+             peso  = impGmatrix(ispin,io,jo)%state(istate)%channel(ichan)%weight(iexc)
+             de    = impGmatrix(ispin,io,jo)%state(istate)%channel(ichan)%poles(iexc)
+             impGmats(ispin,io,jo,:)=impGmats(ispin,io,jo,:) + pesoBZ*peso/(dcmplx(0d0,wm(:))-de)
+             impGreal(ispin,io,jo,:)=impGreal(ispin,io,jo,:) + pesoBZ*peso/(dcmplx(wr(:),eps)-de)
+          enddo
+       enddo
+    enddo
+    return
+  end subroutine lanc_eval_gf_normal
+
+
+
 
 
   !############################################################################################
@@ -428,7 +532,7 @@ contains
 
 
 
-  subroutine full_build_gf_normal_diag(isite,iorb,ispin)
+  subroutine full_eval_gf_normal_diag(isite,iorb,ispin)
     integer,intent(in) :: isite,iorb,ispin
     integer            :: io
     type(sector)       :: sectorI,sectorJ
@@ -500,14 +604,13 @@ contains
        call delete_sector(sectorI)
        call delete_sector(sectorJ)
     enddo
-
-  end subroutine full_build_gf_normal_diag
-
+  end subroutine full_eval_gf_normal_diag
 
 
 
 
-  subroutine full_build_gf_normal_mix(isite,jsite,iorb,jorb,ispin)
+
+  subroutine full_eval_gf_normal_mix(isite,jsite,iorb,jorb,ispin)
     integer      :: isite,jsite,iorb,jorb,ispin
     integer      :: io,jo
     type(sector) :: sectorI,sectorJ
@@ -582,7 +685,7 @@ contains
        call delete_sector(sectorI)
        call delete_sector(sectorJ)
     enddo
-  end subroutine full_build_gf_normal_mix
+  end subroutine full_eval_gf_normal_mix
 
 
 
@@ -603,7 +706,7 @@ contains
 
 
 
-  subroutine build_sigma_normal
+  subroutine eval_sigma_normal
     integer                                 :: i,ispin,iorb
     complex(8),dimension(Nspin,Ns,Ns,Lmats) :: invG0mats,invGmats
     complex(8),dimension(Nspin,Ns,Ns,Lreal) :: invG0real,invGreal
@@ -643,7 +746,7 @@ contains
     call Hij_get_g0func(dcmplx(0d0,wm(:)),impG0mats)
     call Hij_get_g0func(dcmplx(wr(:),eps),impG0real)
     !
-  end subroutine build_sigma_normal
+  end subroutine eval_sigma_normal
 
 
 END MODULE ED_GF_ELECTRON
