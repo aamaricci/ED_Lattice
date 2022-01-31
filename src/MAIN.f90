@@ -62,7 +62,7 @@ contains
     integer :: itemp
     !
     !SET THE LOCAL MPI COMMUNICATOR
-    call ed_set_MpiComm()
+    call ed_set_MpiComm() 
     !
     if(MpiMaster)call save_input_file(str(ed_input_file))
     !
