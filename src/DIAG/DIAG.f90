@@ -34,12 +34,17 @@ contains
   ! GS, build the Green's functions calling all the necessary routines
   !+------------------------------------------------------------------+
   subroutine diagonalize_lattice()
+    if(MPIMASTER)then
+       write(LOGfile,"(A)")"Diagonalize H:"
+       call start_timer()
+    endif
     select case(ed_method)
     case default
        call ed_diag_d
     case('lapack','full')
        call ed_full_d
     end select
+    if(MPIMASTER)call stop_timer(unit=LOGfile)
   end subroutine diagonalize_lattice
 
 
@@ -53,6 +58,10 @@ contains
     !
     zeta_function=0d0
     !
+    if(MPIMASTER)then
+       write(LOGfile,"(A)")"Get Z:"
+       call start_timer()
+    endif
     select case(ed_method)
     case default
        Egs = state_list%emin
@@ -78,6 +87,8 @@ contains
     end select
     !
     if(MPIMASTER.AND.ed_verbose>=2)write(LOGfile,"(A,F20.12)")'Z   =',zeta_function
+    !
+    if(MPIMASTER)call stop_timer(unit=LOGfile)
     !
   end subroutine partition_function_lattice
 
@@ -109,11 +120,7 @@ contains
     !
     if(state_list%status)call es_delete_espace(state_list)
     state_list=es_init_espace()
-    oldzero=1000.d0
-    if(MPIMASTER)then
-       write(LOGfile,"(A)")"Diagonalize H:"
-       call start_timer()
-    endif
+    oldzero=1000.d0    
     !
     lanc_verbose=.false.
     if(ed_verbose>2)lanc_verbose=.true.
@@ -299,7 +306,6 @@ contains
        if(allocated(eig_basis))deallocate(eig_basis)
        !
     enddo sector
-    if(MPIMASTER)call stop_timer(unit=LOGfile)
     !
     !
     !Print the obtained state_list, before any cut
@@ -370,10 +376,6 @@ contains
     !
     e0=1000.d0
     oldzero=1000.d0
-    if(MPIMASTER)then
-       write(LOGfile,"(A)")"Diagonalize H:"
-       call start_timer()
-    endif
     !
     iter=0
     sector: do isector=1,Nsectors
@@ -403,7 +405,6 @@ contains
           endif
        endif
        !
-
        !
        if(ed_verbose>=3.AND.MPIMASTER)call start_timer()
        call build_Hv_sector(isector,espace(isector)%M)
@@ -453,7 +454,6 @@ contains
        endif
        !
     enddo sector
-    if(MPIMASTER)call stop_timer(unit=LOGfile)
     !
     !Get the ground state energy and rescale energies
     egs=minval(e0)

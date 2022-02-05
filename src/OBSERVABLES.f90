@@ -2,6 +2,7 @@ MODULE ED_OBSERVABLES
   USE SF_CONSTANTS, only:zero,pi,xi
   USE SF_IOTOOLS, only:free_unit,reg,txtfy
   USE SF_ARRAYS, only: arange
+  USE SF_TIMER,  only: start_timer,stop_timer
   USE SF_LINALG
   USE ED_INPUT_VARS
   USE ED_VARS_GLOBAL
@@ -59,23 +60,33 @@ contains
   !PURPOSE  : Evaluate and print out many interesting physical qties
   !+-------------------------------------------------------------------+
   subroutine observables_lattice()
+    if(MPIMASTER)then
+       write(LOGfile,"(A)")"Get Observables:"
+       call start_timer()
+    endif
     select case(ed_method)
     case default
        call lanc_observables()
     case ("lapack","full")
        call full_observables()
     end select
+    if(MPIMASTER)call stop_timer(unit=LOGfile)
   end subroutine observables_lattice
 
 
 
   subroutine energy_lattice()
+    if(MPIMASTER)then
+       write(LOGfile,"(A)")"Get Energy:"
+       call start_timer()
+    endif
     select case(ed_method)
     case default
        call lanc_energy()
     case ("lapack","full")
        call full_energy()
     end select
+    if(MPIMASTER)call stop_timer(unit=LOGfile)
   end subroutine energy_lattice
 
 
@@ -663,7 +674,7 @@ contains
     endif
 #endif
     !
-    ed_Ekin = ed_Ekin/Ns        !Rescale to avoid linear increasing with Ns
+    !ed_Ekin = ed_Ekin/Ns        !Rescale to avoid linear increasing with Ns
     ed_Epot = ed_Epot + ed_Ehartree
     !
     if(MPIMASTER)then
@@ -1055,50 +1066,41 @@ contains
   subroutine write_observables()
     integer :: unit
     integer :: io,jo,iorb
-    unit = free_unit()
-    open(unit,file="parameters_last"//reg(ed_file_suffix)//".ed")
+    unit = fopen("parameters_last.ed",.true.)
     write(unit,"(90F15.9)")xmu,temp,(uloc(iorb),iorb=1,Norb),Ust,Jh,Jx,Jp,Jk
     close(unit)
 
-    unit = free_unit()
-    open(unit,file="dens"//reg(ed_file_suffix)//".ed")
+    unit = fopen("dens.ed",.true.)
     write(unit,"(90(F20.12,1X))")(dens(io),io=1,Ns)
     close(unit)         
 
-    unit = free_unit()
-    open(unit,file="dens_up"//reg(ed_file_suffix)//".ed")
+    unit = fopen("dens_up.ed",.true.)
     write(unit,"(90(F20.12,1X))")(dens_up(io),io=1,Ns)
     close(unit)         
 
-    unit = free_unit()
-    open(unit,file="dens_dw"//reg(ed_file_suffix)//".ed")
+    unit = fopen("dens_dw.ed",.true.)
     write(unit,"(90(F20.12,1X))")(dens_dw(io),io=1,Ns)
     close(unit)         
 
-    unit = free_unit()
-    open(unit,file="docc"//reg(ed_file_suffix)//".ed")
+    unit = fopen("docc.ed",.true.)
     write(unit,"(90(F20.12,1X))")(docc(io),io=1,Ns)
     close(unit)
 
-    unit = free_unit()
-    open(unit,file="magz"//reg(ed_file_suffix)//".ed")
+    unit = fopen("magz.ed",.true.)
     write(unit,"(90(F20.12,1X))")(magz(io),io=1,Ns)
     close(unit)         
 
-    unit = free_unit()
-    open(unit,file="egs"//reg(ed_file_suffix)//".ed")
+    unit = fopen("egs.ed",.true.)
     write(unit,*)egs
     close(unit)
 
-    unit = free_unit()
-    open(unit,file="Sz_corr"//reg(ed_file_suffix)//".ed")
+    unit = fopen("Sz_corr.ed",.true.)
     do io=1,Ns
        write(unit,"(90(F15.9,1X))")(sz2(io,jo),jo=1,Ns)
     enddo
     close(unit)         
 
-    unit = free_unit()
-    open(unit,file="N_corr"//reg(ed_file_suffix)//".ed")
+    unit = fopen("N_corr.ed",.true.)
     do io=1,Ns
        write(unit,"(90(F15.9,1X))")(n2(io,jo),jo=1,Ns)
     enddo
@@ -1124,8 +1126,7 @@ contains
          reg(txtfy(10))//"<Dk>"
     close(unit)
 
-    unit = free_unit()
-    open(unit,file="energy_last"//reg(ed_file_suffix)//".ed")
+    unit = fopen("energy_last.ed",.true.)
     write(unit,"(90F15.9)")&
          ed_Ekin,ed_Epot,ed_Epot-ed_Ehartree,ed_Eknot,ed_Ehartree,&
          ed_Dust,ed_Dund,ed_Dse,ed_Dph,ed_Dk

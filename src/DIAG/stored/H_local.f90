@@ -65,9 +65,12 @@
            do jorb=iorb+1,Norb
               do isite=1,Nsites(iorb)
                  do jsite=1,Nsites(jorb)
-                    if(isite/=jsite)cycle !local interaction only:
+                    ! if(isite/=jsite)cycle !local interaction only:
+                    ! io = pack_indices(isite,iorb)!a
+                    ! jo = pack_indices(isite,jorb)!b
+                    if(jsite/=Jkindx(isite))cycle
                     io = pack_indices(isite,iorb)
-                    jo = pack_indices(isite,jorb)
+                    jo = pack_indices(jsite,jorb)
                     htmp = htmp - 2d0*Jk*Sz(io)*Sz(jo)
                  enddo
               enddo

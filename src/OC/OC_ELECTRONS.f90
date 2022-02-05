@@ -40,13 +40,15 @@ contains
     !
     call deallocate_GFmatrix(OcMatrix)
     !
+    if(allocated(Hij))deallocate(Hij)
+    allocate(Hij(Nspin,Ns,Ns))
+    call Hij_get(Hij)
+    !
     select case(ed_method)
     case ('lapack','full')
        !do nothing
        return
-    case default
-       allocate(Hij(Nspin,Ns,Ns))
-       call Hij_get(Hij)
+    case default      
        do iorb=1,Norb
           if(.not.oc_flag(iorb))cycle
           if(MPIMASTER)write(LOGfile,"(A)")"Build OC:"//" orb M"//str(iorb)
@@ -55,14 +57,19 @@ contains
           call lanc_ed_build_oc(iorb)
           if(MPIMASTER)call stop_timer(unit=LOGfile)
        enddo
-       deallocate(Hij)
     end select
+    !
+    deallocate(Hij)
     !
   end subroutine build_oc_electrons
 
 
   subroutine eval_oc_electrons()
     integer :: iorb
+    !
+    if(allocated(Hij))deallocate(Hij)
+    allocate(Hij(Nspin,Ns,Ns))
+    call Hij_get(Hij)
     !
     do iorb=1,Norb
        if(.not.oc_flag(iorb))cycle
@@ -76,6 +83,9 @@ contains
        end select
        if(MPIMASTER)call stop_timer(unit=LOGfile)
     enddo
+    !
+    !
+    deallocate(Hij)
     !
   end subroutine eval_oc_electrons
 
@@ -190,7 +200,7 @@ contains
        else
           allocate(vvinit(1));vvinit=zero
        endif
-       vvinit = -xi*vvinit
+       vvinit = xi*vvinit
        !
        call tridiag_Hv_sector(isector,vvinit,alfa_,beta_,norm2)
        call add_to_lanczos_oc(norm2,state_e,alfa_,beta_,iorb,ichan=1,istate=istate)
@@ -232,7 +242,7 @@ contains
     !
     Nlanc = size(alanc)
     !
-    pesoF  = vnorm2 
+    pesoF  = vnorm2
     ! pesoBZ = 1d0/zeta_function
     ! if(finiteT)pesoBZ = exp(-(Ei-Egs)/temp)/zeta_function
     !
@@ -256,7 +266,6 @@ contains
        !
        OcMatrix(io)%state(istate)%channel(ichan)%weight(j) = peso
        OcMatrix(io)%state(istate)%channel(ichan)%poles(j)  = de
-
     enddo
   end subroutine add_to_lanczos_oc
 

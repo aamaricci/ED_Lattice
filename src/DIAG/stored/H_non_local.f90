@@ -104,9 +104,12 @@
            do jorb=iorb+1,Norb
               do isite=1,Nsites(iorb)
                  do jsite=1,Nsites(jorb)
-                    if(isite/=jsite)cycle !local interaction only:
+                    ! if(isite/=jsite)cycle !local interaction only:
+                    ! io = pack_indices(isite,iorb)!a
+                    ! jo = pack_indices(isite,jorb)!b
+                    if(jsite/=Jkindx(isite))cycle
                     io = pack_indices(isite,iorb)!a
-                    jo = pack_indices(isite,jorb)!b
+                    jo = pack_indices(jsite,jorb)!b
                     !
                     ![cdg_io c_jo]_up [cdg_jo c_io]_dw
                     Jcondition=(&

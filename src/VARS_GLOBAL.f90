@@ -274,7 +274,25 @@ contains
 
 
 
-
+  function fopen(fname,append) result(unit)
+    character(len=*) :: fname
+    logical,optional :: append
+    integer          :: unit
+    logical          :: append_,bool
+    append_=.true.;if(present(append))append_=append
+    select case(append_)
+    case (.true.)    
+       inquire(file=trim(fname), exist=bool)
+       unit = free_unit()
+       if (bool) then
+          open(unit,file=trim(fname),status="old",position="append",action="write")
+       else
+          open(unit,file=trim(fname),status="new",action="write")
+       end if
+    case(.false.)
+       open(unit,file=trim(fname),status="new",action="write")
+    end select
+  end function fopen
 
 
   !IF code is compiled with MPI support

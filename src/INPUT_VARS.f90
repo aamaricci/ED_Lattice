@@ -17,6 +17,7 @@ MODULE ED_INPUT_VARS
   real(8)              :: Jx                  !J_X: coupling constant for the spin-eXchange interaction term
   real(8)              :: Jp                  !J_P: coupling constant for the Pair-hopping interaction term
   real(8)              :: Jk                  !J_Kondo: Kondo coupling
+  integer,allocatable  :: Jkindx(:)           !tags the position of the impurity sites with respect to the electron band, dim(Jkflags)=Nsites(impurity_orbital)
   real(8)              :: xmu                 !chemical potential
   real(8)              :: temp                !temperature
   !
@@ -94,7 +95,7 @@ contains
     character(len=*) :: INPUTunit
     integer,optional :: comm
     logical          :: master=.true.
-    integer          :: i,rank=0
+    integer          :: i,rank=0,Jdim
 #ifdef _MPI
     if(present(comm))then
        master=get_Master_MPI(comm)
@@ -107,7 +108,8 @@ contains
     !
     !DEFAULT VALUES OF THE PARAMETERS:
     call parse_input_variable(Norb,"NORB",INPUTunit,default=1,comment="Number of impurity orbitals (max 5).")
-    call parse_input_variable(Nsites,"NSITES",INPUTunit,default=[2,0,0,0,0],comment="Number of sites per orbital species (Norb values considered)")
+    call parse_input_variable(Nsites,"NSITES",INPUTunit,default=[4,0,0,0,0],comment="Number of sites per orbital species (Norb values considered)")
+    !
     call parse_input_variable(Nspin,"NSPIN",INPUTunit,default=1,comment="Number of spin degeneracy (max 2)")
     !
     call parse_input_variable(ed_filling,"ED_FILLING",INPUTunit,default=0,comment="Total number of allowed electrons")
@@ -118,6 +120,9 @@ contains
     call parse_input_variable(Jx,"JX",INPUTunit,default=0.d0,comment="S-E coupling")
     call parse_input_variable(Jp,"JP",INPUTunit,default=0.d0,comment="P-H coupling")
     call parse_input_variable(Jk,"JK",INPUTunit,default=0.d0,comment="Kondo coupling")
+    Jdim = 1 ;  if(Jk/=0d0)Jdim=Nsites(1)
+    allocate(Jkindx(Jdim))
+    call parse_input_variable(Jkindx,"Jkindx",INPUTunit,default=(/(1,i=1,size(Jkindx) )/),comment="!index the position of the impurity sites with respect to the electron band, dim(Jkflags)=Nsites(impurity_orbital)")
     !
     call parse_input_variable(temp,"TEMP",INPUTunit,default=0.001d0,comment="temperature, at T=0 is used as a IR cut-off.")
     call parse_input_variable(ed_finite_temp,"ED_FINITE_TEMP",INPUTunit,default=.false.,comment="flag to select finite temperature method. note that if T then lanc_nstates_total must be > 1")
