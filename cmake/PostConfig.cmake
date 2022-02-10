@@ -82,7 +82,7 @@ ${Yellow}Method 3: use pkg-config with the provided ${PROJECT_NAME}.pc${ColourRe
    $ pkg-config --cflags --libs ${PROJECT_NAME}
 
 ${Yellow}Method ADMIN: Add this line to the system shell configuration file, e.g. /etc/bash.bashrc${ColourReset}
-   $ source ${LIB_TARGET_BIN}/${GLOBAL_CONFIG_FILE}
+   $ source ${LIB_TARGET_BIN}/${GLOBAL_CONFIG_SCRIPT}
 \")
 ")
 
