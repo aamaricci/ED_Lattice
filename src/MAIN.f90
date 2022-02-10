@@ -84,7 +84,7 @@ contains
        endif
        call partition_function_lattice !-> get trimmed state_list
        call observables_lattice        !-> get static observables
-       ! call energy_lattice             !-> get energies 
+       call energy_lattice             !-> get energies 
        if(gf_flag)call eval_gf_lattice    !-> Eval GF
        if(chi_flag)call eval_chi_lattice  !-> Eval Chi_spin
        if(any(oc_flag))call eval_oc_lattice    !-> Eval Sigma(w), Drude
