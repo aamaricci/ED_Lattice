@@ -19,15 +19,14 @@ MODULE ED_GF_ELECTRON
   public :: eval_sigma_normal
 
 
-  integer                         :: istate
-  integer                         :: isector,jsector
-  complex(8),allocatable          :: vvinit(:)
-  real(8),allocatable             :: alfa_(:),beta_(:)
-  integer                         :: ialfa,jalfa
-  integer                         :: i,j
-  real(8)                         :: sgn,norm2
-  complex(8),dimension(:),pointer :: state_cvec
-  real(8)                         :: state_e
+  integer                             :: istate
+  integer                             :: isector,jsector
+  complex(8),allocatable              :: vvinit(:)
+  real(8),allocatable                 :: alfa_(:),beta_(:)
+  integer                             :: ialfa,jalfa
+  integer                             :: i,j
+  real(8)                             :: sgn,norm2
+  real(8)                             :: state_e
 
 
 contains
@@ -189,9 +188,10 @@ contains
 
 
   subroutine lanc_build_gf_normal_diag(isite,iorb,ispin)
-    integer,intent(in) :: isite,iorb,ispin
-    integer            :: io
-    type(sector)       :: sectorI,sectorJ
+    integer,intent(in)                  :: isite,iorb,ispin
+    integer                             :: io
+    type(sector)                        :: sectorI,sectorJ
+    complex(8),dimension(:),allocatable :: state_cvec
     !
     ialfa = 1
     io    = pack_indices(isite,iorb)
@@ -205,12 +205,12 @@ contains
        state_e    =  es_return_energy(state_list,istate)
 #ifdef _MPI
        if(MpiStatus)then
-          state_cvec => es_return_cvector(MpiComm,state_list,istate) 
+          call es_return_cvector(MpiComm,state_list,istate,state_cvec) 
        else
-          state_cvec => es_return_cvector(state_list,istate)
+          call es_return_cvector(state_list,istate,state_cvec) 
        endif
 #else
-       state_cvec => es_return_cvector(state_list,istate)
+       call es_return_cvector(state_list,istate,state_cvec)
 #endif
        !
        if(MpiMaster)then
@@ -272,15 +272,7 @@ contains
        endif
        !
        if(MpiMaster)call delete_sector(sectorI)
-#ifdef _MPI
-       if(MpiStatus)then
-          if(associated(state_cvec))deallocate(state_cvec)
-       else
-          if(associated(state_cvec))nullify(state_cvec)
-       endif
-#else
-       if(associated(state_cvec))nullify(state_cvec)
-#endif
+       if(allocated(state_cvec))deallocate(state_cvec)
        !
     enddo
     return
@@ -297,9 +289,10 @@ contains
 
 
   subroutine lanc_build_gf_normal_mix(isite,jsite,iorb,jorb,ispin)
-    integer      :: isite,jsite,iorb,jorb,ispin
-    integer      :: io,jo
-    type(sector) :: sectorI,sectorJ
+    integer                             :: isite,jsite,iorb,jorb,ispin
+    integer                             :: io,jo
+    type(sector)                        :: sectorI,sectorJ
+    complex(8),dimension(:),allocatable :: state_cvec
     !
     ialfa = 1
     jalfa = ialfa
@@ -314,12 +307,12 @@ contains
        state_e    =  es_return_energy(state_list,istate)
 #ifdef _MPI
        if(MpiStatus)then
-          state_cvec => es_return_cvector(MpiComm,state_list,istate)
+          call es_return_cvector(MpiComm,state_list,istate,state_cvec) 
        else
-          state_cvec => es_return_cvector(state_list,istate)
+          call es_return_cvector(state_list,istate,state_cvec) 
        endif
 #else
-       state_cvec => es_return_cvector(state_list,istate)
+       call es_return_cvector(state_list,istate,state_cvec)
 #endif
        !
        if(MpiMaster)then
@@ -395,15 +388,7 @@ contains
        endif
        !
        if(MpiMaster)call delete_sector(sectorI)
-#ifdef _MPI
-       if(MpiStatus)then
-          if(associated(state_cvec))deallocate(state_cvec)
-       else
-          if(associated(state_cvec))nullify(state_cvec)
-       endif
-#else
-       if(associated(state_cvec))nullify(state_cvec)
-#endif
+       if(allocated(state_cvec))deallocate(state_cvec)
        !
     enddo
     return

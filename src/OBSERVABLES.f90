@@ -47,7 +47,6 @@ MODULE ED_OBSERVABLES
   integer                            :: i,j,ii
   integer                            :: isector,jsector
   !
-  complex(8),dimension(:),pointer       :: state_cvec
   logical                            :: Jcondition
   !
   type(sector)                       :: sectorI,sectorJ
@@ -100,6 +99,7 @@ contains
     integer,dimension(Ns_Ud,Ns_Orb)   :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
     integer,dimension(Ns)             :: IbUp,IbDw  ![Ns]
     real(8),dimension(Ns)             :: nup,ndw,Sz,nt
+    complex(8),dimension(:),allocatable :: state_cvec
     !
     allocate(dens(Ns),dens_up(Ns),dens_dw(Ns))
     allocate(docc(Ns))
@@ -122,12 +122,12 @@ contains
        !
 #ifdef _MPI
        if(MpiStatus)then
-          state_cvec => es_return_cvector(MpiComm,state_list,istate)
+          call es_return_cvector(MpiComm,state_list,istate,state_cvec) 
        else
-          state_cvec => es_return_cvector(state_list,istate)
+          call es_return_cvector(state_list,istate,state_cvec) 
        endif
 #else
-       state_cvec => es_return_cvector(state_list,istate)
+       call es_return_cvector(state_list,istate,state_cvec)
 #endif
        !
        !
@@ -166,15 +166,7 @@ contains
           call delete_sector(sectorI)
        endif
        !
-#ifdef _MPI
-       if(MpiStatus)then
-          if(associated(state_cvec))deallocate(state_cvec)
-       else
-          if(associated(state_cvec))nullify(state_cvec)
-       endif
-#else
-       if(associated(state_cvec))nullify(state_cvec)
-#endif
+       if(allocated(state_cvec))deallocate(state_cvec)      
        !
     enddo
     !
@@ -331,12 +323,13 @@ contains
   !PURPOSE  : Get energy from the lattice problem.
   !+-------------------------------------------------------------------+
   subroutine lanc_energy()
-    integer                           :: istate,iud(2),jud(2)
-    integer,dimension(2*Ns_Ud)        :: Indices,Jndices
-    integer,dimension(Ns_Ud,Ns_Orb)   :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
-    real(8),dimension(Ns)             :: Nup,Ndw,Sz
-    complex(8),dimension(Nspin,Ns,Ns) :: Hij,Hloc
-    complex(8),dimension(Nspin,Ns)    :: Hdiag
+    integer                             :: istate,iud(2),jud(2)
+    integer,dimension(2*Ns_Ud)          :: Indices,Jndices
+    integer,dimension(Ns_Ud,Ns_Orb)     :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
+    real(8),dimension(Ns)               :: Nup,Ndw,Sz
+    complex(8),dimension(Nspin,Ns,Ns)   :: Hij,Hloc
+    complex(8),dimension(Nspin,Ns)      :: Hdiag
+    complex(8),dimension(:),allocatable :: state_cvec
     !
     Egs     = state_list%emin
     ed_Ekin    = 0.d0
@@ -362,12 +355,12 @@ contains
        Ei      = es_return_energy(state_list,istate)
 #ifdef _MPI
        if(MpiStatus)then
-          state_cvec => es_return_cvector(MpiComm,state_list,istate)
+          call es_return_cvector(MpiComm,state_list,istate,state_cvec) 
        else
-          state_cvec => es_return_cvector(state_list,istate)
+          call es_return_cvector(state_list,istate,state_cvec) 
        endif
 #else
-       state_cvec => es_return_cvector(state_list,istate)
+       call es_return_cvector(state_list,istate,state_cvec)
 #endif
        !
        peso = 1.d0 ; if(finiteT)peso=exp(-(Ei-Egs)/temp)
@@ -647,15 +640,7 @@ contains
           call delete_sector(sectorI)         
        endif
        !
-#ifdef _MPI
-       if(MpiStatus)then
-          if(associated(state_cvec))deallocate(state_cvec)
-       else
-          if(associated(state_cvec))nullify(state_cvec)
-       endif
-#else
-       if(associated(state_cvec))nullify(state_cvec)
-#endif
+       if(allocated(state_cvec))deallocate(state_cvec)
        !
     enddo
     !

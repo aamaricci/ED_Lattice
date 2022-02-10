@@ -25,7 +25,6 @@ MODULE ED_CHI_SPIN
   integer                         :: ipos,jpos
   integer                         :: i,j
   real(8)                         :: sgn,norm2
-  complex(8),dimension(:),pointer :: state_cvec
   real(8)                         :: state_e
 
 
@@ -185,9 +184,10 @@ contains
 
 
   subroutine lanc_ed_build_spinChi_diag(isite,iorb)
-    integer,intent(in) :: isite,iorb
-    integer            :: io
-    type(sector)       :: sectorI,sectorJ
+    integer,intent(in)                  :: isite,iorb
+    integer                             :: io
+    type(sector)                        :: sectorI,sectorJ
+    complex(8),dimension(:),allocatable :: state_cvec
     !
     ialfa = 1
     io    = pack_indices(isite,iorb)
@@ -200,12 +200,12 @@ contains
        state_e    =  es_return_energy(state_list,istate)
 #ifdef _MPI
        if(MpiStatus)then
-          state_cvec => es_return_cvector(MpiComm,state_list,istate)
+          call es_return_cvector(MpiComm,state_list,istate,state_cvec) 
        else
-          state_cvec => es_return_cvector(state_list,istate)
+          call es_return_cvector(state_list,istate,state_cvec) 
        endif
 #else
-       state_cvec => es_return_cvector(state_list,istate)
+       call es_return_cvector(state_list,istate,state_cvec)
 #endif
        !
        if(MpiMaster)then
@@ -226,16 +226,7 @@ contains
        call add_to_lanczos_spinChi(norm2,state_e,alfa_,beta_,io,io,ichan=1,istate=istate)
        deallocate(alfa_,beta_)
        if(allocated(vvinit))deallocate(vvinit)
-       !
-#ifdef _MPI
-       if(MpiStatus)then
-          if(associated(state_cvec))deallocate(state_cvec)
-       else
-          if(associated(state_cvec))nullify(state_cvec)
-       endif
-#else
-       if(associated(state_cvec))nullify(state_cvec)
-#endif
+       if(allocated(state_cvec))deallocate(state_cvec)       
     enddo
     return
   end subroutine lanc_ed_build_spinChi_diag
@@ -249,10 +240,11 @@ contains
 
 
   subroutine lanc_ed_build_spinChi_mix(isite,jsite,iorb,jorb)
-    integer      :: isite,jsite,iorb,jorb
-    integer      :: io,jo
-    type(sector) :: sectorI,sectorJ
-    real(8)      :: Siorb,Sjorb
+    integer                             :: isite,jsite,iorb,jorb
+    integer                             :: io,jo
+    type(sector)                        :: sectorI,sectorJ
+    real(8)                             :: Siorb,Sjorb
+    complex(8),dimension(:),allocatable :: state_cvec
     !
     ialfa = 1
     jalfa = ialfa
@@ -267,12 +259,12 @@ contains
        state_e    =  es_return_energy(state_list,istate)
 #ifdef _MPI
        if(MpiStatus)then
-          state_cvec => es_return_cvector(MpiComm,state_list,istate)
+          call es_return_cvector(MpiComm,state_list,istate,state_cvec) 
        else
-          state_cvec => es_return_cvector(state_list,istate)
+          call es_return_cvector(state_list,istate,state_cvec) 
        endif
 #else
-       state_cvec => es_return_cvector(state_list,istate)
+       call es_return_cvector(state_list,istate,state_cvec)
 #endif
        !
        !EVALUATE (Sz_jorb + Sz_iorb)|gs> = Sz_jorb|gs> + Sz_iorb|gs>
@@ -297,16 +289,7 @@ contains
        call add_to_lanczos_spinChi(norm2,state_e,alfa_,beta_,io,jo,ichan=1,istate=istate)
        deallocate(alfa_,beta_)
        if(allocated(vvinit))deallocate(vvinit)
-       !
-#ifdef _MPI
-       if(MpiStatus)then
-          if(associated(state_cvec))deallocate(state_cvec)
-       else
-          if(associated(state_cvec))nullify(state_cvec)
-       endif
-#else
-       if(associated(state_cvec))nullify(state_cvec)
-#endif
+       if(allocated(state_cvec))deallocate(state_cvec)
     enddo
     return
   end subroutine lanc_ed_build_spinChi_mix

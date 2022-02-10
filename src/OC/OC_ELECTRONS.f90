@@ -26,7 +26,6 @@ MODULE ED_OC_ELECTRONS
   integer                                 :: ipos,jpos
   integer                                 :: i,j
   real(8)                                 :: norm2
-  complex(8),dimension(:),pointer         :: state_cvec
   real(8)                                 :: state_e
   complex(8),dimension(:,:,:),allocatable :: Hij
 
@@ -102,15 +101,16 @@ contains
 
 
   subroutine lanc_ed_build_oc(iorb)
-    integer,intent(in) :: iorb
-    integer            :: iup,idw,jup,jdw
-    integer            :: mup,mdw
-    integer            :: io,jo
-    integer            :: k1,k2
-    real(8)            :: sg1,sg2
-    integer            :: nup(Ns),ndw(Ns)
-    integer            :: isite,jsite
-    type(sector)       :: sectorI
+    integer,intent(in)                  :: iorb
+    integer                             :: iup,idw,jup,jdw
+    integer                             :: mup,mdw
+    integer                             :: io,jo
+    integer                             :: k1,k2
+    real(8)                             :: sg1,sg2
+    integer                             :: nup(Ns),ndw(Ns)
+    integer                             :: isite,jsite
+    type(sector)                        :: sectorI
+    complex(8),dimension(:),allocatable :: state_cvec
     !
     !
     do istate=1,state_list%size
@@ -121,12 +121,12 @@ contains
        state_e    =  es_return_energy(state_list,istate)
 #ifdef _MPI
        if(MpiStatus)then
-          state_cvec => es_return_cvector(MpiComm,state_list,istate)
+          call es_return_cvector(MpiComm,state_list,istate,state_cvec) 
        else
-          state_cvec => es_return_cvector(state_list,istate)
+          call es_return_cvector(state_list,istate,state_cvec) 
        endif
 #else
-       state_cvec => es_return_cvector(state_list,istate)
+       call es_return_cvector(state_list,istate,state_cvec)
 #endif
        !
        if(MpiMaster)then
@@ -206,16 +206,7 @@ contains
        call add_to_lanczos_oc(norm2,state_e,alfa_,beta_,iorb,ichan=1,istate=istate)
        deallocate(alfa_,beta_)
        if(allocated(vvinit))deallocate(vvinit)
-       !
-#ifdef _MPI
-       if(MpiStatus)then
-          if(associated(state_cvec))deallocate(state_cvec)
-       else
-          if(associated(state_cvec))nullify(state_cvec)
-       endif
-#else
-       if(associated(state_cvec))nullify(state_cvec)
-#endif
+       if(allocated(state_cvec))deallocate(state_cvec)       
     enddo
     return
   end subroutine lanc_ed_build_oc

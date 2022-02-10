@@ -67,8 +67,9 @@ contains
        Egs = state_list%emin
        if(finiteT)then
           call es_trim_size(state_list,temp,cutoff)
-          write(LOGfile,"(A,I4)")"Adjusting list_size to:",state_list%trimd_size
-          do istate=1,state_list%size
+          !call es_trim_espace(state_list,temp,cutoff)
+          !write(LOGfile,"(A,I4)")"Adjusting list_size to:",state_list%size
+          do istate=1,state_list%trimd_size
              Ei            = es_return_energy(state_list,istate)
              zeta_function = zeta_function + exp(-(Ei-Egs)/temp)
           enddo
@@ -326,6 +327,11 @@ contains
     !if finite T and loop over T we diagonalize first at the largest temperature.
     !to avoid keeping useless state we prune those above the cutoff at this T_max.
     if(finiteT)then
+       ! Egs  = state_list%emin
+       ! Ec   = state_list%emax
+       ! if(exp(-(Ec-Egs)/temp) > cutoff)stop "ED_DIAG:  exp(-(Ei-Egs)/T)>Cutoff condition not met, try increasing lanc_nstates_sector"
+       ! call es_trim_espace(state_list,temp,cutoff)
+       ! write(LOGfile,"(A,I4)")"Adjusting list_size to:",state_list%size
        !check if the number of states is enough to reach the required accuracy:
        !the condition to fullfill is:
        ! exp(-(Ec-Egs)/T) < \epsilon_c
