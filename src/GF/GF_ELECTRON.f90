@@ -49,6 +49,7 @@ contains
     case default
        do ispin=1,Nspin
           do iorb=1,Norb
+             if(.not.gf_flag(iorb))cycle
              do isite=1,Nsites(iorb)
                 io    = pack_indices(isite,iorb)
                 if(MPIMASTER)call start_timer
@@ -66,7 +67,9 @@ contains
        if(offdiag_gf_flag.AND.Norb>1)then     
           do ispin=1,Nspin
              do iorb=1,Norb
+                if(.not.gf_flag(iorb))cycle
                 do jorb=1,Norb
+                   if(.not.gf_flag(jorb))cycle
                    do isite=1,Nsites(iorb)
                       do jsite=1,Nsites(jorb)
                          io  = pack_indices(isite,iorb)

@@ -53,12 +53,12 @@ contains
     !
     write(LOGfile,"(A)")"Eval lattice Greens functions:"
     call eval_gf_normal()
-    call eval_sigma_normal()
+    if(all(gf_flag))call eval_sigma_normal()
     !
     if(MPIMASTER)then
-       if(ed_print_Sigma)call ed_print_impSigma()
        if(ed_print_G) call ed_print_impG()
        if(ed_print_G0)call ed_print_impG0()
+       if(all(gf_flag).AND.ed_print_Sigma)call ed_print_impSigma()
     endif
     !
     call build_szr

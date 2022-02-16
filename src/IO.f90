@@ -85,8 +85,8 @@ contains
   end subroutine ed_get_docc
 
   subroutine ed_get_doubles(docc)
-    real(8),dimension(5) :: docc
-    docc = [ed_Dust,ed_Dund,ed_Dse,ed_Dph,ed_Dk]
+    real(8),dimension(6) :: docc
+    docc = [ed_Dust,ed_Dund,ed_Dse,ed_Dph,ed_Dkxy,ed_Dkz]
   end subroutine ed_get_doubles
 
   subroutine ed_get_energy(eimp)
@@ -235,6 +235,7 @@ contains
           write(*,"(A,1x,A)") reg(fname),"ed_write_func: diagonal lattice-spin-orbital."
           do ispin=1,Nspin
              do iorb=1,Norb
+                if(.not.gf_flag(iorb))cycle
                 do ilat=1,Nsites(iorb)
                    io = pack_indices(ilat,iorb)
                    !
@@ -253,6 +254,7 @@ contains
           write(*,"(A,1x,A)") reg(fname),"ed_write_func:  all sites, diagonal spin-orbital."
           do ispin=1,Nspin
              do iorb=1,Norb
+                if(.not.gf_flag(iorb))cycle
                 do ilat=1,Nsites(iorb)
                    do jlat=1,Nsites(iorb)
                       io = pack_indices(ilat,iorb)
@@ -274,7 +276,9 @@ contains
           write(*,"(A,1x,A)") reg(fname),"ed_write_func: all sites, all orb, same spins."
           do ispin=1,Nspin
              do iorb=1,Norb
+                if(.not.gf_flag(iorb))cycle
                 do jorb=1,Norb
+                   if(.not.gf_flag(jorb))cycle
                    do ilat=1,Nsites(iorb)
                       do jlat=1,Nsites(jorb)
                          io = pack_indices(ilat,iorb)

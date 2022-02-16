@@ -340,7 +340,8 @@ contains
     ed_Dund    = 0.d0
     ed_Dse     = 0.d0
     ed_Dph     = 0.d0
-    ed_Dk      = 0.d0
+    ed_Dkxy    = 0.d0
+    ed_Dkz     = 0.d0
     !
     call Hij_get(Hij)
     call Hij_get(Hloc)
@@ -516,9 +517,12 @@ contains
                    do jorb=iorb+1,Norb
                       do isite=1,Nsites(iorb)
                          do jsite=1,Nsites(jorb)
-                            if(isite/=jsite)cycle !local interaction only:
+                            ! if(isite/=jsite)cycle !local interaction only:
+                            ! io = pack_indices(isite,iorb)!a
+                            ! jo = pack_indices(isite,jorb)!b
+                            if(jsite/=Jkindx(isite))cycle
                             io = pack_indices(isite,iorb)!a
-                            jo = pack_indices(isite,jorb)!b
+                            jo = pack_indices(jsite,jorb)!b
                             !
                             ![cdg_io c_jo]_up [cdg_jo c_io]_dw
                             Jcondition=(&
@@ -536,7 +540,7 @@ contains
                                j = jup + (jdw-1)*sectorI%DimUp
                                !
                                ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
-                               ed_Dk = ed_Dk + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
+                               ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
                             endif
                             !
                             ![cdg_jo c_io]_up [cdg_io c_jo]_dw
@@ -555,7 +559,7 @@ contains
                                j = jup + (jdw-1)*sectorI%DimUp
                                !
                                ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
-                               ed_Dk = ed_Dk + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
+                               ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
                             endif
                             !
                          enddo
@@ -600,8 +604,14 @@ contains
                    do jorb=iorb+1,Norb
                       do isite=1,Nsites(iorb)
                          do jsite=1,Nsites(jorb)
+                            ! if(isite/=jsite)cycle !local interaction only:
+                            ! io = pack_indices(isite,iorb)!a
+                            ! jo = pack_indices(isite,jorb)!b
+                            if(jsite/=Jkindx(isite))cycle
+                            io = pack_indices(isite,iorb)
+                            jo = pack_indices(jsite,jorb)
                             ed_Epot = ed_Epot - 2*Jk*Sz(io)*Sz(jo)*gs_weight
-                            ed_Dk = ed_Dk + Sz(io)*Sz(jo)*gs_weight
+                            ed_Dkz  = ed_Dkz  + Sz(io)*Sz(jo)*gs_weight
                          enddo
                       enddo
                    enddo
@@ -655,7 +665,8 @@ contains
        call Bcast_MPI(MpiComm,ed_Dund)
        call Bcast_MPI(MpiComm,ed_Dph)
        call Bcast_MPI(MpiComm,ed_Dse)
-       call Bcast_MPI(MpiComm,ed_Dk)
+       call Bcast_MPI(MpiComm,ed_Dkxy)
+       call Bcast_MPI(MpiComm,ed_Dkz)
     endif
 #endif
     !
@@ -673,7 +684,8 @@ contains
           write(LOGfile,"(A,10f18.12)")"Dund    =",ed_Dund
           write(LOGfile,"(A,10f18.12)")"Dph     =",ed_Dph
           write(LOGfile,"(A,10f18.12)")"Dse     =",ed_Dse
-          write(LOGfile,"(A,10f18.12)")"Dk      =",ed_Dk
+          write(LOGfile,"(A,10f18.12)")"Dkxy    =",ed_Dkxy
+          write(LOGfile,"(A,10f18.12)")"Dkz     =",ed_Dkz
        endif
        !
        call write_energy()
@@ -718,7 +730,8 @@ contains
     ed_Dund    = 0.d0
     ed_Dse     = 0.d0
     ed_Dph     = 0.d0
-    ed_Dk      = 0.d0
+    ed_Dkxy    = 0.d0
+    ed_Dkz     = 0.d0
     !
     call Hij_get(Hij)
     call Hij_get(Hloc)
@@ -914,7 +927,7 @@ contains
                                j = jup + (jdw-1)*sectorI%DimUp
                                !
                                ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
-                               ed_Dk = ed_Dk + sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
+                               ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
                             endif
                             !
                             ![cdg_jo c_io]_up [cdg_io c_jo]_dw
@@ -933,7 +946,7 @@ contains
                                j = jup + (jdw-1)*sectorI%DimUp
                                !
                                ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
-                               ed_Dk = ed_Dk + sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
+                               ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
                             endif
                             !
                          enddo
@@ -978,7 +991,7 @@ contains
                       do isite=1,Nsites(iorb)
                          do jsite=1,Nsites(jorb)
                             ed_Epot = ed_Epot - 2*Jk*Sz(io)*Sz(jo)*state_weight*boltzman_weight
-                            ed_Dk = ed_Dk + Sz(io)*Sz(jo)*state_weight*boltzman_weight
+                            ed_Dkz  = ed_Dkz  + Sz(io)*Sz(jo)*state_weight*boltzman_weight
                          enddo
                       enddo
                    enddo
@@ -1030,7 +1043,8 @@ contains
        write(LOGfile,"(A,10f18.12)")"Dund    =",ed_Dund
        write(LOGfile,"(A,10f18.12)")"Dph     =",ed_Dph
        write(LOGfile,"(A,10f18.12)")"Dse     =",ed_Dse
-       write(LOGfile,"(A,10f18.12)")"Dk      =",ed_Dk
+       write(LOGfile,"(A,10f18.12)")"Dkxy    =",ed_Dkxy
+       write(LOGfile,"(A,10f18.12)")"Dkz     =",ed_Dkz
     endif
     call write_energy()
     !
@@ -1108,13 +1122,14 @@ contains
          reg(txtfy(7))//"<Dnd>",&
          reg(txtfy(8))//"<Dse>",&
          reg(txtfy(9))//"<Dph>",&
-         reg(txtfy(10))//"<Dk>"
+         reg(txtfy(10))//"<Dkxy>",&
+         reg(txtfy(11))//"<Dkz>"
     close(unit)
 
     unit = fopen("energy_last.ed",.true.)
     write(unit,"(90F15.9)")&
          ed_Ekin,ed_Epot,ed_Epot-ed_Ehartree,ed_Eknot,ed_Ehartree,&
-         ed_Dust,ed_Dund,ed_Dse,ed_Dph,ed_Dk
+         ed_Dust,ed_Dund,ed_Dse,ed_Dph,ed_Dkxy,ed_Dkz
     close(unit)
   end subroutine write_energy
 

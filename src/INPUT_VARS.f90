@@ -28,7 +28,7 @@ MODULE ED_INPUT_VARS
   real(8)              :: gs_threshold        !Energy threshold for ground state degeneracy loop up
   real(8)              :: sb_field            !symmetry breaking field
   !
-  logical              :: gf_flag             !evaluate Green's functions
+  logical,dimension(5) :: gf_flag             !evaluate Green's functions
   logical,dimension(5) :: chispin_flag        !evaluate spin susceptibility
   logical              :: chidens_flag        !evaluate dens susceptibility
   logical              :: chipair_flag        !evaluate pair susceptibility
@@ -136,7 +136,7 @@ contains
     call parse_input_variable(Lreal,"LREAL",INPUTunit,default=5000,comment="Number of real-axis frequencies.")
     call parse_input_variable(Ltau,"LTAU",INPUTunit,default=1024,comment="Number of imaginary time points.")
     !    
-    call parse_input_variable(gf_flag,"GF_FLAG",INPUTunit,default=.false.,comment="Flag to activate Greens functions calculation")
+    call parse_input_variable(gf_flag,"GF_FLAG",INPUTunit,default=[.false.,.false.,.false.,.false.,.false.],comment="Flag to activate Greens functions calculation")
     call parse_input_variable(chispin_flag,"CHISPIN_FLAG",INPUTunit,default=[.false.,.false.,.false.,.false.,.false.],comment="Flag to activate spin susceptibility calculation.")
     call parse_input_variable(chidens_flag,"CHIDENS_FLAG",INPUTunit,default=.false.,comment="Flag to activate density susceptibility calculation.")
     call parse_input_variable(chipair_flag,"CHIPAIR_FLAG",INPUTunit,default=.false.,comment="Flag to activate pair susceptibility calculation.")
