@@ -305,7 +305,8 @@ contains
              dE    = OcMatrix(iorb)%state(istate)%channel(ichan)%poles(iexc)
              !
              if( (isnan(peso/de)).OR.(isinfty(peso/de)) )cycle
-             if(abs(dE)<1d-12)cycle
+             if(abs(dE)<cutoff)cycle
+             if(abs(peso/dE)<cutoff)cycle
              Drude_weight(iorb) = Drude_weight(iorb) + peso/dE
              do i=1,Lreal
                 OptCond_w(iorb,i)=OptCond_w(iorb,i) + peso/dE*eps/( (vr(i)-dE)**2 + eps**2 )
