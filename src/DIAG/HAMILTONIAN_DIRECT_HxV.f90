@@ -45,7 +45,7 @@ contains
     !LOCAL HAMILTONIAN PART: H_loc*vin = vout
     include "direct/HxV_local.f90"
     if(ed_filling==0)then
-       include "direct/Hxv_muhf.f90"
+       include "direct/HxV_muhf.f90"
     endif
     !
     !UP HAMILTONIAN TERMS
@@ -97,7 +97,7 @@ contains
     !LOCAL HAMILTONIAN PART: H_loc*vin = vout
     include "direct_mpi/HxV_local.f90"
     if(ed_filling==0)then
-       include "direct_mpi/Hxv_muhf.f90"
+       include "direct_mpi/HxV_muhf.f90"
     endif
     !
     !UP HAMILTONIAN TERMS: MEMORY CONTIGUOUS
