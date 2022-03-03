@@ -47,6 +47,7 @@ contains
        !do nothing
        return
     case default
+       !Evaluate diagonal GF:
        do ispin=1,Nspin
           do iorb=1,Norb
              if(.not.gf_flag(iorb))cycle
@@ -64,7 +65,8 @@ contains
           enddo
        enddo
        !
-       if(offdiag_gf_flag.AND.Norb>1)then     
+       !Evalaute off-diagonal GF if required
+       if(offdiag_gf_flag)then
           do ispin=1,Nspin
              do iorb=1,Norb
                 if(.not.gf_flag(iorb))cycle
@@ -93,6 +95,34 @@ contains
        !
     end select
   end subroutine build_gf_normal
+
+  ! subroutine build_gf_kondo()
+  !   integer :: ispin,i,iimp
+  !   integer :: iorb,jorb
+  !   integer :: isite,jsite
+  !   integer :: io,jo
+  !   !
+  !   call deallocate_GFmatrix(impGmatrix)
+  !   !
+  !   select case(ed_method)
+  !   case ('lapack','full')
+  !      !do nothing
+  !      return
+  !   case default
+  !      !Evaluate diagonal GF:
+  !      do iimp=1,Nimp
+  !         if(MPIMASTER)call start_timer
+  !         if(MPIMASTER)write(LOGfile,"(A)")"Build G:"//" imp "//str(imp)
+  !         call allocate_GFmatrix(impGmatrix(ispin,Ns+iimp,Ns+iimp),Nstate=state_list%size)
+  !         call lanc_build_gf_imp(iimp)
+  !         if(MPIMASTER)call stop_timer(unit=LOGfile)
+  !      enddo
+  !   end select
+  ! end subroutine build_gf_kondo
+
+
+
+
 
 
 
@@ -124,7 +154,7 @@ contains
        enddo
     enddo
     !
-    if(offdiag_gf_flag.AND.Norb>1)then     
+    if(offdiag_gf_flag)then     
        do ispin=1,Nspin
           do iorb=1,Norb
              do jorb=1,Norb
@@ -174,6 +204,25 @@ contains
     !
   end subroutine eval_gf_normal
 
+  ! subroutine eval_gf_kondo()
+  !   integer :: ispin,i,iimp
+  !   integer :: iorb,jorb
+  !   integer :: isite,jsite
+  !   integer :: io,jo
+  !   !
+  !   do iimp=1,Nimp
+  !      if(MPIMASTER)write(LOGfile,"(A)")"Eval G:"//" imp"//str(imp)
+  !      if(MPIMASTER)call start_timer
+  !      select case(ed_method)
+  !      case default
+  !         call lanc_eval_gf_imp(iimp)
+  !      case ('lapack','full')
+  !         call full_eval_gf_imp(iimp)
+  !      end select
+  !      if(MPIMASTER)call stop_timer(unit=LOGfile)
+  !   enddo
+  !   !
+  ! end subroutine eval_gf_kondo
 
 
 
@@ -694,50 +743,63 @@ contains
 
 
 
-  subroutine eval_sigma_normal
-    integer                                 :: i,ispin,iorb
-    complex(8),dimension(Nspin,Ns,Ns,Lmats) :: invG0mats,invGmats
-    complex(8),dimension(Nspin,Ns,Ns,Lreal) :: invG0real,invGreal
-    complex(8),dimension(Ns,Ns)             :: Gtmp
-    !
-    invG0mats = zero
-    invGmats  = zero
-    invG0real = zero
-    invGreal  = zero
-    !
-    !Get G0^-1
-    call Hij_get_g0inv(dcmplx(0d0,wm(:)),invG0mats)
-    call Hij_get_g0inv(dcmplx(wr(:),eps),invG0real)
-    !
-    impSmats=zero
-    impSreal=zero
-    !Get Gimp^-1
-    do ispin=1,Nspin
-       do i=1,Lmats
-          Gtmp = impGmats(ispin,:,:,i)
-          call inv(Gtmp)
-          invGmats(ispin,:,:,i)=Gtmp
-       enddo
-       !
-       do i=1,Lreal
-          Gtmp = impGreal(ispin,:,:,i)
-          call inv(Gtmp)
-          invGreal(ispin,:,:,i)=Gtmp
-       enddo
-       !
-       !Get Sigma functions: Sigma= G0^-1 - G^-1
-       impSmats(ispin,:,:,:) = invG0mats(ispin,:,:,:) - invGmats(ispin,:,:,:)
-       impSreal(ispin,:,:,:) = invG0real(ispin,:,:,:) - invGreal(ispin,:,:,:)
-    enddo
-    !
-    !Get G0and:
-    call Hij_get_g0func(dcmplx(0d0,wm(:)),impG0mats)
-    call Hij_get_g0func(dcmplx(wr(:),eps),impG0real)
-    !
-  end subroutine eval_sigma_normal
 
 
 END MODULE ED_GF_ELECTRON
+
+
+
+
+
+
+
+
+
+
+
+
+
+! subroutine eval_sigma_normal
+!   integer                                 :: i,ispin,iorb
+!   complex(8),dimension(Nspin,Ns,Ns,Lmats) :: invG0mats,invGmats
+!   complex(8),dimension(Nspin,Ns,Ns,Lreal) :: invG0real,invGreal
+!   complex(8),dimension(Ns,Ns)             :: Gtmp
+!   !
+!   invG0mats = zero
+!   invGmats  = zero
+!   invG0real = zero
+!   invGreal  = zero
+!   !
+!   !Get G0^-1
+!   call Hij_get_g0inv(dcmplx(0d0,wm(:)),invG0mats)
+!   call Hij_get_g0inv(dcmplx(wr(:),eps),invG0real)
+!   !
+!   impSmats=zero
+!   impSreal=zero
+!   !Get Gimp^-1
+!   do ispin=1,Nspin
+!      do i=1,Lmats
+!         Gtmp = impGmats(ispin,:,:,i)
+!         call inv(Gtmp)
+!         invGmats(ispin,:,:,i)=Gtmp
+!      enddo
+!      !
+!      do i=1,Lreal
+!         Gtmp = impGreal(ispin,:,:,i)
+!         call inv(Gtmp)
+!         invGreal(ispin,:,:,i)=Gtmp
+!      enddo
+!      !
+!      !Get Sigma functions: Sigma= G0^-1 - G^-1
+!      impSmats(ispin,:,:,:) = invG0mats(ispin,:,:,:) - invGmats(ispin,:,:,:)
+!      impSreal(ispin,:,:,:) = invG0real(ispin,:,:,:) - invGreal(ispin,:,:,:)
+!   enddo
+!   !
+!   !Get G0and:
+!   call Hij_get_g0func(dcmplx(0d0,wm(:)),impG0mats)
+!   call Hij_get_g0func(dcmplx(wr(:),eps),impG0real)
+!   !
+! end subroutine eval_sigma_normal
 
 
 

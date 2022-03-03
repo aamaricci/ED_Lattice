@@ -64,7 +64,7 @@ contains
   subroutine build_sector(isector,self)
     integer,intent(in)                  :: isector
     type(sector)                        :: self
-    integer                             :: iup,idw
+    integer                             :: iup,idw,ip
     integer                             :: nup_,ndw_
     integer                             :: dim,iud
     !
@@ -72,42 +72,73 @@ contains
     !
     self%index = isector
     !
-    allocate(self%H(2*Ns_Ud))
-    allocate(self%DimUps(Ns_Ud))
-    allocate(self%DimDws(Ns_Ud))
-    allocate(self%Nups(Ns_Ud))
-    allocate(self%Ndws(Ns_Ud))
-    !
-    call get_Nup(isector,self%Nups);self%Nup=sum(self%Nups)
-    call get_Ndw(isector,self%Ndws);self%Ndw=sum(self%Ndws)
-    call get_DimUp(isector,self%DimUps);self%DimUp=product(self%DimUps)
-    call get_DimDw(isector,self%DimDws);self%DimDw=product(self%DimDws)
-    self%DimEl=self%DimUp*self%DimDw
-    self%DimPh=1
-    self%Dim=self%DimEl*self%DimPh
-    !
-    call map_allocate(self%H,[self%DimUps,self%DimDws])
-    do iud=1,Ns_Ud
-       !UP    
-       dim=0
-       do iup=0,2**Ns_Orb-1
-          nup_ = popcnt(iup)
-          if(nup_ /= self%Nups(iud))cycle
-          dim  = dim+1
-          self%H(iud)%map(dim) = iup
+    if(KondoFlag)then
+       !
+       allocate(self%H(1))
+       allocate(self%Nups(1))
+       allocate(self%Ndws(1))
+       call get_Nup(isector,self%Nups);self%Nup=self%Nups(1)
+       call get_Ndw(isector,self%Ndws);self%Ndw=self%Ndws(1)
+       self%DimEl=get_sector_dimension(Ns,self%Nup,self%Ndw)
+       self%DimPh=1
+       self%Dim=self%DimEl*self%DimPh
+       !
+       call map_allocate(self%H(1),self%Dim)
+       dim = 0
+       do ip=0,2**Nimp-1     
+          do idw=0,2**Ns-1
+             ndw_ = popcnt(idw) + popcnt(2**Nimp-1-ip)
+             if(ndw_ /= ndw) cycle
+             do iup=0,2**Ns-1
+                nup_ = popcnt(iup) + popcnt(ip)
+                if(nup_ /= nup) cycle
+                dim        = dim+1
+                self%H(1)%map(dim) = iup + idw*2**Ns + ip*2**(2*Ns)
+             enddo
+          enddo
        enddo
-       !DW
-       dim=0
-       do idw=0,2**Ns_Orb-1
-          ndw_= popcnt(idw)
-          if(ndw_ /= self%Ndws(iud))cycle
-          dim = dim+1
-          self%H(iud+Ns_Ud)%map(dim) = idw
+       !
+    else
+       !
+       allocate(self%H(2*Ns_Ud))
+       allocate(self%DimUps(Ns_Ud))
+       allocate(self%DimDws(Ns_Ud))
+       allocate(self%Nups(Ns_Ud))
+       allocate(self%Ndws(Ns_Ud))
+       !
+       call get_Nup(isector,self%Nups);self%Nup=sum(self%Nups)
+       call get_Ndw(isector,self%Ndws);self%Ndw=sum(self%Ndws)
+       call get_DimUp(isector,self%DimUps);self%DimUp=product(self%DimUps)
+       call get_DimDw(isector,self%DimDws);self%DimDw=product(self%DimDws)
+       self%DimEl=self%DimUp*self%DimDw
+       self%DimPh=1
+       self%Dim=self%DimEl*self%DimPh
+       !
+       call map_allocate(self%H,[self%DimUps,self%DimDws])
+       do iud=1,Ns_Ud
+          !UP    
+          dim=0
+          do iup=0,2**Ns_Orb-1
+             nup_ = popcnt(iup)
+             if(nup_ /= self%Nups(iud))cycle
+             dim  = dim+1
+             self%H(iud)%map(dim) = iup
+          enddo
+          !DW
+          dim=0
+          do idw=0,2**Ns_Orb-1
+             ndw_= popcnt(idw)
+             if(ndw_ /= self%Ndws(iud))cycle
+             dim = dim+1
+             self%H(iud+Ns_Ud)%map(dim) = idw
+          enddo
        enddo
-    enddo
+       !
+    endif
     !
     self%Nlanc = min(self%Dim,lanc_nGFiter)
     self%status=.true.
+    !
   end subroutine build_sector
 
 
@@ -197,6 +228,8 @@ contains
     integer,dimension(Ns_Orb)   :: Nud
     integer                     :: Iud
     !
+    if(KondoFlag)stop "Apply_op_C ERROR: This function can not be called if KondoFlag=T"
+    !
     j=0
     sgn=0d0
     !
@@ -229,6 +262,8 @@ contains
     integer,dimension(Ns_Orb)  :: Nud
     integer                    :: Iud
     !
+    if(KondoFlag)stop "Apply_op_CDG ERROR: This function can not be called if KondoFlag=T"
+    !
     j=0
     sgn=0d0
     !
@@ -254,6 +289,8 @@ contains
     integer,dimension(2,Ns_Orb) :: Nud !Nbits(Ns_Orb)
     integer,dimension(2)        :: Iud
     !
+    if(KondoFlag)stop "Apply_op_Sz ERROR: This function can not be called if KondoFlag=T"
+    !
     sgn=0d0
     !
     call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
@@ -277,6 +314,8 @@ contains
     integer,dimension(2,Ns_Orb) :: Nud !Nbits(Ns_Orb)
     integer,dimension(2)        :: Iud
     !
+    if(KondoFlag)stop "Apply_op_N ERROR: This function can not be called if KondoFlag=T"
+    !
     sgn=0d0
     !
     call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
@@ -298,6 +337,8 @@ contains
     integer,dimension(2*Ns_Ud)      :: Indices
     integer,dimension(Ns_Ud,Ns_Orb) :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
     integer,dimension(2)            :: Iud
+    !
+    if(KondoFlag)stop "build_op_Ns ERROR: This function can not be called if KondoFlag=T"
     !
     call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
     do ii=1,Ns_Ud
@@ -324,30 +365,43 @@ contains
     integer,dimension(:) :: QN
     integer              :: N
     integer              :: isector
-    integer              :: i,Nind,factor
-    Nind = size(QN)
-    Factor = N+1
-    isector = 1
-    do i=Nind,1,-1
-       isector = isector + QN(i)*(Factor)**(Nind-i)
-    enddo
+    integer              :: i,Nind,factor,Nup,Ndw
+    if(KondoFlag)then
+       Nup = QN(1)
+       Ndw = QN(2)
+       isector=getSector(Nup,Ndw)
+       if(isector==0)stop &
+            "get_Sector ERROR: KondoFlag + looking for inexistent sector (0,0), (N+Nimp,N+Nimp)"
+    else
+       Nind = size(QN)
+       Factor = N+1
+       isector = 1
+       do i=Nind,1,-1
+          isector = isector + QN(i)*(Factor)**(Nind-i)
+       enddo
+    endif
   end subroutine get_Sector
 
 
   subroutine get_QuantumNumbers(isector,N,QN)
-    integer                          :: isector,N
-    integer,dimension(:)             :: QN
-    integer                          :: i,count,Dim
+    integer                     :: isector,N
+    integer,dimension(:)        :: QN
+    integer                     :: i,count,Dim
     integer,dimension(size(QN)) :: QN_
     !
-    Dim = size(QN)
-    if(mod(Dim,2)/=0)stop "get_QuantumNumbers error: Dim%2 != 0"
-    count=isector-1
-    do i=1,Dim
-       QN_(i) = mod(count,N+1)
-       count      = count/(N+1)
-    enddo
-    QN = QN_(Dim:1:-1)
+    if(KondoFlag)then
+       QN(1)=get_Nup(isector)
+       QN(2)=get_Ndw(isector)
+    else
+       Dim = size(QN)
+       if(mod(Dim,2)/=0)stop "get_QuantumNumbers error: Dim%2 != 0"
+       count=isector-1
+       do i=1,Dim
+          QN_(i) = mod(count,N+1)
+          count      = count/(N+1)
+       enddo
+       QN = QN_(Dim:1:-1)
+    endif
   end subroutine get_QuantumNumbers
 
 
@@ -355,12 +409,16 @@ contains
     integer                   :: isector,Nup(Ns_Ud)
     integer                   :: i,count
     integer,dimension(2*Ns_Ud)  :: indices_
-    count=isector-1
-    do i=1,2*Ns_Ud
-       indices_(i) = mod(count,Ns_Orb+1)
-       count      = count/(Ns_Orb+1)
-    enddo
-    Nup = indices_(2*Ns_Ud:Ns_Ud+1:-1)
+    if(KondoFlag)then
+       Nup(1) = get_Nup(isector)
+    else
+       count=isector-1
+       do i=1,2*Ns_Ud
+          indices_(i) = mod(count,Ns_Orb+1)
+          count      = count/(Ns_Orb+1)
+       enddo
+       Nup = indices_(2*Ns_Ud:Ns_Ud+1:-1)
+    endif
   end subroutine get_Nup
 
 
@@ -368,12 +426,16 @@ contains
     integer                   :: isector,Ndw(Ns_Ud)
     integer                   :: i,count
     integer,dimension(2*Ns_Ud) :: indices_
-    count=isector-1
-    do i=1,2*Ns_Ud
-       indices_(i) = mod(count,Ns_Orb+1)
-       count      = count/(Ns_Orb+1)
-    enddo
-    Ndw = indices_(Ns_Ud:1:-1)
+    if(KondoFlag)then
+       Ndw(1) = get_Ndw(isector)
+    else
+       count=isector-1
+       do i=1,2*Ns_Ud
+          indices_(i) = mod(count,Ns_Orb+1)
+          count      = count/(Ns_Orb+1)
+       enddo
+       Ndw = indices_(Ns_Ud:1:-1)
+    endif
   end subroutine get_Ndw
 
 

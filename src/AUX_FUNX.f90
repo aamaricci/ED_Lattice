@@ -13,6 +13,7 @@ MODULE ED_AUX_FUNX
   public :: pack_indices
   !FERMIONIC OPERATORS IN BITWISE OPERATIONS
   public :: c,cdg
+  public :: Splus,Sminus
   !BIT DECOMPOSITION 
   public :: bdecomp
   !BINARY SEARCH
@@ -86,7 +87,21 @@ contains
     out = ibset(in,pos-1)
   end subroutine cdg
 
+  subroutine Sminus(pos,in,out)
+    integer,intent(in)    :: pos
+    integer,intent(in)    :: in
+    integer,intent(inout) :: out
+    if(.not.btest(in,pos-1))stop "S^- error: S^-_i|...dw_i...>"
+    out = ibclr(in,pos-1)
+  end subroutine Sminus
 
+  subroutine Splus(pos,in,out)
+    integer,intent(in)    :: pos
+    integer,intent(in)    :: in
+    integer,intent(inout) :: out
+    if(btest(in,pos-1))stop "S^+ error: S^+_i|...up_i...>"
+    out = ibset(in,pos-1)
+  end subroutine Splus
 
 
 

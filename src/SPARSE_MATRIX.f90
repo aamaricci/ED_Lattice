@@ -22,6 +22,7 @@ MODULE ED_SPARSE_MATRIX  !THIS VERSION CONTAINS ONLY DBLE ELEMENT: (SYMMETRIC MA
      integer                                   :: Ncol
      logical                                   :: status=.false.
 #ifdef _MPI
+     type(sparse_row_csr),dimension(:),pointer :: loc
      integer                                   :: istart=0 !global start index for MPI storage
      integer                                   :: iend=0
      integer                                   :: ishift=0
@@ -89,7 +90,7 @@ MODULE ED_SPARSE_MATRIX  !THIS VERSION CONTAINS ONLY DBLE ELEMENT: (SYMMETRIC MA
 #endif
 
 
-  
+
 
   interface add_to
      module procedure :: add_to_I
@@ -99,7 +100,11 @@ MODULE ED_SPARSE_MATRIX  !THIS VERSION CONTAINS ONLY DBLE ELEMENT: (SYMMETRIC MA
 
 
 
+  integer :: MpiRank=0
+  integer :: MpiSize=1
   integer :: MpiIerr
+  logical :: MpiMaster=.true.
+
 
 
 contains       
@@ -153,6 +158,12 @@ contains
     !
     call sp_init_matrix_csr(sparse,Nloc,Ncol)
     !
+    allocate(sparse%loc(Nloc))
+    do i=1,Nloc
+       sparse%loc(i)%size=0
+       allocate(sparse%loc(i)%vals(0)) !empty array
+       allocate(sparse%loc(i)%cols(0)) !empty array
+    end do
   end subroutine mpi_sp_init_matrix_csr
 #endif
 
@@ -206,6 +217,10 @@ contains
        deallocate(sparse%row(i)%vals)
        deallocate(sparse%row(i)%cols)
        sparse%row(i)%Size  = 0
+       !
+       deallocate(sparse%loc(i)%vals)
+       deallocate(sparse%loc(i)%cols)
+       sparse%loc(i)%Size  = 0
     enddo
     deallocate(sparse%row)
     !
@@ -250,7 +265,7 @@ contains
     !
     iadd = .false.                          !check if column already exist
     if(any(row%cols == column))then         !
-       pos = binary_search(row%cols,column) !find the position  column in %cols        
+       pos = binary_search(row%cols,column) !find the position  column in %cols
        iadd=.true.                          !set Iadd to true
     endif
     !
@@ -282,7 +297,11 @@ contains
     !
     column = j
     !
-    row => sparse%row(i-sparse%Ishift)
+    if(column>=sparse%Istart.AND.column<=sparse%Iend)then
+       row => sparse%loc(i-sparse%Ishift)
+    else
+       row => sparse%row(i-sparse%Ishift)
+    endif
     !
     iadd = .false.                          !check if column already exist
     if(any(row%cols == column))then         !
@@ -362,6 +381,12 @@ contains
     allocate(matrix_tmp(Ndim1,Ndim2));matrix_tmp=0d0
     do i=sparse%Istart,sparse%Iend
        impi = i - sparse%Ishift
+       !Local part:
+       do j=1,sparse%loc(impi)%Size
+          matrix_tmp(i,sparse%loc(impi)%cols(j))=matrix_tmp(i,sparse%loc(impi)%cols(j))+sparse%loc(impi)%vals(j)
+       enddo
+       !
+       !Non-local part:
        do j=1,sparse%row(impi)%Size
           matrix_tmp(i,sparse%row(impi)%cols(j))=matrix_tmp(i,sparse%row(impi)%cols(j))+sparse%row(impi)%vals(j)
        enddo

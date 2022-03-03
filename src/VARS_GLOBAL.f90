@@ -28,7 +28,6 @@ MODULE ED_VARS_GLOBAL
      integer                                     :: DimUp
      integer                                     :: DimDw
      integer                                     :: DimEl
-     integer                                     :: DimPh
      integer                                     :: Dim
      integer,dimension(:),allocatable            :: Nups
      integer,dimension(:),allocatable            :: Ndws
@@ -116,18 +115,21 @@ MODULE ED_VARS_GLOBAL
   !SIZE OF THE PROBLEM
   !=========================================================
   integer,save                                     :: Ns       !Number of levels per spin
+  integer,save                                     :: Ntot     !Total number of electrons/spin
   integer,save                                     :: Nsectors !Number of sectors
   integer,save                                     :: Ns_orb
   integer,save                                     :: Ns_ud
+  integer,save                                     :: DimImp   !Number of Imp states
 
 
   !Some maps between sectors and full Hilbert space (pointers)
   !PRIVATE:
   !=========================================================
   integer,allocatable,dimension(:)                 :: getDim             ! [Nsectors]
+  integer,allocatable,dimension(:,:)               :: GetSector
+  integer,allocatable,dimension(:)                 :: getNup,getNdw      ! [Nsectors]
   integer,allocatable,dimension(:,:,:)             :: getCsector         ! [1/Norb,2,NSectors]
   integer,allocatable,dimension(:,:,:)             :: getCDGsector       ! [1/Norb,2,NSectors]
-  integer,allocatable,dimension(:,:)               :: impIndex
   logical,allocatable,dimension(:)                 :: twin_mask
   logical,allocatable,dimension(:)                 :: sectors_mask
 
@@ -142,8 +144,6 @@ MODULE ED_VARS_GLOBAL
   type(sparse_matrix_csr)                          :: spH0d !diagonal part
   type(sparse_matrix_csr)                          :: spH0nd !non-diagonal part
   type(sparse_matrix_csr),dimension(:),allocatable :: spH0ups,spH0dws !reduced UP and DW parts
-  type(sparse_matrix_csr)                          :: spH0_ph !Hamiltonian for phonons
-  type(sparse_matrix_csr)                          :: spH0e_eph, spH0edw_eph, spH0ph_eph !electron-phonon interaction
   !
   procedure(dd_sparse_HxV),pointer                 :: spHtimesV_p=>null()
 
@@ -162,17 +162,11 @@ MODULE ED_VARS_GLOBAL
 
 
 
-  !Impurity Green's function and Self-Energies: (Ns,Ns,:)
-  !PRIVATE (now public but accessible thru routine)
+  !Impurity and Electrons Green's function
   !=========================================================
-  complex(8),allocatable,dimension(:,:,:,:)        :: impSmats ![Nspin,Ns,Ns,Freq]
-  complex(8),allocatable,dimension(:,:,:,:)        :: impSreal
-  complex(8),allocatable,dimension(:,:,:,:)        :: impGmats
+  complex(8),allocatable,dimension(:,:,:,:)        :: impGmats !
   complex(8),allocatable,dimension(:,:,:,:)        :: impGreal
-  complex(8),allocatable,dimension(:,:,:,:)        :: impG0mats
-  complex(8),allocatable,dimension(:,:,:,:)        :: impG0real
-  type(GFmatrix),allocatable,dimension(:,:,:)      :: ImpGMatrix    
-
+  type(GFmatrix),allocatable,dimension(:,:,:)      :: impGMatrix    
 
   !Spin Susceptibilities
   !=========================================================
@@ -182,27 +176,7 @@ MODULE ED_VARS_GLOBAL
   type(GFmatrix),allocatable,dimension(:,:)        :: SpinChiMatrix
 
 
-  ! !Diagonal/Off-diagonal charge-charge Susceptibilities
-  ! !=========================================================  
-  ! real(8),allocatable,dimension(:,:,:)           :: densChi_tau
-  ! complex(8),allocatable,dimension(:,:,:)        :: densChi_w
-  ! complex(8),allocatable,dimension(:,:,:)        :: densChi_iv
 
-  ! !Pair-Pair Susceptibilities
-  ! !=========================================================
-  ! real(8),allocatable,dimension(:,:,:)           :: pairChi_tau
-  ! complex(8),allocatable,dimension(:,:,:)        :: pairChi_w
-  ! complex(8),allocatable,dimension(:,:,:)        :: pairChi_iv
-
-  ! !Exciton Susceptibilities
-  ! !=========================================================
-  ! real(8),allocatable,dimension(:,:,:,:)         :: exctChi_tau ![0:4,:]
-  ! complex(8),allocatable,dimension(:,:,:,:)      :: exctChi_w
-  ! complex(8),allocatable,dimension(:,:,:,:)      :: exctChi_iv
-
-
-
-  !Density and double occupancy
   !PRIVATE (now public but accessible thru routines)
   !=========================================================
   real(8),dimension(:),allocatable                 :: ed_dens
@@ -215,11 +189,9 @@ MODULE ED_VARS_GLOBAL
   real(8)                                          :: ed_Ehartree
   real(8)                                          :: ed_Eknot
   real(8)                                          :: ed_Dust,ed_Dund,ed_Dse,ed_Dph,ed_Dkxy,ed_Dkz
-
   real(8),allocatable,dimension(:)                 :: Drude_weight
   real(8),allocatable,dimension(:,:)               :: OptCond_w
   type(GFmatrix),allocatable,dimension(:)          :: OcMatrix
-
   real(8),dimension(:),allocatable                 :: temperature_list
 
 
@@ -228,11 +200,6 @@ MODULE ED_VARS_GLOBAL
   real(8),dimension(:),allocatable                 :: wm,tau,wr,vm,vr
 
 
-  ! !Impurity operators
-  ! !PRIVATE (now public but accessible thru routine)
-  ! !=========================================================
-  ! complex(8),allocatable,dimension(:,:,:)          :: imp_density_matrix
-
 
 
   !File suffixes for printing fine tuning.
@@ -240,8 +207,10 @@ MODULE ED_VARS_GLOBAL
   character(len=32)                                :: ed_file_suffix=""       !suffix string attached to the output files.
   integer                                          :: site_indx_padding=4
   logical                                          :: Jhflag              !spin-exchange and pair-hopping flag.
+  logical                                          :: KondoFlag
   logical                                          :: finiteT             !flag for finite temperature calculation
-  logical                                          :: chi_flag
+  logical                                          :: global_gf_flag
+  logical                                          :: global_chi_flag
   integer                                          :: lanc_nstates_total=1  !Max number of states hold in the finite T calculation
 
   !This is the internal Mpi Communicator and variables.

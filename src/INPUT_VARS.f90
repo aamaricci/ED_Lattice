@@ -8,16 +8,18 @@ MODULE ED_INPUT_VARS
   !input variables
   !=========================================================
   integer              :: Norb                !# of orbitals
-  integer,dimension(5) :: Nsites              !# of sites per orbital species
+  integer,allocatable  :: Nsites(:)           !# of sites per orbital species
   integer              :: Nspin               !Nspin=# spin degeneracy (max 2)
-
-  real(8),dimension(5) :: Uloc                !local interactions
+  real(8)              :: Nimp                !Number of Kondo impurities (max 1)
+  !
+  real(8),allocatable  :: Uloc(:)             !local interactions
   real(8)              :: Ust                 !intra-orbitals interactions
   real(8)              :: Jh                  !J_Hund: Hunds' coupling constant 
   real(8)              :: Jx                  !J_X: coupling constant for the spin-eXchange interaction term
   real(8)              :: Jp                  !J_P: coupling constant for the Pair-hopping interaction term
   real(8)              :: Jk                  !J_Kondo: Kondo coupling
-  integer,allocatable  :: Jkindx(:)           !tags the position of the impurity sites with respect to the electron band, dim(Jkflags)=Nsites(impurity_orbital)
+  integer,allocatable  :: Jkindx(:)           !tags the position of the impurity sites with respect to the electron band, dim(Jkflags)=Nimp
+  !
   real(8)              :: xmu                 !chemical potential
   real(8)              :: temp                !temperature
   !
@@ -28,17 +30,16 @@ MODULE ED_INPUT_VARS
   real(8)              :: gs_threshold        !Energy threshold for ground state degeneracy loop up
   real(8)              :: sb_field            !symmetry breaking field
   !
-  logical,dimension(5) :: gf_flag             !evaluate Green's functions
-  logical,dimension(5) :: chispin_flag        !evaluate spin susceptibility
-  logical              :: chidens_flag        !evaluate dens susceptibility
-  logical              :: chipair_flag        !evaluate pair susceptibility
-  logical              :: chiexct_flag        !evaluate excitonic susceptibility
-  logical              :: offdiag_gf_flag     !flag to select the calculation of the off-diagonal impurity GF.
-  logical              :: offdiag_chispin_flag!flag to select the calculation of the off-diagonal spin Chi.
-  logical,dimension(5) :: oc_flag             !evaluate Optical Conductivity and Drude Weight per orbital
+
+  logical,allocatable  :: gf_flag(:)           !evaluate Green's functions for Norb
+  logical,allocatable  :: chispin_flag(:)      !evaluate spin susceptibility for Norb
+  logical,allocatable  :: oc_flag(:)           !evaluate Optical Conductivity and Drude Weight per orbital
+  logical,allocatable  :: imp_gf_flag(:)       !evaluate impurity Green's functions for Nimp
+  logical,allocatable  :: imp_chispin_flag(:)  !evaluate impurity spin susceptibility for Nimp
+  logical              :: offdiag_chispin_flag !flag to select the calculation of the off-diagonal spin Chi.
   !
   !
-  integer              :: ed_filling          !Total number of allowed electrons 
+  integer              :: ed_filling          !Total number of allowed electrons not including Kondo impurities
   logical              :: ed_finite_temp      !flag to select finite temperature method. note that if T then lanc_nstates_total must be > 1
   logical              :: ed_sparse_H         !flag to select  storage of sparse matrix H (mem--, cpu++) if TRUE, or direct on-the-fly H*v product (mem++, cpu--
   character(len=12)    :: ed_method           !select the diagonalization method: lanczos (see lanc_method then) or lapack (full diagonalization)
@@ -59,11 +60,6 @@ MODULE ED_INPUT_VARS
   integer              :: lanc_nstates_sector !Max number of required eigenvalues per sector
   integer              :: lanc_dim_threshold  !Min dimension threshold to use Lanczos determination of the spectrum rather than Lapack based exact diagonalization.
   !
-  real(8)              :: nread               !fixed density. if 0.d0 fixed chemical potential calculation.
-  real(8)              :: nerr                !fix density threshold. a loop over from 1.d-1 to required nerr is performed
-  real(8)              :: ndelta              !initial chemical potential step
-  real(8)              :: ncoeff              !multiplier for the initial ndelta read from a file (ndelta-->ndelta*ncoeff)
-  integer              :: niter               !
 
 
   !Some parameters for function dimension:
@@ -74,7 +70,7 @@ MODULE ED_INPUT_VARS
 
   !LOG AND Hamiltonian UNITS
   !=========================================================
-  character(len=100)   :: Tfile,SectorFile
+  character(len=100)   :: Tfile
   integer,save         :: LOGfile
 
   !THIS IS JUST A RELOCATED GLOBAL VARIABLE
@@ -94,7 +90,7 @@ contains
 #endif
     character(len=*) :: INPUTunit
     logical          :: master=.true.
-    integer          :: i,rank=0,Jdim
+    integer          :: i,rank=0,dim
 #ifdef _MPI
     if(check_MPI())then
        master=get_Master_MPI(MPI_COMM_WORLD)
@@ -107,21 +103,26 @@ contains
     !
     !DEFAULT VALUES OF THE PARAMETERS:
     call parse_input_variable(Norb,"NORB",INPUTunit,default=1,comment="Number of impurity orbitals (max 5).")
-    call parse_input_variable(Nsites,"NSITES",INPUTunit,default=[4,0,0,0,0],comment="Number of sites per orbital species (Norb values considered)")
-    !
+    call parse_input_variable(Nsites,"NSITES",INPUTunit,default=(/( 4,i=1,Norb )/),comment="Number of sites per orbital species")
+    call parse_input_variable(Nimp,"NIMP",INPUTunit,default=0,comment="Number of Kondo impurities (max 1 for now)")
     call parse_input_variable(Nspin,"NSPIN",INPUTunit,default=1,comment="Number of spin degeneracy (max 2)")
+    call parse_input_variable(ed_filling,"ED_FILLING",INPUTunit,default=0,comment="Total number of allowed electrons not including Kondo impurities if any")
+    allocate(Nsites(Norb))
+    allocate(Uloc(Norb))
+    allocate(gf_flag(Norb))
+    allocate(chispin_flag(Norb))
+    allocate(oc_flag(Norb))
+    allocate(imp_gf_flag(min(1,Nimp)))
+    allocate(imp_chispin_flag(min(1,Nimp)))
+    allocate(Jkindx(min(1,Nimp)))
     !
-    call parse_input_variable(ed_filling,"ED_FILLING",INPUTunit,default=0,comment="Total number of allowed electrons")
-    !
-    call parse_input_variable(uloc,"ULOC",INPUTunit,default=[2d0,0d0,0d0,0d0,0d0],comment="Values of the local interaction per orbital (max 5)")
+    call parse_input_variable(uloc,"ULOC",INPUTunit,default=(/( 2,i=1,Norb )/),comment="Values of the local interaction per orbital")
     call parse_input_variable(ust,"UST",INPUTunit,default=0.d0,comment="Value of the inter-orbital interaction term")
     call parse_input_variable(Jh,"JH",INPUTunit,default=0.d0,comment="Hunds coupling")
     call parse_input_variable(Jx,"JX",INPUTunit,default=0.d0,comment="S-E coupling")
     call parse_input_variable(Jp,"JP",INPUTunit,default=0.d0,comment="P-H coupling")
     call parse_input_variable(Jk,"JK",INPUTunit,default=0.d0,comment="Kondo coupling")
-    Jdim = 1 ;  if(Jk/=0d0)Jdim=Nsites(1)
-    allocate(Jkindx(Jdim))
-    call parse_input_variable(Jkindx,"Jkindx",INPUTunit,default=(/(1,i=1,size(Jkindx) )/),comment="!index the position of the impurity sites with respect to the electron band, dim(Jkflags)=Nsites(impurity_orbital)")
+    call parse_input_variable(Jkindx,"Jkindx",INPUTunit,default=(/( 1,i=1,size(Jkindx) )/),comment="!index the position of the impurity sites with respect to the electron band, dim(Jkflags)=Nsites(impurity_orbital)")
     !
     call parse_input_variable(temp,"TEMP",INPUTunit,default=0.001d0,comment="temperature, at T=0 is used as a IR cut-off.")
     call parse_input_variable(ed_finite_temp,"ED_FINITE_TEMP",INPUTunit,default=.false.,comment="flag to select finite temperature method. note that if T then lanc_nstates_total must be > 1")
@@ -136,13 +137,11 @@ contains
     call parse_input_variable(Lreal,"LREAL",INPUTunit,default=5000,comment="Number of real-axis frequencies.")
     call parse_input_variable(Ltau,"LTAU",INPUTunit,default=1024,comment="Number of imaginary time points.")
     !    
-    call parse_input_variable(gf_flag,"GF_FLAG",INPUTunit,default=[.false.,.false.,.false.,.false.,.false.],comment="Flag to activate Greens functions calculation")
-    call parse_input_variable(chispin_flag,"CHISPIN_FLAG",INPUTunit,default=[.false.,.false.,.false.,.false.,.false.],comment="Flag to activate spin susceptibility calculation.")
-    call parse_input_variable(chidens_flag,"CHIDENS_FLAG",INPUTunit,default=.false.,comment="Flag to activate density susceptibility calculation.")
-    call parse_input_variable(chipair_flag,"CHIPAIR_FLAG",INPUTunit,default=.false.,comment="Flag to activate pair susceptibility calculation.")
-    call parse_input_variable(chiexct_flag,"CHIEXCT_FLAG",INPUTunit,default=.false.,comment="Flag to activate excitonis susceptibility calculation.")
-    call parse_input_variable(oc_flag,"OC_FLAG",INPUTunit,default=[.false.,.false.,.false.,.false.,.false.],comment="Flag to activate Optical Conductivity and Drude weight calculation")
-    call parse_input_variable(offdiag_gf_flag,"OFFDIAG_GF_FLAG",INPUTunit,default=.false.,comment="Flag to activate off-diagonal GF calculation") 
+    call parse_input_variable(gf_flag,"GF_FLAG",INPUTunit,default=(/( .false.,i=1,Norb )/),comment="Flag to activate Greens functions calculation")
+    call parse_input_variable(chispin_flag,"CHISPIN_FLAG",INPUTunit,default=(/( .false.,i=1,Norb )/),comment="Flag to activate spin susceptibility calculation.")
+    call parse_input_variable(oc_flag,"OC_FLAG",INPUTunit,default=(/( .false.,i=1,Norb )/),comment="Flag to activate Optical Conductivity and Drude weight calculation")
+    call parse_input_variable(imp_gf_flag,"IMP_GF_FLAG",INPUTunit,default=(/( .false.,i=1,min(1,Nimp) )/),comment="Flag to activate impurity Greens functions calculation")
+    call parse_input_variable(imp_chispin_flag,"IMP_CHISPIN_FLAG",INPUTunit,default=(/( .false.,i=1,min(1,Nimp) )/),comment="Flag to activate impurity  spin susceptibility calculation.")
     call parse_input_variable(offdiag_chispin_flag,"OFFDIAG_CHISPIN_FLAG",INPUTunit,default=.false.,comment="Flag to activate off-diagonal spin Chi calculation") 
 
     call parse_input_variable(hfmode,"HFMODE",INPUTunit,default=.true.,comment="Flag to set the Hartree form of the interaction (n-1/2). see xmu.")
@@ -152,13 +151,11 @@ contains
     !
     call parse_input_variable(ed_method,"ED_METHOD",INPUTunit,default="lanczos",comment="select the diagonalization method: lanczos (see lanc_method then) or lapack (full diagonalization)")
     call parse_input_variable(ed_twin,"ED_TWIN",INPUTunit,default=.false.,comment="flag to reduce (T) or not (F,default) the number of visited sector using twin symmetry.")
-    call parse_input_variable(ed_sparse_H,"ED_SPARSE_H",INPUTunit,default=.true.,comment="flag to select  storage of sparse matrix H (mem--, cpu++) if TRUE, or direct on-the-fly H*v product (mem++, cpu--) if FALSE ")
-    call parse_input_variable(ed_print_Sigma,"ED_PRINT_SIGMA",INPUTunit,default=.true.,comment="flag to print impurity Self-energies")
+    call parse_input_variable(ed_sparse_H,"ED_SPARSE_H",INPUTunit,default=.true.,comment="flag to select  storage of sparse matrix H (mem--, cpu++) if TRUE, or direct on-the-fly H*v product (mem++, cpu--) if FALSE ")   
     call parse_input_variable(ed_print_G,"ED_PRINT_G",INPUTunit,default=.true.,comment="flag to print impurity Greens function")
-    call parse_input_variable(ed_print_G0,"ED_PRINT_G0",INPUTunit,default=.true.,comment="flag to print non-interacting impurity Greens function")
     call parse_input_variable(ed_verbose,"ED_VERBOSE",INPUTunit,default=3,comment="Verbosity level: 0=almost nothing --> 5:all. Really: all")
     !    
-    call parse_input_variable(lanc_method,"LANC_METHOD",INPUTunit,default="arpack",comment="select the lanczos method to be used in the determination of the spectrum. ARPACK (default), LANCZOS (T=0 only), DVDSON (no MPI)")
+    call parse_input_variable(lanc_method,"LANC_METHOD",INPUTunit,default="arpack",comment="select the lanczos method to be used in the determination of the spectrum. ARPACK (default), LANCZOS (T=0 only)")
     call parse_input_variable(lanc_nstates_sector,"LANC_NSTATES_SECTOR",INPUTunit,default=2,comment="Initial number of states per sector to be determined.")
     call parse_input_variable(lanc_ncv_factor,"LANC_NCV_FACTOR",INPUTunit,default=10,comment="Set the size of the block used in Lanczos-Arpack by multiplying the required Neigen (Ncv=lanc_ncv_factor*Neigen+lanc_ncv_add)")
     call parse_input_variable(lanc_ncv_add,"LANC_NCV_ADD",INPUTunit,default=0,comment="Adds up to the size of the block to prevent it to become too small (Ncv=lanc_ncv_factor*Neigen+lanc_ncv_add)")
@@ -166,11 +163,6 @@ contains
     call parse_input_variable(lanc_ngfiter,"LANC_NGFITER",INPUTunit,default=200,comment="Number of Lanczos iteration in GF determination. Number of momenta.")
     call parse_input_variable(lanc_tolerance,"LANC_TOLERANCE",INPUTunit,default=1d-18,comment="Tolerance for the Lanczos iterations as used in Arpack and plain lanczos.")
     call parse_input_variable(lanc_dim_threshold,"LANC_DIM_THRESHOLD",INPUTunit,default=1024,comment="Min dimension threshold to use Lanczos determination of the spectrum rather than Lapack based exact diagonalization.")
-    !
-    call parse_input_variable(nread,"NREAD",INPUTunit,default=0.d0,comment="Objective density for fixed density calculations.")
-    call parse_input_variable(nerr,"NERR",INPUTunit,default=1.d-4,comment="Error threshold for fixed density calculations.")
-    call parse_input_variable(ndelta,"NDELTA",INPUTunit,default=0.1d0,comment="Initial step for fixed density calculations.")
-    call parse_input_variable(ncoeff,"NCOEFF",INPUTunit,default=1d0,comment="multiplier for the initial ndelta read from a file (ndelta-->ndelta*ncoeff).")
     !
     call parse_input_variable(Tfile,"Tfile",INPUTunit,default="temperature",comment="File containing the step in temperature to take, if any.")
     call parse_input_variable(LOGfile,"LOGFILE",INPUTunit,default=6,comment="LOG unit.")

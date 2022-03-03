@@ -19,7 +19,7 @@ module ED_MAIN
   public :: ed_solve
 
 
-  
+
 contains
 
 
@@ -31,7 +31,7 @@ contains
   !+-----------------------------------------------------------------------------+!
   subroutine ed_init_solver()
     integer             :: unit,itemp
-   
+
     !
     !SET THE LOCAL MPI COMMUNICATOR :
     call ed_set_MpiComm()
@@ -71,8 +71,8 @@ contains
     !
     !SOLVE THE QUANTUM IMPURITY PROBLEM:
     call diagonalize_lattice            !-> store state_list, independent of TEMP
-    if(any(gf_flag))call build_gf_lattice    !-> store impGmatri
-    if(chi_flag)call build_chi_lattice  !-> store ChiSpinMatrix
+    if(gloabl_gf_flag))call build_gf_lattice    !-> store impGmatri
+    if(global_chi_flag)call build_chi_lattice  !-> store ChiSpinMatrix
     if(any(oc_flag))call build_oc_lattice    !-> store OcMatrix
     !
     do itemp=1,size(temperature_list)
@@ -85,8 +85,8 @@ contains
        call partition_function_lattice !-> get trimmed state_list
        call observables_lattice        !-> get static observables
        call energy_lattice             !-> get energies 
-       if(any(gf_flag))call eval_gf_lattice    !-> Eval GF
-       if(chi_flag)call eval_chi_lattice  !-> Eval Chi_spin
+       if(global_gf_flag))call eval_gf_lattice    !-> Eval GF
+       if(global_chi_flag)call eval_chi_lattice  !-> Eval Chi_spin
        if(any(oc_flag))call eval_oc_lattice    !-> Eval Sigma(w), Drude
        ed_file_suffix=""
     enddo
@@ -104,7 +104,7 @@ contains
     write(Logfile,"(A)")""
   end subroutine ed_solve
 
-   end module ED_MAIN
+end module ED_MAIN
 
 
 

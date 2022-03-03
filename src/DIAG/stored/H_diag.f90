@@ -1,27 +1,25 @@
-  do i=1,Nloc
-     iup = iup_index(i,DimUp)
-     idw = idw_index(i,DimUp)
+  do i=MpiIstart,MpiIend
+     m  = Hsector%H(1)%map(i)
+     ib  = bdecomp(m,2*Ns+Nimp)
      !
-     mup = Hsector%H(1)%map(iup)
-     mdw = Hsector%H(2)%map(idw)
+     nup = ib(1:Ns)
+     ndw = ib(Ns+1:2*Ns)
+     sz  = 0.5d0*(Nup-Ndw)
+     np  = ib(2*Ns+1:)        !0=DW, 1=UP
+     szp = np-0.5d0          !-1/2:DW, 1/2:UP
      !
-     Nup = bdecomp(mup,Ns)
-     Ndw = bdecomp(mdw,Ns)
-     Sz  = 0.5d0*(Nup-Ndw)
-     !
-     !
-     !> HxV_imp: Diagonal Elements, i.e. local part
+     !> H_Imp: Diagonal Elements, i.e. local part
      htmp = zero
      do io=1,Ns
         htmp = htmp + Hdiag(1,io)*Nup(io) + Hdiag(Nspin,io)*Ndw(io)
      enddo
      !
      !
-     !> H_Int: Kanamori interaction part.
-     !  = \sum_\a U_\a*(n_{\a,up}*n_{\a,dw})
+     !> H_Int: Kanamori interaction part. 
+     ! = \sum_\a U_\a*(n_{\a,up}*n_{\a,dw})
      if(any(Uloc/=0d0))then
         do iorb=1,Norb
-           do isite=1,Nsites(iorb)          
+           do isite=1,Nsites(iorb) 
               io = pack_indices(isite,iorb)
               htmp = htmp + Uloc(iorb)*Nup(io)*Ndw(io)
            enddo
@@ -29,12 +27,12 @@
      endif
      !
      !density-density interaction: different orbitals, opposite spins:
-     ! =  (Uprime==Uloc-2*Jh)*sum_{i/=j} [ n_{i,up}*n_{j,dw} + n_{j,up}*n_{i,dw} ]
+     ! =  (Uprime=Uloc-2*Jh)*sum_{i/=j} [ n_{i,up}*n_{j,dw} + n_{j,up}*n_{i,dw} ]
      do iorb=1,Norb
         do jorb=iorb+1,Norb
            do isite=1,Nsites(iorb)
               do jsite=1,Nsites(jorb)
-                 if(isite/=jsite)cycle
+                 if(isite/=jsite)cycle !local interaction only:
                  io = pack_indices(isite,iorb)
                  jo = pack_indices(isite,jorb)
                  htmp = htmp + Ust*(Nup(io)*Ndw(jo) + Nup(jo)*Ndw(io))
@@ -49,7 +47,7 @@
         do jorb=iorb+1,Norb
            do isite=1,Nsites(iorb)
               do jsite=1,Nsites(jorb)
-                 if(isite/=jsite)cycle
+                 if(isite/=jsite)cycle !local interaction only:
                  io = pack_indices(isite,iorb)
                  jo = pack_indices(isite,jorb)
                  htmp = htmp + (Ust-Jh)*(Nup(io)*Nup(jo) + Ndw(io)*Ndw(jo))
@@ -61,14 +59,14 @@
      !
      if(ed_filling==0)then
         do io=1,Ns
-           htmp = htmp - xmu*(Nup(io)+Ndw(io))
+           htmp = htmp - xmu*( Nup(io)+Ndw(io) )
         enddo
         if(hfmode)then
            if(any(Uloc/=0d0))then
               do iorb=1,Norb
                  do isite=1,Nsites(iorb) 
                     io = pack_indices(isite,iorb)
-                    htmp = htmp-0.5d0*Uloc(iorb)*(Nup(io)+Ndw(io))
+                    htmp = htmp - 0.5d0*Uloc(iorb)*(Nup(io)+Ndw(io)) !+ 0.25d0*Uloc(iorb)
                  enddo
               enddo
            endif
@@ -91,9 +89,12 @@
      endif
      !
      !
-     hv(i) = hv(i) + htmp*vin(i)
+     select case(MpiStatus)
+     case (.true.)
+        call sp_insert_element(MpiComm,spH0d,htmp,i,i)
+     case (.false.)
+        call sp_insert_element(spH0d,htmp,i,i)
+     end select
      !
   enddo
-
-
 

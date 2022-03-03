@@ -67,8 +67,6 @@ contains
        Egs = state_list%emin
        if(finiteT)then
           call es_trim_size(state_list,temp,cutoff)
-          !call es_trim_espace(state_list,temp,cutoff)
-          !write(LOGfile,"(A,I4)")"Adjusting list_size to:",state_list%size
           do istate=1,state_list%trimd_size
              Ei            = es_return_energy(state_list,istate)
              zeta_function = zeta_function + exp(-(Ei-Egs)/temp)
@@ -158,23 +156,9 @@ contains
        !
        if(MPIMASTER)then
           if(ed_verbose>2)then
-             call get_DimUp(isector,DimUps) ; DimUp = product(DimUps)
-             call get_DimDw(isector,DimDws) ; DimDw = product(DimDws)
-             if(lanc_solve)then
-                write(LOGfile,"(1X,I9,A,I9,A6,"&
-                     //str(Ns_Ud)//"I3,A6,"&
-                     //str(Ns_Ud)//"I3,A7,"&
-                     //str(Ns_Ud)//"I6,"//str(Ns_Ud)//"I6,I20,A12,3I6)")&
-                     iter,"-Solving sector:",isector,", nup:",nups,", ndw:",ndws,", dims=",&
-                     DimUps,DimDws,getdim(isector),", Lanc Info:",Neigen,Nitermax,Nblock
-             else
-                write(LOGfile,"(1X,I9,A,I9,A6,"&
-                     //str(Ns_Ud)//"I3,A6,"&
-                     //str(Ns_Ud)//"I3,A7,"&
-                     //str(Ns_Ud)//"I6,"//str(Ns_Ud)//"I6,I20)")&
-                     iter,"-Solving sector:",isector,", nup:",nups,", ndw:",ndws,", dims=",&
-                     DimUps,DimDws,getdim(isector)
-             endif
+             write(LOGfile,"(1X,I9,A,I9,A6,"//str(Ns_Ud)//"I3,A6,"//str(Ns_Ud)//"I3,A7,I20",advance='no')&
+                  iter,"-Solving sector:",isector,", nup:",nups,", ndw:",ndws,", dim=",getdim(isector)
+             if(lanc_solve)write(LOGfile,"(A12,3I6)")", Lanc Info:",Neigen,Nitermax,Nblock
           elseif(ed_verbose<=2)then
              call eta(iter,count(twin_mask),LOGfile)
           endif
@@ -327,11 +311,6 @@ contains
     !if finite T and loop over T we diagonalize first at the largest temperature.
     !to avoid keeping useless state we prune those above the cutoff at this T_max.
     if(finiteT)then
-       ! Egs  = state_list%emin
-       ! Ec   = state_list%emax
-       ! if(exp(-(Ec-Egs)/temp) > cutoff)stop "ED_DIAG:  exp(-(Ei-Egs)/T)>Cutoff condition not met, try increasing lanc_nstates_sector"
-       ! call es_trim_espace(state_list,temp,cutoff)
-       ! write(LOGfile,"(A,I4)")"Adjusting list_size to:",state_list%size
        !check if the number of states is enough to reach the required accuracy:
        !the condition to fullfill is:
        ! exp(-(Ec-Egs)/T) < \epsilon_c
@@ -399,16 +378,17 @@ contains
        if(dim<=max(lanc_dim_threshold,MPISIZE))lanc_solve=.false.
        !
        if(MPIMASTER)then
-          if(ed_verbose>1)then
-             call get_DimUp(isector,DimUps) ; DimUp = product(DimUps)
-             call get_DimDw(isector,DimDws) ; DimDw = product(DimDws)
-             write(LOGfile,"(1X,I9,A,I9,A6,"&
-                  //str(Ns_Ud)//"I3,A6,"&
-                  //str(Ns_Ud)//"I3,A7,"&
-                  //str(Ns_Ud)//"I6,"//str(Ns_Ud)//"I6,I20)")&
-                  iter,"-Solving sector:",isector,", nup:",nups,", ndw:",ndws,", dims=",&
-                  DimUps,DimDws,getdim(isector)
+          if(ed_verbose>2)then
+             write(LOGfile,"(1X,I9,A,I9,A6,"//str(Ns_Ud)//"I3,A6,"//str(Ns_Ud)//"I3,A7,I20",advance='no')&
+                  iter,"-Solving sector:",isector,", nup:",nups,", ndw:",ndws,", dim=",getdim(isector)
+             if(lanc_solve)write(LOGfile,"(A12,3I6)")", Lanc Info:",Neigen,Nitermax,Nblock
+          elseif(ed_verbose<=2)then
+             call eta(iter,count(twin_mask),LOGfile)
           endif
+       endif
+       if(MPIMASTER)then
+          if(ed_verbose>1)write(LOGfile,"(1X,I9,A,I9,A6,"//str(Ns_Ud)//"I3,A6,"//str(Ns_Ud)//"I3,A7,I20",advance='yes')&
+               iter,"-Solving sector:",isector,", nup:",nups,", ndw:",ndws,", dim=",getdim(isector)
        endif
        !
        !

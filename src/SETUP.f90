@@ -26,13 +26,16 @@ contains
   subroutine init_ed_structure()
     logical                          :: control
     integer                          :: i,iud,iorb,jorb,ispin,jspin,unit
-    integer,dimension(:),allocatable :: DimUps,DimDws
-    integer                          :: Tstep
+    integer,dimension(:),allocatable :: DimUps,DimDws,Nup,Ndw
+    integer                          :: Tstep,Dim
     integer,allocatable              :: Tord(:)
     logical                          :: Tbool
     !
     Jhflag=.FALSE.
     if(Norb>1.AND.(Jx/=0d0.OR.Jp/=0d0.OR.Jk/=0d0))Jhflag=.TRUE.
+    !
+    KondoFlag=.FALSE.
+    if(Nimp>0)KondoFlag=.TRUE.
     !
     call ed_checks_global
     !
@@ -41,28 +44,46 @@ contains
     !
     Ns_Orb = Ns
     Ns_Ud  = 1
+    !
     Nsectors = ((Ns_Orb+1)*(Ns_Orb+1))**Ns_Ud
+    if(KondoFlag)Nsectors = (Ns_Orb+Nimp+1)*(Ns_Orb+Nimp+1)-2
     !
     !
-    allocate(DimUps(Ns_Ud))
-    allocate(DimDws(Ns_Ud))
-    do iud=1,Ns_Ud
-       DimUps(iud) = get_sector_dimension(Ns_Orb,Ns_Orb/2)
-       DimDws(iud) = get_sector_dimension(Ns_Orb,Ns_Orb-Ns_Orb/2)
-    enddo
     if(MpiMaster)then
        write(LOGfile,"(A)")"Summary:"
        write(LOGfile,"(A)")"--------------------------------------------"
-       write(LOGfile,"(A,I15)")'# of levels           = ',Ns
-       write(LOGfile,"(A,I15)")'# of spins            = ',2*Ns
+       write(LOGfile,"(A,I15)")'# of levels           = ',Ns+Nimp
+       write(LOGfile,"(A,I15)")'# of spins            = ',2*Ns+Nimp
        write(LOGfile,"(A,I15)")'# of orbitals         = ',Norb
+       write(LOGfile,"(A,I15)")'# of impurities       = ',Nimp
        write(LOGfile,"(A,5I4)")'# Nsites              = ',Nsites
        write(LOGfile,"(A,I15)")'# of  sectors         = ',Nsectors
-       write(LOGfile,"(A,I15)")'Ns_Orb                = ',Ns_Orb
-       write(LOGfile,"(A,I15)")'Ns_Ud                 = ',Ns_Ud
-       write(LOGfile,"(A,"//str(Ns_Ud)//"I8,2X,"//str(Ns_Ud)//"I8,I20)")&
-            'Largest Sector(s)     = ',DimUps,DimDws,product(DimUps)*product(DimDws)
-       write(LOGfile,"(A)")"--------------------------------------------"
+    endif
+    !
+    if(KondoFlag)then
+       Nup = (Ns_Orb+Nimp)/2
+       Ndw = (Ns_Orb+Nimp)-Nup
+       Dim = get_sector_dimension(Ns_Orb,Nup,Ndw)
+       if(MpiMaster)then
+          write(LOGfile,"(A,"//str(Ns_Ud)//"I8,2X,"//str(Ns_Ud)//"I8,I20)")&
+               'Largest Sector(s)     = ',(Ns_Orb+Nimp)/2,(Ns_Orb+Nimp)-(Ns_Orb+Nimp)/2,Dim
+          write(LOGfile,"(A,I20)")'Largest Sector(s)     = ',Dim
+          write(LOGfile,"(A)")"--------------------------------------------"
+       endif
+    else
+       allocate(DimUps(Ns_Ud))
+       allocate(DimDws(Ns_Ud))
+       do iud=1,Ns_Ud
+          Nup = Ns_Orb/2
+          Ndw = Ns_Orb-Nup
+          DimUps(iud) = get_sector_dimension(Ns_Orb,Nup)
+          DimDws(iud) = get_sector_dimension(Ns_Orb,Ndw)
+       enddo
+       if(MpiMaster)then
+          write(LOGfile,"(A,"//str(Ns_Ud)//"I8,2X,"//str(Ns_Ud)//"I8,I20)")&
+               'Largest Sector(s)     = ',DimUps,DimDws,product(DimUps)*product(DimDws)
+          write(LOGfile,"(A)")"--------------------------------------------"
+       endif
     endif
     !
     !
@@ -72,9 +93,9 @@ contains
     !Allocate indexing arrays
     allocate(getCsector(Ns_Ud,2,Nsectors))  ;getCsector  =0
     allocate(getCDGsector(Ns_Ud,2,Nsectors));getCDGsector=0
-    !
     allocate(getDim(Nsectors));getDim=0
-    !
+    allocate(getNup(Nsectors),getNdw(Nsectors));getNup=0;getNdw=0
+    allocate(getSector(0:Ns+Nimp,0:Ns+Nimp));getSector=0
     allocate(twin_mask(Nsectors))
     allocate(sectors_mask(Nsectors))
     allocate(neigen_sector(Nsectors))
@@ -138,54 +159,40 @@ contains
     endif
     !
     !allocate functions
-    allocate(impSmats(Nspin,Ns,Ns,Lmats))
-    allocate(impSreal(Nspin,Ns,Ns,Lreal))
-    impSmats=zero
-    impSreal=zero
-    !
-    allocate(impGmats(Nspin,Ns,Ns,Lmats))
-    allocate(impGreal(Nspin,Ns,Ns,Lreal))
+    allocate(impGmats(Nspin,Nimp+Ns,Nimp+Ns,Lmats))
+    allocate(impGreal(Nspin,Nimp+Ns,Nimp+Ns,Lreal))
     impGmats=zero
     impGreal=zero
     !
-    allocate(impG0mats(Nspin,Ns,Ns,Lmats))
-    allocate(impG0real(Nspin,Ns,Ns,Lreal))
-    impG0mats=zero
-    impG0real=zero
+    allocate(impGMatrix(Nspin,Nimp+Ns,Nimp+Ns))
+    allocate(SpinChiMatrix(Nimp+Ns,Nimp+Ns))
+    allocate(OcMatrix(Nimp+Norb))
     !
-    allocate(impGMatrix(Nspin,Ns,Ns))
-    allocate(SpinChiMatrix(Ns,Ns))
-    allocate(OcMatrix(Norb))
+    global_chi_flag=.false.
+    if(any([chispin_flag,imp_chispin_flag]))global_chi_flag=.true.
+    global_gf_flag=.false.
+    if(any([gf_flag,imp_gf_flag]))global_gf_flag=.true.
     !
-    chi_flag=.false.
-    if(any([chispin_flag,chidens_flag,chipair_flag,chiexct_flag]))chi_flag=.true.
+    offdiag_gf_flag=offdiag_gf_flag.AND.Norb>1
     !
-    allocate(spinChi_tau(Ns,Ns,0:Ltau))
-    allocate(spinChi_w(Ns,Ns,Lreal))
-    allocate(spinChi_iv(Ns,Ns,0:Lmats))
-    !
-    ! allocate(densChi_tau(Ns,Ns,0:Ltau))
-    ! allocate(densChi_w(Ns,Ns,Lreal))
-    ! allocate(densChi_iv(Ns,Ns,0:Lmats))
-    ! !
-    ! allocate(pairChi_tau(Ns,Ns,0:Ltau))
-    ! allocate(pairChi_w(Ns,Ns,Lreal))
-    ! allocate(pairChi_iv(Ns,Ns,0:Lmats))
-    ! !
-    ! allocate(exctChi_tau(0:2,Ns,Ns,0:Ltau))
-    ! allocate(exctChi_w(0:2,Ns,Ns,Lreal))
-    ! allocate(exctChi_iv(0:2,Ns,Ns,0:Lmats))
+    allocate(spinChi_tau(Nimp+Ns,Nimp+Ns,0:Ltau))
+    allocate(spinChi_w(Nimp+Ns,Nimp+Ns,Lreal))
+    allocate(spinChi_iv(Nimp+Ns,Nimp+Ns,0:Lmats))
     !
     !allocate observables
-    allocate(ed_dens(Ns),ed_docc(Ns),ed_dens_up(Ns),ed_dens_dw(Ns),ed_mag(Ns))
+    allocate(ed_dens(Nimp+Ns))
+    allocate(ed_docc(Nimp+Ns))
+    allocate(ed_dens_up(Nimp+Ns))
+    allocate(ed_dens_dw(Nimp+Ns))
+    allocate(ed_mag(Nimp+Ns))
     ed_dens=0d0
     ed_docc=0d0
     ed_dens_up=0d0
     ed_dens_dw=0d0
     ed_mag =0d0
     !
-    allocate(Drude_weight(Norb))
-    allocate(OptCond_w(Norb,Lreal))
+    allocate(Drude_weight(Nimp+Norb))
+    allocate(OptCond_w(Nimp+Norb,Lreal))
     Drude_weight = 0d0
     OptCond_w    = zero
     !
@@ -195,6 +202,11 @@ contains
   subroutine ed_checks_global
     if(Nspin>2)stop "ED ERROR: Nspin > 2 is currently not supported"
     if(Norb>5)stop "ED ERROR: Norb > 5 is currently not supported"
+    !
+    if(KondoFlag.AND.ed_twin)then
+       write(LOGfile,"(A)")"WARNING: can not yet use twin_sector with KondoFlag. Set to false."
+       ed_twin=.false.
+    endif
     !
     if(Nspin>1.AND.(ed_twin))then
        write(LOGfile,"(A)")"WARNING: using twin_sector with Nspin>1"
@@ -225,7 +237,7 @@ contains
     integer                          :: Indices(2*Ns_Ud),Jndices(2*Ns_Ud)
     integer                          :: Nups(Ns_ud),Ndws(Ns_ud)
     integer                          :: Jups(Ns_ud),Jdws(Ns_ud)
-    integer                          :: i,iud,iorb
+    integer                          :: i,iud,iorb,Nup,Ndw
     integer                          :: isector,jsector,gsector,ksector,lsector
     integer                          :: unit,status,istate,ishift,isign
     logical                          :: IOfile
@@ -234,22 +246,37 @@ contains
     type(sector) :: sectorI,sectorJ,sectorK,sectorG,sectorL
     !
     !Store full dimension of the sectors:
-    do isector=1,Nsectors
-       call get_DimUp(isector,DimUps)
-       call get_DimDw(isector,DimDws)
-       DimUp = product(DimUps)
-       DimDw = product(DimDws)  
-       getDim(isector)  = DimUp*DimDw
-    enddo
+    if(KondoFlag)then
+       isector=0
+       do Nup=0,Ns+Nimp
+          do Ndw=0,Ns+Nimp
+             if(Nup==0.AND.Ndw==0)cycle
+             if(Nup==Ns+Nimp.AND.Ndw==Ns+Nimp)cycle
+             isector=isector+1
+             getSector(Nup,Ndw)=isector
+             getNup(isector)=Nup
+             getNdw(isector)=Ndw
+             getDim(isector)=get_sector_dimension(ns,nup,ndw)
+          enddo
+       enddo
+    else
+       do isector=1,Nsectors
+          call get_DimUp(isector,DimUps)
+          call get_DimDw(isector,DimDws)
+          DimUp = product(DimUps)
+          DimDw = product(DimDws)  
+          getDim(isector)  = DimUp*DimDw
+       enddo
+    endif
     !
     !
     do isector=1,Nsectors
-       neigen_sector(isector) = min(getDim(isector),lanc_nstates_sector) !init every sector to required eigenstates
+       neigen_sector(isector) = min(getDim(isector),lanc_nstates_sector)
     enddo
     !
     !
     twin_mask=.true.
-    if(ed_twin)then
+    if(ed_twin)then             !not with KondoFlag
        do isector=1,Nsectors
           call get_Nup(isector,Nups)
           call get_Ndw(isector,Ndws)
@@ -311,10 +338,15 @@ contains
   !SECTOR PROCEDURES - Sectors,Nup,Ndw,DimUp,DimDw,...
   !##################################################################
   !##################################################################
-  elemental function get_sector_dimension(n,np) result(dim)
-    integer,intent(in) :: n,np
-    integer            :: dim
-    dim = binomial(n,np)
+  elemental function get_sector_dimension(n,np,nd) result(dim)
+    integer,intent(in)          :: n,np
+    integer,optional,intent(in) :: nd
+    integer                     :: dim
+    if(present(nd))then
+       dim = binomial(n,np)*binomial(n,nd-1) + binomial(n,np-1)*binomial(n,nd)
+    else
+       dim = binomial(n,nup)
+    enddo
   end function get_sector_dimension
 
 
@@ -332,6 +364,10 @@ contains
     integer nchoos
     xh = 1.d0
     if(n2<0) then
+       nchoos = 0
+       return
+    endif
+    if(n2>n1) then
        nchoos = 0
        return
     endif
