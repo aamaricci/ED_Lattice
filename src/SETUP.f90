@@ -26,7 +26,8 @@ contains
   subroutine init_ed_structure()
     logical                          :: control
     integer                          :: i,iud,iorb,jorb,ispin,jspin,unit
-    integer,dimension(:),allocatable :: DimUps,DimDws,Nup,Ndw
+    integer,dimension(:),allocatable :: DimUps,DimDws
+    integer                          :: Nup,Ndw
     integer                          :: Tstep,Dim
     integer,allocatable              :: Tord(:)
     logical                          :: Tbool
@@ -167,7 +168,7 @@ contains
     allocate(OcMatrix(Ns_Imp))
     !
     global_chi_flag=.false.
-    if(any([chispin_flag,imp_chispin_flag]))global_chi_flag=.true.
+    if(any([chispin_flag]))global_chi_flag=.true.
     global_gf_flag=.false.
     if(any([gf_flag]))global_gf_flag=.true.
     global_oc_flag=.false.
@@ -191,8 +192,8 @@ contains
     ed_dens_dw=0d0
     ed_mag =0d0
     !
-    allocate(Drude_weight(Ns_Imp))
-    allocate(OptCond_w(Ns_Imp,Lreal))
+    allocate(Drude_weight(Norb))
+    allocate(OptCond_w(Norb,Lreal))
     Drude_weight = 0d0
     OptCond_w    = zero
     !
@@ -292,38 +293,40 @@ contains
        call get_Nup(isector,Nups)
        call get_Ndw(isector,Ndws)
        !
-       !UPs:
-       !DEL:
        do iud=1,Ns_Ud
           Jups=Nups
           Jdws=Ndws 
-          Jups(iud)=Jups(iud)-1; if(Jups(iud) < 0)cycle
+          Jups(iud)=Jups(iud)-1;
+          if(Jups(iud) < 0)cycle
+          if(KondoFlag.AND.(Jups(iud) <= 0) .AND. (Jdws(iud)<=0) )cycle
           call get_Sector([Jups,Jdws],Ns_Orb,jsector)
           getCsector(iud,1,isector)=jsector
        enddo
-       !ADD
        do iud=1,Ns_Ud
           Jups=Nups
           Jdws=Ndws
-          Jups(iud)=Jups(iud)+1; if(Jups(iud) > Ns_Orb)cycle
+          Jups(iud)=Jups(iud)+1;
+          if(Jups(iud) > Ns_Orb)cycle
+          if( KondoFlag .AND. (Jups(iud) >=Ns_Orb) .AND. (Jdws(iud) >=Ns_Orb) )cycle
           call get_Sector([Jups,Jdws],Ns_Orb,jsector)
           getCDGsector(iud,1,isector)=jsector
        enddo
        !
-       !DWs:
-       !DEL
        do iud=1,Ns_Ud
           Jups=Nups
           Jdws=Ndws 
-          Jdws(iud)=Jdws(iud)-1; if(Jdws(iud) < 0)cycle
+          Jdws(iud)=Jdws(iud)-1
+          if(Jdws(iud) < 0)cycle
+          if( KondoFlag .AND. (Jups(iud) <= 0) .AND. (Jdws(iud)<=0) )cycle
           call get_Sector([Jups,Jdws],Ns_Orb,jsector)
           getCsector(iud,2,isector)=jsector
        enddo
-       !DEL
        do iud=1,Ns_Ud
           Jups=Nups
           Jdws=Ndws 
-          Jdws(iud)=Jdws(iud)+1; if(Jdws(iud) > Ns_Orb)cycle
+          Jdws(iud)=Jdws(iud)+1;
+          if(KondoFlag .AND. (Jups(iud) >=Ns_Orb) .AND. (Jdws(iud) >=Ns_Orb) )cycle
+          if(Jdws(iud) > Ns_Orb)cycle
           call get_Sector([Jups,Jdws],Ns_Orb,jsector)
           getCDGsector(iud,2,isector)=jsector
        enddo
@@ -341,8 +344,8 @@ contains
   elemental function get_sector_dimension(Nup,Ndw) result(dim)
     integer,intent(in)          :: Nup
     integer,optional,intent(in) :: Ndw
-    integer                     :: i,ip,dim,
-    if(present(nd))then
+    integer                     :: i,ip,dim
+    if(present(Ndw))then
        dim = 0
        do i=0,Nimp
           ip = Nimp-i
@@ -350,7 +353,7 @@ contains
        enddo
     else
        dim = binomial(Ns,Nup)
-    enddo
+    endif
   end function get_sector_dimension
 
 

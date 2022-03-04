@@ -64,7 +64,7 @@ contains
   subroutine build_sector(isector,self)
     integer,intent(in)                  :: isector
     type(sector)                        :: self
-    integer                             :: i,iup,idw,dim,ipup,ipdw
+    integer                             :: i,iup,idw,ipup,ipdw
     integer                             :: nup_,ndw_
     integer                             :: dim,iud
     !
@@ -79,9 +79,8 @@ contains
        allocate(self%Ndws(1))
        call get_Nup(isector,self%Nups);self%Nup=self%Nups(1)
        call get_Ndw(isector,self%Ndws);self%Ndw=self%Ndws(1)
-       self%DimEl=get_sector_dimension(self%Nup,self%Ndw)
-       self%DimPh=1
-       self%Dim=self%DimEl*self%DimPh
+       self%DimEl=getDim(isector)
+       self%Dim=self%DimEl
        !
        call map_allocate(self%H(1),self%Dim)
        dim = 0
@@ -89,9 +88,9 @@ contains
           ipup = 2**Nimp-1-ipdw
           if(popcnt(ipup)+popcnt(ipdw) /= Nimp)cycle
           do idw=0,2**Ns-1
-             if(popcnt(idw) + popcnt(ipdw) /= ndw) cycle
+             if(popcnt(idw) + popcnt(ipdw) /= self%Ndw) cycle
              do iup=0,2**Ns-1
-                if(popcnt(iup) + popcnt(ipup) /= nup) cycle
+                if(popcnt(iup) + popcnt(ipup) /= self%Nup) cycle
                 dim        = dim+1
                 self%H(1)%map(dim) = iup + idw*2**Ns + (ipup+ipdw*2**Nimp)*2**(2*Ns)
              enddo
@@ -111,8 +110,7 @@ contains
        call get_DimUp(isector,self%DimUps);self%DimUp=product(self%DimUps)
        call get_DimDw(isector,self%DimDws);self%DimDw=product(self%DimDws)
        self%DimEl=self%DimUp*self%DimDw
-       self%DimPh=1
-       self%Dim=self%DimEl*self%DimPh
+       self%Dim=self%DimEl
        !
        call map_allocate(self%H,[self%DimUps,self%DimDws])
        do iud=1,Ns_Ud
@@ -155,7 +153,6 @@ contains
     self%DimDw=0
     self%Dim=0
     self%DimEl=0
-    self%DimPh=0
     self%Nup=0
     self%Ndw=0
     self%Nlanc=0
@@ -222,7 +219,7 @@ contains
     real(8),intent(out)         :: sgn
     integer                     :: ibeta
     integer                     :: r
-    integer                     :: iph,i_el
+    integer                     :: i_el,ii,iorb
     integer,dimension(2*Ns_Ud)  :: Indices
     integer,dimension(2*Ns_Ud)  :: Jndices
     integer,dimension(Ns_Orb)   :: Nud
@@ -260,6 +257,7 @@ contains
     real(8),intent(out)         :: sgn
     integer                     :: ibeta
     integer                     :: r
+    integer                     :: i_el,ii,iorb
     integer,dimension(2*Ns_Ud)  :: Indices
     integer,dimension(2*Ns_Ud)  :: Jndices
     integer,dimension(Ns_Orb)   :: Nud
@@ -294,6 +292,7 @@ contains
     integer, intent(in)         :: i,ipos,ialfa
     type(sector),intent(in)     :: sectorI
     real(8),intent(out)         :: sgn
+    integer                     :: i_el,ii,iorb
     integer,dimension(2*Ns_Ud)  :: Indices
     integer,dimension(2*Ns_Ud)  :: Jndices
     integer,dimension(2,Ns_Orb) :: Nud
@@ -327,6 +326,7 @@ contains
     integer, intent(in)         :: i,ipos,ialfa
     type(sector),intent(in)     :: sectorI
     real(8),intent(out)         :: sgn
+    integer                     :: i_el,ii,iorb
     integer,dimension(2*Ns_Ud)  :: Indices
     integer,dimension(2*Ns_Ud)  :: Jndices
     integer,dimension(2,Ns_Orb) :: Nud !Nbits(Ns_Orb)
@@ -358,7 +358,7 @@ contains
     integer, intent(in)             :: i
     type(sector),intent(in)         :: sectorI
     integer,dimension(Ns_imp)       :: Nup,Ndw  ![Ns]
-    integer                         :: iph,i_el,ii,iorb
+    integer                         :: i_el,ii,iorb
     integer,dimension(2*Ns_Ud)      :: Indices
     integer,dimension(Ns_Ud,Ns_Orb) :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
     integer,dimension(2)            :: Iud
@@ -400,17 +400,19 @@ contains
        Nup = QN(1)
        Ndw = QN(2)
        isector=getSector(Nup,Ndw)
-       if(isector==0)stop &
-            "get_Sector ERROR: KondoFlag + looking for inexistent sector (0,0), (N+Nimp,N+Nimp)"
-    else
-       Nind = size(QN)
-       Factor = N+1
-       isector = 1
-       do i=Nind,1,-1
-          isector = isector + QN(i)*(Factor)**(Nind-i)
-       enddo
-    endif
-  end subroutine get_Sector
+       if(isector==0)then
+          print*,Nup,Ndw
+          stop "get_Sector ERROR: KondoFlag, looking for inexistent sector (0,0), (N+Nimp,N+Nimp)"
+       endif
+       else
+          Nind = size(QN)
+          Factor = N+1
+          isector = 1
+          do i=Nind,1,-1
+             isector = isector + QN(i)*(Factor)**(Nind-i)
+          enddo
+       endif
+     end subroutine get_Sector
 
 
   subroutine get_QuantumNumbers(isector,N,QN)
@@ -420,8 +422,8 @@ contains
     integer,dimension(size(QN)) :: QN_
     !
     if(KondoFlag)then
-       QN(1)=get_Nup(isector)
-       QN(2)=get_Ndw(isector)
+       QN(1)=getNup(isector)
+       QN(2)=getNdw(isector)
     else
        Dim = size(QN)
        if(mod(Dim,2)/=0)stop "get_QuantumNumbers error: Dim%2 != 0"
@@ -440,7 +442,7 @@ contains
     integer                   :: i,count
     integer,dimension(2*Ns_Ud)  :: indices_
     if(KondoFlag)then
-       Nup(1) = get_Nup(isector)
+       Nup(1) = getNup(isector)
     else
        count=isector-1
        do i=1,2*Ns_Ud
@@ -457,7 +459,7 @@ contains
     integer                   :: i,count
     integer,dimension(2*Ns_Ud) :: indices_
     if(KondoFlag)then
-       Ndw(1) = get_Ndw(isector)
+       Ndw(1) = getNdw(isector)
     else
        count=isector-1
        do i=1,2*Ns_Ud
@@ -578,7 +580,7 @@ contains
     enddo
     call delete_sector(sectorH)
     !
-    call sort_array(Order) !sorted and changed the values from the global state numbers to the ones of the sector {1:DimUp*DimDw*DimPh}
+    call sort_array(Order) !sorted and changed the values from the global state numbers to the ones of the sector {1:DimUp*DimDw}
     !
   end subroutine twin_sector_order
 

@@ -129,9 +129,9 @@ contains
 
 
 
-  subroutine ed_buildH_kondo(isector,Hmat)
-    integer                            :: isector
+  subroutine ed_buildH_kondo(Hmat)
     complex(8),dimension(:,:),optional :: Hmat
+    integer                            :: isector,ispin,i,j
     integer,dimension(2*Ns_imp)        :: ib
     integer,dimension(Ns)              :: Nup,Ndw
     real(8),dimension(Ns)              :: Sz
@@ -292,7 +292,7 @@ contains
     Hv=zero
     do i=1,Nloc
        matmul: do j=1,spH0d%row(i)%Size
-          Hv(i) = Hv(i) + spH0d%row(i)%cvals(j)*v(spH0d%row(i)%cols(j))
+          Hv(i) = Hv(i) + spH0d%row(i)%vals(j)*v(spH0d%row(i)%cols(j))
        end do matmul
     end do
   end subroutine spMatVec_kondo

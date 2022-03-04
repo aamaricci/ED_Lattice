@@ -29,7 +29,7 @@ contains
   subroutine build_gf_lattice()
     !
     write(LOGfile,"(A)")"Build lattice Greens functions:"
-    call build_gf_electrons()
+    call build_gf()
     if(MPIMASTER)&
          call write_GFmatrix(impGmatrix,"gfmatrix"//str(ed_file_suffix)//".restart")
   end subroutine build_gf_lattice
@@ -44,7 +44,7 @@ contains
     impGreal=zero
     !
     write(LOGfile,"(A)")"Eval lattice Greens functions:"
-    call eval_gf_normal()
+    call eval_gf()
     if(MPIMASTER.AND.ed_print_G) call ed_print_impG()
     !
     call deallocate_grids

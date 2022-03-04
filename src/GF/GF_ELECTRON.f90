@@ -14,8 +14,8 @@ MODULE ED_GF_ELECTRON
   private
 
 
-  public :: build_gf_electrons
-  public :: eval_gf_electrons
+  public :: build_gf
+  public :: eval_gf
 
 
   integer                             :: istate
@@ -33,7 +33,7 @@ contains
 
 
   !PURPOSE  : Build and Store the Green's functions weights and poles structure
-  subroutine build_gf_electrons()
+  subroutine build_gf()
     integer :: ispin,i,iimp
     integer :: iorb,jorb
     integer :: isite,jsite
@@ -51,7 +51,7 @@ contains
           do ispin=1,Nspin
              do iimp=1,Nimp
                 if(MPIMASTER)call start_timer
-                if(MPIMASTER)write(LOGfile,"(A)")"Build G:"//" imp "//str(imp)//&
+                if(MPIMASTER)write(LOGfile,"(A)")"Build G:"//" imp "//str(iimp)//&
                      " spin"//str(ispin)
                 call allocate_GFmatrix(impGmatrix(ispin,Ns+iimp,Ns+iimp),Nstate=state_list%size)
                 call lanc_build_gf_impurity_diag(iimp,ispin)
@@ -105,14 +105,14 @@ contains
        end if
        !
     end select
-  end subroutine build_gf_electrons
+  end subroutine build_gf
 
 
 
 
 
   !Evaluate the Green's functions from knowledge of the weights+poles for a given case
-  subroutine eval_gf_electrons()
+  subroutine eval_gf()
     integer :: ispin,i,iimp
     integer :: iorb,jorb
     integer :: isite,jsite
@@ -121,14 +121,14 @@ contains
     if(KondoFlag)then
        do ispin=1,Nspin
           do iimp=1,Nimp
-             if(MPIMASTER)write(LOGfile,"(A)")"Eval G:"//" imp"//str(imp)//&
+             if(MPIMASTER)write(LOGfile,"(A)")"Eval G:"//" imp"//str(iimp)//&
                   " spin"//str(ispin)
              if(MPIMASTER)call start_timer
              select case(ed_method)
              case default
-                call lanc_eval_gf_impurity(iimp)
+                call lanc_eval_gf_impurity(iimp,iimp,ispin)
              case ('lapack','full')
-                call full_eval_gf_impurity(iimp)
+                call full_eval_gf_impurity(iimp,ispin)
              end select
              if(MPIMASTER)call stop_timer(unit=LOGfile)
           enddo
@@ -203,7 +203,7 @@ contains
        end select
     end if
     !
-  end subroutine eval_gf_electrons
+  end subroutine eval_gf
 
 
 
@@ -632,6 +632,49 @@ contains
 
 
 
+
+
+  subroutine lanc_eval_gf_impurity(iimp,jimp,ispin)
+    integer,intent(in) :: iimp,jimp,ispin
+    integer            :: Nstates,istate
+    integer            :: Nchannels,ichan
+    integer            :: Nexcs,iexc,io,jo
+    real(8)            :: peso,de,pesoBZ,Ei,Egs,beta
+    !
+    io = Ns + iimp
+    jo = Ns + jimp
+    !    
+    if(.not.allocated(impGmatrix(ispin,io,jo)%state)) then
+       print*, "GF_NORMAL WARNING: impGmatrix%state not allocated. Nothing to do"
+       return
+    endif
+    !
+    beta= 1d0/temp
+    Egs = state_list%emin
+    pesoBZ = 1d0/zeta_function
+    !
+    !this is the total number of available states  == state_list%size
+    Nstates = size(impGmatrix(ispin,io,jo)%state) 
+    !Get trimmed state for the actual value of temp == state_list%trimd_size
+    call es_trim_size(state_list,temp,cutoff) 
+    do istate=1,state_list%trimd_size     !Nstates
+       if(.not.allocated(impGmatrix(ispin,io,jo)%state(istate)%channel))cycle
+       Ei =  es_return_energy(state_list,istate)
+       if(finiteT)pesoBZ = exp(-beta*(Ei-Egs))/zeta_function
+       Nchannels = size(impGmatrix(ispin,io,jo)%state(istate)%channel)
+       do ichan=1,Nchannels
+          Nexcs  = size(impGmatrix(ispin,io,jo)%state(istate)%channel(ichan)%poles)
+          if(Nexcs==0)cycle
+          do iexc=1,Nexcs
+             peso  = impGmatrix(ispin,io,jo)%state(istate)%channel(ichan)%weight(iexc)
+             de    = impGmatrix(ispin,io,jo)%state(istate)%channel(ichan)%poles(iexc)
+             impGmats(ispin,io,jo,:)=impGmats(ispin,io,jo,:) + pesoBZ*peso/(dcmplx(0d0,wm(:))-de)
+             impGreal(ispin,io,jo,:)=impGreal(ispin,io,jo,:) + pesoBZ*peso/(dcmplx(wr(:),eps)-de)
+          enddo
+       enddo
+    enddo
+    return
+  end subroutine lanc_eval_gf_impurity
 
 
   !############################################################################################

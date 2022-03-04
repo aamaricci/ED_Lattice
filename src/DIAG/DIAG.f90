@@ -156,9 +156,9 @@ contains
        !
        if(MPIMASTER)then
           if(ed_verbose>2)then
-             write(LOGfile,"(1X,I9,A,I9,A6,"//str(Ns_Ud)//"I3,A6,"//str(Ns_Ud)//"I3,A7,I20",advance='no')&
+             write(LOGfile,"(1X,I9,A,I9,A6,"//str(Ns_Ud)//"I3,A6,"//str(Ns_Ud)//"I3,A7,I20,1X)",advance='no')&
                   iter,"-Solving sector:",isector,", nup:",nups,", ndw:",ndws,", dim=",getdim(isector)
-             if(lanc_solve)write(LOGfile,"(A12,3I6)")", Lanc Info:",Neigen,Nitermax,Nblock
+             if(lanc_solve)write(LOGfile,"(A12,3I6,1X)",advance='no')", Lanc Info:",Neigen,Nitermax,Nblock
           else
              call eta(iter,count(twin_mask),LOGfile)
           endif

@@ -73,7 +73,7 @@
                  imp_dw= 2*Ns + iimp + Nimp
                  Jcondition=(&
                       (npdw(iimp)==1).AND.(ndw(io)==0).AND.&
-                      (nup(io)==1).AND.(npup(io)==0) )
+                      (nup(io)==1).AND.(npup(iimp)==0) )
                  if(Jcondition)then
                     call c(imp_dw,m,k1,sg1)    !d_dw
                     call cdg(io_dw,k1,k2,sg2)  !c^+_dw

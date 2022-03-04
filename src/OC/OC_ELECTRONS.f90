@@ -156,14 +156,14 @@ contains
                    jo = pack_indices(jsite,iorb)
                    ! UP
                    if((nup(jo)==1) .AND. (nup(io)==0) .AND. (Hij(1,io,jo)/=zero) )then
-                      call c(jo,mup,k1,sg1)
+                      call c(jo,m,k1,sg1)
                       call cdg(io,k1,k2,sg2)
                       j = binary_search(sectorI%H(1)%map,k2)
                       vvinit(j) = vvinit(j) + Hij(1,io,jo)*sg1*sg2*state_cvec(i)
                    endif
                    ! DW
                    if((ndw(jo)==1) .AND. (ndw(io)==0).AND. (Hij(Nspin,io,jo)/=zero))then
-                      call c(jo+Ns,mdw,k1,sg1)
+                      call c(jo+Ns,m,k1,sg1)
                       call cdg(io+Ns,k1,k2,sg2)
                       j = binary_search(sectorI%H(1)%map,k2)
                       vvinit(j) = vvinit(j) + Hij(Nspin,io,jo)*sg1*sg2*state_cvec(i)
@@ -177,14 +177,14 @@ contains
                    jo = pack_indices(isite,iorb)
                    ! UP
                    if((nup(jo)==1) .AND. (nup(io)==0) .AND. (Hij(1,io,jo)/=zero) )then
-                      call c(jo,mup,k1,sg1)
+                      call c(jo,m,k1,sg1)
                       call cdg(io,k1,k2,sg2)
                       j  = binary_search(sectorI%H(1)%map,k2)
                       vvinit(j) = vvinit(j) - conjg(Hij(1,io,jo))*sg1*sg2*state_cvec(i)
                    endif
                    ! DW
                    if((ndw(jo)==1) .AND. (ndw(io)==0).AND. (Hij(Nspin,io,jo)/=zero))then
-                      call c(jo+Ns,mdw,k1,sg1)
+                      call c(jo+Ns,m,k1,sg1)
                       call cdg(io+Ns,k1,k2,sg2)
                       j  = binary_search(sectorI%H(1)%map,k2)
                       vvinit(j) = vvinit(j) - conjg(Hij(Nspin,io,jo))*sg1*sg2*state_cvec(i)
@@ -394,7 +394,7 @@ contains
     type(sector) :: sectorI,sectorJ
     real(8)      :: sg1,sg2
     complex(8)   :: Chio
-    integer      :: Nups(Ns_Ud)
+    integer      :: Nups(Ns_Ud),ib(2*Ns_imp)
     integer      :: Ndws(Ns_Ud)
 
     integer      :: i,j,ll,m,isector,k1,k2,li,rj

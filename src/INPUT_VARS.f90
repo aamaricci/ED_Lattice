@@ -10,7 +10,7 @@ MODULE ED_INPUT_VARS
   integer              :: Norb                !# of orbitals
   integer,allocatable  :: Nsites(:)           !# of sites per orbital species
   integer              :: Nspin               !Nspin=# spin degeneracy (max 2)
-  real(8)              :: Nimp                !Number of Kondo impurities (max 1)
+  integer              :: Nimp                !Number of Kondo impurities (max 1)
   !
   real(8),allocatable  :: Uloc(:)             !local interactions
   real(8)              :: Ust                 !intra-orbitals interactions
@@ -102,26 +102,24 @@ contains
     !
     !DEFAULT VALUES OF THE PARAMETERS:
     call parse_input_variable(Norb,"NORB",INPUTunit,default=1,comment="Number of impurity orbitals (max 5).")
+    allocate(Nsites(Norb))
     call parse_input_variable(Nsites,"NSITES",INPUTunit,default=(/( 4,i=1,Norb )/),comment="Number of sites per orbital species")
     call parse_input_variable(Nimp,"NIMP",INPUTunit,default=0,comment="Number of Kondo impurities (max 1 for now)")
     call parse_input_variable(Nspin,"NSPIN",INPUTunit,default=1,comment="Number of spin degeneracy (max 2)")
     call parse_input_variable(ed_filling,"ED_FILLING",INPUTunit,default=0,comment="Total number of allowed electrons not including Kondo impurities if any")
 
-    allocate(Nsites(Norb))
+
     allocate(Uloc(Norb))
-    add =0;if(Nimp>0)add=1
-    allocate(gf_flag(Norb+add))
-    allocate(chispin_flag(Norb+add))
-    allocate(oc_flag(Norb))
-    allocate(Jkindx(min(1,Nimp)))
-    !
-    call parse_input_variable(uloc,"ULOC",INPUTunit,default=(/( 2,i=1,Norb )/),comment="Values of the local interaction per orbital")
+    call parse_input_variable(uloc,"ULOC",INPUTunit,default=(/( 2d0,i=1,size(Uloc) )/),comment="Values of the local interaction per orbital")
     call parse_input_variable(ust,"UST",INPUTunit,default=0.d0,comment="Value of the inter-orbital interaction term")
     call parse_input_variable(Jh,"JH",INPUTunit,default=0.d0,comment="Hunds coupling")
     call parse_input_variable(Jx,"JX",INPUTunit,default=0.d0,comment="S-E coupling")
     call parse_input_variable(Jp,"JP",INPUTunit,default=0.d0,comment="P-H coupling")
     call parse_input_variable(Jk,"JK",INPUTunit,default=0.d0,comment="Kondo coupling")
-    call parse_input_variable(Jkindx,"Jkindx",INPUTunit,default=(/( 1,i=1,size(Jkindx) )/),comment="!index the position of the impurity sites with respect to the electron band, dim(Jkflags)=Nsites(impurity_orbital)")
+    !
+    add =1;if(Nimp>0)add=Nimp
+    allocate(Jkindx(add))
+    call parse_input_variable(Jkindx,"JKINDX",INPUTunit,default=(/( 1,i=1,size(Jkindx) )/),comment="!index the position of the impurity sites with respect to the electron band, dim(Jkflags)=Nsites(impurity_orbital)")
     !
     call parse_input_variable(temp,"TEMP",INPUTunit,default=0.001d0,comment="temperature, at T=0 is used as a IR cut-off.")
     call parse_input_variable(ed_finite_temp,"ED_FINITE_TEMP",INPUTunit,default=.false.,comment="flag to select finite temperature method. note that if T then lanc_nstates_total must be > 1")
@@ -135,7 +133,11 @@ contains
     call parse_input_variable(Lmats,"LMATS",INPUTunit,default=4096,comment="Number of Matsubara frequencies.")
     call parse_input_variable(Lreal,"LREAL",INPUTunit,default=5000,comment="Number of real-axis frequencies.")
     call parse_input_variable(Ltau,"LTAU",INPUTunit,default=1024,comment="Number of imaginary time points.")
-    !    
+    !
+    add =0;if(Nimp>0)add=1
+    allocate(gf_flag(Norb+add))
+    allocate(chispin_flag(Norb+add))
+    allocate(oc_flag(Norb))
     call parse_input_variable(gf_flag,"GF_FLAG",INPUTunit,default=(/( .false.,i=1,size(gf_flag) )/),comment="Flag to activate Greens functions calculation")
     call parse_input_variable(chispin_flag,"CHISPIN_FLAG",INPUTunit,default=(/( .false.,i=1,size(chispin_flag) )/),comment="Flag to activate spin susceptibility calculation.")
     call parse_input_variable(oc_flag,"OC_FLAG",INPUTunit,default=(/( .false.,i=1,size(oc_flag) )/),comment="Flag to activate Optical Conductivity and Drude weight calculation")

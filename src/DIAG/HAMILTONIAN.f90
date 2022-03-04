@@ -67,7 +67,8 @@ contains
   !                 MAIN ROUTINES: DELETE SECTOR
   !####################################################################
   subroutine delete_Hv_sector()
-    select case(KondoFlag)       
+    select case(KondoFlag)
+    case (.true.)
        call delete_Hv_sector_kondo()
     case(.false.)
        call delete_Hv_sector_main()
@@ -82,10 +83,11 @@ contains
   function vecDim_Hv_sector(isector) result(vecDim)
     integer :: isector
     integer :: vecDim
-    select case(KondoFlag)       
-       call vecDim_Hv_sector_kondo()
+    select case(KondoFlag)
+    case (.true.)
+       vecDim = vecDim_Hv_sector_kondo(isector)
     case(.false.)
-       call vecDim_Hv_sector_main()
+       vecDim = vecDim_Hv_sector_main(isector)
     end select
   end function vecDim_Hv_sector
 
@@ -94,13 +96,13 @@ contains
   !                 MAIN ROUTINES: DELETE SECTOR
   !####################################################################
   subroutine tridiag_Hv_sector(isector,vvinit,alanc,blanc,norm2)
-    integer                             :: isector
-    complex(8),dimension(:)             :: vvinit
-    real(8),dimension(:),allocatable    :: alanc,blanc
-    real(8)                             :: norm2
-    integer :: isector
-    integer :: vecDim
-    select case(KondoFlag)       
+    integer                          :: isector
+    complex(8),dimension(:)          :: vvinit
+    real(8),dimension(:),allocatable :: alanc,blanc
+    real(8)                          :: norm2
+    integer                          :: vecDim
+    select case(KondoFlag)
+    case (.true.)
        call tridiag_Hv_sector_kondo(isector,vvinit,alanc,blanc,norm2)
     case(.false.)
        call tridiag_Hv_sector_main(isector,vvinit,alanc,blanc,norm2)
@@ -123,7 +125,7 @@ contains
   !####################################################################
 
   subroutine build_Hv_sector_main(isector,Hmat)
-    integer                            :: isector,SectorDim
+    integer                            :: isector
     complex(8),dimension(:,:),optional :: Hmat   
     integer                            :: irank,ierr
     integer                            :: i,iup,idw
@@ -362,10 +364,10 @@ contains
   !####################################################################
 
   subroutine build_Hv_sector_kondo(isector,Hmat)
-    integer                            :: isector,SectorDim
+    integer                            :: isector
     complex(8),dimension(:,:),optional :: Hmat
     integer                            :: irank
-    integer                            :: i,j,Dim
+    integer                            :: i,j
     !
     !
     call build_sector(isector,Hsector)
@@ -426,18 +428,20 @@ contains
     !
   end subroutine build_Hv_sector_kondo
 
+
+
   subroutine delete_Hv_sector_kondo()
     !
     call delete_sector(Hsector)
     Dim    = 0
 #ifdef _MPI
     if(MpiStatus)then
-       call sp_delete_matrix(MpiComm,spH0)
+       call sp_delete_matrix(MpiComm,spH0d)
     else
-       call sp_delete_matrix(spH0)
+       call sp_delete_matrix(spH0d)
     endif
 #else
-    call sp_delete_matrix(spH0)
+    call sp_delete_matrix(spH0d)
 #endif
     !
     spHtimesV_p => null()
@@ -456,6 +460,7 @@ contains
 #endif
     !
   end subroutine delete_Hv_sector_kondo
+
 
   function vecDim_Hv_sector_kondo(isector) result(vecDim)
     integer :: isector

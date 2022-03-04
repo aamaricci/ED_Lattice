@@ -324,8 +324,7 @@ contains
   !PURPOSE  : Get energy from the lattice problem.
   !+-------------------------------------------------------------------+
   subroutine lanc_energy()
-    integer                             :: istate,iud(2),jud(2)
-    integer,dimension(2*Ns_Ud)          :: Indices,Jndices
+    integer                             :: istate,iud(2),jud(2),iimp
     integer,dimension(Ns_imp)           :: IbUp,IbDw  ![Ns]
     integer,dimension(2*Ns_imp)         :: ib
     integer,dimension(Ns)               :: Nup,Ndw
@@ -335,7 +334,7 @@ contains
     complex(8),dimension(Nspin,Ns,Ns)   :: Hij,Hloc
     complex(8),dimension(Nspin,Ns)      :: Hdiag
     complex(8),dimension(:),allocatable :: state_cvec
-
+    integer                            :: io_up,io_dw,imp_up,imp_dw
     !
     Egs     = state_list%emin
     ed_Ekin    = 0.d0
@@ -391,8 +390,8 @@ contains
              call build_op_Ns(i,IbUp,Ibdw,sectorI)
              Nup = dble(IbUp(1:Ns))
              Ndw = dble(IbDw(1:Ns))
-             NpUp= dble(IbUp(Ns+1:Ns+Imp))
-             NpDw= dble(IbDw(Ns+1:Ns+Imp))
+             NpUp= dble(IbUp(Ns+1:Ns+Nimp))
+             NpDw= dble(IbDw(Ns+1:Ns+Nimp))
              Sz  = 0.5d0*(Nup-Ndw)
              Szp = 0.5d0*(NpUp-NpDw)
              !
@@ -408,7 +407,7 @@ contains
              if(KondoFlag)then
                 !
                 !
-                m  = Hsector%H(1)%map(i)
+                m  = sectorI%H(1)%map(i)
                 !UP electrons
                 do io=1,Ns
                    do jo=1,Ns
@@ -418,7 +417,7 @@ contains
                       if (Jcondition) then
                          call c(jo,m,k1,sg1)
                          call cdg(io,k1,k2,sg2)
-                         j    = binary_search(Hsector%H(1)%map,k2)
+                         j    = binary_search(sectorI%H(1)%map,k2)
                          ed_Ekin = ed_Ekin + &
                               Hij(1,io,jo)*sg1*sg2*state_cvec(i)*conjg(state_cvec(j))*peso
                       endif
@@ -433,7 +432,7 @@ contains
                       if (Jcondition) then
                          call c(jo+Ns,m,k1,sg1)
                          call cdg(io+Ns,k1,k2,sg2)
-                         j    = binary_search(Hsector%H(1)%map,k2)
+                         j    = binary_search(sectorI%H(1)%map,k2)
                          ed_Ekin = ed_Ekin + &
                               Hij(Nspin,io,jo)*sg1*sg2*state_cvec(i)*conjg(state_cvec(j))*peso
                       endif
@@ -443,8 +442,8 @@ contains
              else
                 !
                 !UP - hopping
-                iup = Indices(1)
-                idw = Indices(2)
+                iup = iup_index(i,sectorI%DimUp)!Indices(1)
+                idw = idw_index(i,sectorI%DimUp)!Indices(2)
                 mup = sectorI%H(1)%map(iup)
                 do io=1,Ns
                    do jo=1,Ns
@@ -463,8 +462,8 @@ contains
                 enddo
                 !
                 !DW - hopping
-                iup = Indices(1)
-                idw = Indices(2)
+                iup = iup_index(i,sectorI%DimUp)!Indices(1)
+                idw = idw_index(i,sectorI%DimUp)!Indices(2)
                 mdw = sectorI%H(2)%map(idw)
                 do io=1,Ns
                    do jo=1,Ns
@@ -552,7 +551,7 @@ contains
                 !
                 !SPIN-EXCHANGE Jx
                 if(Jhflag.AND.Jx/=0d0)then
-                   m  = Hsector%H(1)%map(i)
+                   m  = sectorI%H(1)%map(i)
                    do iorb=1,Norb
                       do jorb=1,Norb
                          do isite=1,Nsites(iorb)
@@ -571,7 +570,7 @@ contains
                                   call c(io+Ns,k1,k2,sg2)
                                   call cdg(jo+Ns,k2,k3,sg3)
                                   call cdg(io,k3,k4,sg4)
-                                  j=binary_search(Hsector%H(1)%map,k4)
+                                  j=binary_search(sectorI%H(1)%map,k4)
                                   ed_Epot = ed_Epot + Jx*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
                                   ed_Dse = ed_Dse + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
                                endif
@@ -583,7 +582,7 @@ contains
                 !
                 ! PAIR-HOPPING Jp
                 if(Jhflag.AND.Jp/=0d0)then
-                   m  = Hsector%H(1)%map(i)
+                   m  = sectorI%H(1)%map(i)
                    do iorb=1,Norb
                       do jorb=1,Norb
                          do isite=1,Nsites(iorb)
@@ -601,7 +600,7 @@ contains
                                   call c(jo+Ns,k1,k2,sg2)
                                   call cdg(io+Ns,k2,k3,sg3)
                                   call cdg(io,k3,k4,sg4)
-                                  j=binary_search(Hsector%H(1)%map,k4)
+                                  j=binary_search(sectorI%H(1)%map,k4)
                                   ed_Epot = ed_Epot + Jp*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
                                   ed_Dph = ed_Dph + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
                                endif
@@ -617,8 +616,8 @@ contains
                 !
                 !SPIN-EXCHANGE Jx
                 if(Jhflag.AND.Jx/=0d0)then
-                   iup = Indices(1)
-                   idw = Indices(2)
+                   iup = iup_index(i,sectorI%DimUp)!Indices(1)
+                   idw = idw_index(i,sectorI%DimUp)!Indices(2)
                    mup = sectorI%H(1)%map(iup)
                    mdw = sectorI%H(2)%map(idw)
                    do iorb=1,Norb
@@ -655,8 +654,8 @@ contains
                 !
                 ! PAIR-HOPPING Jp
                 if(Jhflag.AND.Jp/=0d0)then
-                   iup = Indices(1)
-                   idw = Indices(2)
+                   iup = iup_index(i,sectorI%DimUp)!Indices(1)
+                   idw = idw_index(i,sectorI%DimUp)!Indices(2)
                    mup = sectorI%H(1)%map(iup)
                    mdw = sectorI%H(2)%map(idw)
                    do iorb=1,Norb
@@ -696,7 +695,7 @@ contains
              !
              !
              if(KondoFlag)then
-                m  = Hsector%H(1)%map(i)
+                m  = sectorI%H(1)%map(i)
                 do iimp=1,Nimp
                    do iorb=1,Norb
                       do isite=1,Nsites(iorb)
@@ -708,7 +707,7 @@ contains
                    enddo
                 enddo
                 !
-                m  = Hsector%H(1)%map(i)
+                m  = sectorI%H(1)%map(i)
                 do iimp=1,Nimp
                    do iorb=1,Norb
                       do isite=1,Nsites(iorb)
@@ -727,7 +726,7 @@ contains
                             call cdg(imp_dw,k1,k2,sg2) !d^+_dw
                             call c(imp_up,k2,k3,sg3)   !d_up
                             call cdg(io_up,k3,k4,sg4)  !c^+_up
-                            j=binary_search(Hsector%H(1)%map,k4)
+                            j=binary_search(sectorI%H(1)%map,k4)
                             ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
                             ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
                          endif
@@ -740,13 +739,13 @@ contains
                          imp_dw= 2*Ns + iimp + Nimp
                          Jcondition=(&
                               (npdw(iimp)==1).AND.(ndw(io)==0).AND.&
-                              (nup(io)==1).AND.(npup(io)==0) )
+                              (nup(io)==1).AND.(npup(iimp)==0) )
                          if(Jcondition)then
                             call c(imp_dw,m,k1,sg1)    !d_dw
                             call cdg(io_dw,k1,k2,sg2)  !c^+_dw
                             call c(io_up,k2,k3,sg3)    !c_up
                             call cdg(imp_up,k3,k4,sg4) !d^+_up
-                            j=binary_search(Hsector%H(1)%map,k4)
+                            j=binary_search(sectorI%H(1)%map,k4)
                             ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
                             ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
                          endif

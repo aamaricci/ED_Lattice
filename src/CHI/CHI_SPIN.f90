@@ -58,7 +58,7 @@ contains
        if(KondoFlag.AND.gf_flag(Ns+1))then
           do iimp=1,Nimp
              if(MPIMASTER)call start_timer
-             if(MPIMASTER)write(LOGfile,"(A)")"Build spinChi:"//" imp "//str(imp)
+             if(MPIMASTER)write(LOGfile,"(A)")"Build spinChi:"//" imp "//str(iimp)
              call allocate_GFmatrix(SpinChiMatrix(Ns+iimp,Ns+iimp),Nstate=state_list%size)
              call lanc_build_spinChi_imp(iimp)
              if(MPIMASTER)call stop_timer(unit=LOGfile)
@@ -74,7 +74,7 @@ contains
                   " orb M"//str(iorb)
              if(MPIMASTER)call start_timer
              call allocate_GFmatrix(SpinChiMatrix(io,io),Nstate=state_list%size)
-             call lanc_ed_build_spinChi_diag(isite,iorb)
+             call lanc_build_spinChi_diag(isite,iorb)
              if(MPIMASTER)call stop_timer(unit=LOGfile)
           enddo
        enddo
@@ -94,7 +94,7 @@ contains
                            " orb M"//str(iorb)//"L"//str(jorb)
                       if(MPIMASTER)call start_timer
                       call allocate_GFmatrix(SpinChiMatrix(io,jo),Nstate=state_list%size)
-                      call lanc_ed_build_spinChi_mix(isite,jsite,iorb,jorb)
+                      call lanc_build_spinChi_mix(isite,jsite,iorb,jorb)
                       if(MPIMASTER)call stop_timer(unit=LOGfile)
                    enddo
                 enddo
@@ -115,13 +115,13 @@ contains
     !
     if(KondoFlag)then
        do iimp=1,Nimp
-          if(MPIMASTER)write(LOGfile,"(A)")"Eval spinChi:"//" imp"//str(imp)
+          if(MPIMASTER)write(LOGfile,"(A)")"Eval spinChi:"//" imp"//str(iimp)
           if(MPIMASTER)call start_timer
           select case(ed_method)
           case default
-             call lanc_eval_spinChi_imp(iimp)
+             call lanc_eval_spinChi_impurity(iimp)
           case ('lapack','full')
-             call full_eval_spinChi_imp(iimp)
+             call full_eval_spinChi_impurity(iimp)
           end select
           if(MPIMASTER)call stop_timer(unit=LOGfile)
        enddo
@@ -137,9 +137,9 @@ contains
           if(MPIMASTER)call start_timer
           select case(ed_method)
           case default
-             call lanc_ed_eval_spinChi(isite,isite,iorb,iorb)
+             call lanc_eval_spinChi_electrons(isite,isite,iorb,iorb)
           case ('lapack','full')
-             call full_ed_eval_spinChi(isite,isite,iorb,iorb)
+             call full_eval_spinChi_electrons(isite,isite,iorb,iorb)
           end select
           if(MPIMASTER)call stop_timer(unit=LOGfile)
        enddo
@@ -161,9 +161,9 @@ contains
                    if(MPIMASTER)call start_timer
                    select case(ed_method)
                    case default
-                      call lanc_ed_eval_spinChi(isite,jsite,iorb,jorb)
+                      call lanc_eval_spinChi_electrons(isite,jsite,iorb,jorb)
                    case ('lapack','full')
-                      call full_ed_eval_spinChi(isite,isite,iorb,iorb)
+                      call full_eval_spinChi_electrons(isite,isite,iorb,iorb)
                    end select
                    if(MPIMASTER)call stop_timer(unit=LOGfile)
                 enddo
@@ -207,7 +207,7 @@ contains
 
 
 
-  subroutine lanc_ed_build_spinChi_diag(isite,iorb)
+  subroutine lanc_build_spinChi_diag(isite,iorb)
     integer,intent(in)                  :: isite,iorb
     integer                             :: io
     type(sector)                        :: sectorI,sectorJ
@@ -253,7 +253,7 @@ contains
        if(allocated(state_cvec))deallocate(state_cvec)       
     enddo
     return
-  end subroutine lanc_ed_build_spinChi_diag
+  end subroutine lanc_build_spinChi_diag
 
 
 
@@ -263,14 +263,14 @@ contains
 
 
 
-  subroutine lanc_ed_build_spinChi_imp(iimp)
+  subroutine lanc_build_spinChi_imp(iimp)
     integer,intent(in)                  :: iimp
     integer                             :: io,ipos
     type(sector)                        :: sectorI,sectorJ
     complex(8),dimension(:),allocatable :: state_cvec
     !
     ialfa = 1
-    io    = Ns+imp
+    io    = Ns + iimp
     !
     do istate=1,state_list%size
        !
@@ -309,7 +309,7 @@ contains
        if(allocated(state_cvec))deallocate(state_cvec)       
     enddo
     return
-  end subroutine lanc_ed_build_spinChi_imp
+  end subroutine lanc_build_spinChi_imp
 
 
 
@@ -320,7 +320,7 @@ contains
 
 
 
-  subroutine lanc_ed_build_spinChi_mix(isite,jsite,iorb,jorb)
+  subroutine lanc_build_spinChi_mix(isite,jsite,iorb,jorb)
     integer                             :: isite,jsite,iorb,jorb
     integer                             :: io,jo
     type(sector)                        :: sectorI,sectorJ
@@ -373,7 +373,7 @@ contains
        if(allocated(state_cvec))deallocate(state_cvec)
     enddo
     return
-  end subroutine lanc_ed_build_spinChi_mix
+  end subroutine lanc_build_spinChi_mix
 
 
 
@@ -459,7 +459,7 @@ contains
 
 
 
-  subroutine lanc_ed_eval_spinChi(isite,jsite,iorb,jorb)
+  subroutine lanc_eval_spinChi_electrons(isite,jsite,iorb,jorb)
     integer,intent(in) :: isite,jsite,iorb,jorb
     integer            :: Nstates,istate
     integer            :: Nchannels,ichan
@@ -520,11 +520,11 @@ contains
        enddo
     enddo
     return
-  end subroutine lanc_ed_eval_spinChi
+  end subroutine lanc_eval_spinChi_electrons
 
 
 
-  subroutine lanc_ed_eval_spinChi_imp(iimp)
+  subroutine lanc_eval_spinChi_impurity(iimp)
     integer,intent(in) :: iimp
     integer            :: Nstates,istate
     integer            :: Nchannels,ichan
@@ -578,7 +578,7 @@ contains
        enddo
     enddo
     return
-  end subroutine lanc_ed_eval_spinChi_imp
+  end subroutine lanc_eval_spinChi_impurity
 
 
 
@@ -592,7 +592,7 @@ contains
 
 
 
-  subroutine full_ed_eval_spinChi(isite,jsite,iorb,jorb)
+  subroutine full_eval_spinChi_electrons(isite,jsite,iorb,jorb)
     integer      :: isite,jsite,iorb,jorb
     integer      :: io,jo
     type(sector) :: sectorI,sectorJ
@@ -662,10 +662,10 @@ contains
        enddo
        call delete_sector(sectorI)
     enddo
-  end subroutine full_ed_eval_spinChi
+  end subroutine full_eval_spinChi_electrons
 
 
-  subroutine full_ed_eval_spinChi_imp(iimp)
+  subroutine full_eval_spinChi_impurity(iimp)
     integer      :: iimp
     integer      :: io,jo
     type(sector) :: sectorI,sectorJ
@@ -735,7 +735,7 @@ contains
        enddo
        call delete_sector(sectorI)
     enddo
-  end subroutine full_ed_eval_spinChi_imp
+  end subroutine full_eval_spinChi_impurity
 
 
 

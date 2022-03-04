@@ -64,7 +64,7 @@ contains
 
 
 
-  subroutine directMatVec_kondo((Nloc,vin,Hv)
+  subroutine directMatVec_kondo(Nloc,vin,Hv)
     integer                             :: Nloc
     complex(8),dimension(Nloc)          :: vin
     complex(8),dimension(Nloc)          :: Hv
@@ -76,7 +76,7 @@ contains
     real(8),dimension(Ns)               :: Sz
     integer,dimension(Nimp)             :: NpUp,NpDw
     real(8),dimension(Nimp)             :: Szp
-    integer                             :: io_up,io_dw,imp_up,imp_dw
+    integer                             :: i,j,io_up,io_dw,imp_up,imp_dw
     !
     if(.not.Hsector%status)stop "directMatVec_cc ERROR: Hsector NOT allocated"
     isector=Hsector%index
@@ -93,7 +93,7 @@ contains
     !
     !-----------------------------------------------!
     !
-    states: do j=MpiIstart,MpiIend
+    do j=MpiIstart,MpiIend
        m   = Hsector%H(1)%map(j)
        ib  = bdecomp(m,2*Ns_imp)
        Nup = ib(1:Ns)
@@ -115,7 +115,7 @@ contains
        !HOPPING TERMS
        include "direct/HxV_hop.f90"
        !
-    enddo states
+    enddo
     !-----------------------------------------------!
     !
     !

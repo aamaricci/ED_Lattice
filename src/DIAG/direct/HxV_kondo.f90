@@ -41,7 +41,7 @@
                  call cdg(imp_dw,k1,k2,sg2) !d^+_dw
                  call c(imp_up,k2,k3,sg3)   !d_up
                  call cdg(io_up,k3,k4,sg4)  !c^+_up
-                 j=binary_search(Hsector%H(1)%map,k4)
+                 i=binary_search(Hsector%H(1)%map,k4)
                  htmp = one*Jk*sg1*sg2*sg3*sg4
                  !
                  if(i/=0)hv(i-MpiIshift) = hv(i-MpiIshift) + htmp*vin(j)
@@ -62,7 +62,7 @@
                  call cdg(io_dw,k1,k2,sg2)  !c^+_dw
                  call c(io_up,k2,k3,sg3)    !c_up
                  call cdg(imp_up,k3,k4,sg4) !d^+_up
-                 j=binary_search(Hsector%H(1)%map,k4)
+                 i=binary_search(Hsector%H(1)%map,k4)
                  htmp = one*Jk*sg1*sg2*sg3*sg4
                  !
                  if(i/=0)hv(i-MpiIshift) = hv(i-MpiIshift) + htmp*vin(j)

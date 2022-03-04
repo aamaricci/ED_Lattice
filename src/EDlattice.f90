@@ -18,8 +18,6 @@ MODULE EDLAT
        wini          , &
        wfin          , &
        sb_field      , &
-       nread         , &
-       nerr          , &
        Lmats         , &
        Lreal         , &
        LOGfile   
