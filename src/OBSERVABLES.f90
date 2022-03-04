@@ -83,6 +83,7 @@ contains
     case default
        call lanc_energy()
     case ("lapack","full")
+       print*,"WARNING: IF(KONDOFLAG) this calculation is not updated..."
        call full_energy()
     end select
     if(MPIMASTER)call stop_timer(unit=LOGfile)
@@ -94,16 +95,16 @@ contains
   !PURPOSE  : Lanc method
   !+-------------------------------------------------------------------+
   subroutine lanc_observables()
-    integer                           :: iprob,istate,Nud(2,Ns),iud(2),jud(2),val
-    integer,dimension(2*Ns_Ud)        :: Indices,Jndices
-    integer,dimension(Ns_Ud,Ns_Orb)   :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
-    integer,dimension(Ns)             :: IbUp,IbDw  ![Ns]
-    real(8),dimension(Ns)             :: nup,ndw,Sz,nt
+    integer                             :: iprob,istate,Nud(2,Ns),iud(2),jud(2),val
+    integer,dimension(2*Ns_Ud)          :: Indices,Jndices
+    integer,dimension(Ns_Ud,Ns_Orb)     :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
+    integer,dimension(Ns_imp)           :: IbUp,IbDw  ![Ns]
+    real(8),dimension(Ns_imp)           :: nup,ndw,Sz,nt
     complex(8),dimension(:),allocatable :: state_cvec
     !
-    allocate(dens(Ns),dens_up(Ns),dens_dw(Ns))
-    allocate(docc(Ns))
-    allocate(magz(Ns),sz2(Ns,Ns),n2(Ns,Ns))
+    allocate(dens(Ns_imp),dens_up(Ns_imp),dens_dw(Ns_imp))
+    allocate(docc(Ns_imp))
+    allocate(magz(Ns_imp),sz2(Ns_imp,Ns_imp),n2(Ns_imp,Ns_imp))
     !
     Egs     = state_list%emin
     dens    = 0.d0
@@ -145,7 +146,7 @@ contains
              nt =  nup+ndw
              !
              !Evaluate averages of observables:
-             do is=1,Ns
+             do is=1,Ns_imp
                 dens(is)     = dens(is)      +  nt(is)*gs_weight
                 dens_up(is)  = dens_up(is)   +  nup(is)*gs_weight
                 dens_dw(is)  = dens_dw(is)   +  ndw(is)*gs_weight
@@ -153,7 +154,7 @@ contains
                 magz(is)     = magz(is)      +  (nup(is)-ndw(is))*gs_weight
                 sz2(is,is) = sz2(is,is)  +  (sz(is)*sz(is))*gs_weight
                 n2(is,is)  = n2(is,is)   +  (nt(is)*nt(is))*gs_weight
-                do js=is+1,Ns
+                do js=is+1,Ns_imp
                    sz2(is,js) = sz2(is,js)  +  (sz(is)*sz(js))*gs_weight
                    sz2(js,is) = sz2(js,is)  +  (sz(js)*sz(is))*gs_weight
                    n2(is,js)  = n2(is,js)   +  (nt(is)*nt(js))*gs_weight
@@ -176,10 +177,10 @@ contains
     if(MPIMASTER)then
        call write_observables()
        write(LOGfile,"(A,100f18.12,f18.12)")&
-            "dens=",(dens(is),is=1,Ns),sum(dens)
+            "dens=",(dens(is),is=1,Ns_imp),sum(dens)
        if(Nspin==2)then
           write(LOGfile,"(A,10f18.12,A)")&
-               "magZ=",(magz(is),is=1,Ns)
+               "magZ=",(magz(is),is=1,Ns_imp)
        endif
        !
        ed_dens_up = dens_up
@@ -222,15 +223,15 @@ contains
     integer                         :: Nud(2,Ns),iud(2),jud(2)
     integer,dimension(2*Ns_Ud)      :: Indices,Jndices
     integer,dimension(Ns_Ud)        :: Nups,Ndws
-    integer,dimension(Ns)           :: IbUp,IbDw  ![Ns]
-    real(8),dimension(Ns)           :: nup,ndw,Sz,nt
+    integer,dimension(Ns_imp)       :: IbUp,IbDw  ![Ns]
+    real(8),dimension(Ns_imp)       :: nup,ndw,Sz,nt
     complex(8),dimension(:),pointer :: evec
     !
     !
     !LOCAL OBSERVABLES:
-    allocate(dens(Ns),dens_up(Ns),dens_dw(Ns))
-    allocate(docc(Ns))
-    allocate(magz(Ns),sz2(Ns,Ns),n2(Ns,Ns))
+    allocate(dens(Ns_imp),dens_up(Ns_imp),dens_dw(Ns_imp))
+    allocate(docc(Ns_imp))
+    allocate(magz(Ns_imp),sz2(Ns_imp,Ns_imp),n2(Ns_imp,Ns_imp))
 
     !
     egs     = gs_energy
@@ -270,7 +271,7 @@ contains
              nt =  nup+ndw
              !
              !Evaluate averages of observables:
-             do io=1,Ns
+             do io=1,Ns_imp
                 dens(io)     = dens(io)      +  nt(io)*weight
                 dens_up(io)  = dens_up(io)   +  nup(io)*weight
                 dens_dw(io)  = dens_dw(io)   +  ndw(io)*weight
@@ -278,7 +279,7 @@ contains
                 magz(io)     = magz(io)      +  (nup(io)-ndw(io))*weight
                 sz2(io,io) = sz2(io,io)  +  (sz(io)*sz(io))*weight
                 n2(io,io)  = n2(io,io)   +  (nt(io)*nt(io))*weight
-                do jo=io+1,Ns
+                do jo=io+1,Ns_imp
                    sz2(io,jo) = sz2(io,jo)  +  (sz(io)*sz(jo))*weight
                    sz2(jo,io) = sz2(jo,io)  +  (sz(jo)*sz(io))*weight
                    n2(io,jo)  = n2(io,jo)   +  (nt(io)*nt(jo))*weight
@@ -295,10 +296,10 @@ contains
     !
     call write_observables()
     write(LOGfile,"(A,100f18.12,f18.12)")&
-         "dens=",(dens(is),is=1,Ns),sum(dens)
+         "dens=",(dens(is),is=1,Ns_imp),sum(dens)
     if(Nspin==2)then
        write(LOGfile,"(A,10f18.12,A)")&
-            "magZ=",(magz(is),is=1,Ns)
+            "magZ=",(magz(is),is=1,Ns_imp)
     endif
     !
     !
@@ -325,11 +326,16 @@ contains
   subroutine lanc_energy()
     integer                             :: istate,iud(2),jud(2)
     integer,dimension(2*Ns_Ud)          :: Indices,Jndices
-    integer,dimension(Ns_Ud,Ns_Orb)     :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
-    real(8),dimension(Ns)               :: Nup,Ndw,Sz
+    integer,dimension(Ns_imp)           :: IbUp,IbDw  ![Ns]
+    integer,dimension(2*Ns_imp)         :: ib
+    integer,dimension(Ns)               :: Nup,Ndw
+    real(8),dimension(Ns)               :: Sz
+    integer,dimension(Nimp)             :: NpUp,NpDw
+    real(8),dimension(Nimp)             :: Szp
     complex(8),dimension(Nspin,Ns,Ns)   :: Hij,Hloc
     complex(8),dimension(Nspin,Ns)      :: Hdiag
     complex(8),dimension(:),allocatable :: state_cvec
+
     !
     Egs     = state_list%emin
     ed_Ekin    = 0.d0
@@ -372,16 +378,23 @@ contains
           call build_sector(isector,sectorI)
           do i=1,sectorI%Dim
              !
-             call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
-             do ii=1,Ns_Ud
-                mup = sectorI%H(ii)%map(Indices(ii))
-                mdw = sectorI%H(ii+Ns_Ud)%map(Indices(ii+Ns_ud))
-                Nups(ii,:) = Bdecomp(mup,Ns_Orb)
-                Ndws(ii,:) = Bdecomp(mdw,Ns_Orb)
-             enddo
-             Nup =  Nups(1,:)
-             Ndw =  Ndws(1,:)
+             ! call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
+             ! do ii=1,Ns_Ud
+             !    mup = sectorI%H(ii)%map(Indices(ii))
+             !    mdw = sectorI%H(ii+Ns_Ud)%map(Indices(ii+Ns_ud))
+             !    Nups(ii,:) = Bdecomp(mup,Ns_Orb)
+             !    Ndws(ii,:) = Bdecomp(mdw,Ns_Orb)
+             ! enddo
+             ! Nup =  Nups(1,:)
+             ! Ndw =  Ndws(1,:)
+             ! Sz  = 0.5d0*(Nup-Ndw)
+             call build_op_Ns(i,IbUp,Ibdw,sectorI)
+             Nup = dble(IbUp(1:Ns))
+             Ndw = dble(IbDw(1:Ns))
+             NpUp= dble(IbUp(Ns+1:Ns+Imp))
+             NpDw= dble(IbDw(Ns+1:Ns+Imp))
              Sz  = 0.5d0*(Nup-Ndw)
+             Szp = 0.5d0*(NpUp-NpDw)
              !
              gs_weight=peso*abs(state_cvec(i))**2
              !
@@ -392,181 +405,87 @@ contains
              enddo
              !
              !> H_imp: Off-diagonal elements, i.e. non-local part.
-             !UP - hopping
-             iup = Indices(1)
-             idw = Indices(2)
-             mup = sectorI%H(1)%map(iup)
-             do io=1,Ns
-                do jo=1,Ns
-                   Jcondition = &
-                        (Hij(1,io,jo)/=zero) .AND. &
-                        (Nup(jo)==1) .AND. (Nup(io)==0)
-                   if (Jcondition) then
-                      call c(jo,mup,k1,sg1)
-                      call cdg(io,k1,k2,sg2)
-                      jup = binary_search(sectorI%H(1)%map,k2)
-                      j   = jup + (idw-1)*sectorI%DimUp
-                      ed_Ekin = ed_Ekin + &
-                           Hij(1,io,jo)*sg1*sg2*state_cvec(i)*conjg(state_cvec(j))*peso
-                   endif
+             if(KondoFlag)then
+                !
+                !
+                m  = Hsector%H(1)%map(i)
+                !UP electrons
+                do io=1,Ns
+                   do jo=1,Ns
+                      Jcondition = &
+                           (Hij(1,io,jo)/=zero) .AND. &
+                           (nup(jo)==1) .AND. (nup(io)==0)
+                      if (Jcondition) then
+                         call c(jo,m,k1,sg1)
+                         call cdg(io,k1,k2,sg2)
+                         j    = binary_search(Hsector%H(1)%map,k2)
+                         ed_Ekin = ed_Ekin + &
+                              Hij(1,io,jo)*sg1*sg2*state_cvec(i)*conjg(state_cvec(j))*peso
+                      endif
+                   enddo
                 enddo
-             enddo
-             !
-             !DW - hopping
-             iup = Indices(1)
-             idw = Indices(2)
-             mdw = sectorI%H(2)%map(idw)
-             do io=1,Ns
-                do jo=1,Ns
-                   Jcondition = &
-                        (Hij(Nspin,io,jo)/=zero) .AND. &
-                        (Ndw(jo)==1) .AND. (Ndw(io)==0)
-                   if (Jcondition) then
-                      call c(jo,mdw,k1,sg1)
-                      call cdg(io,k1,k2,sg2)
-                      jdw = binary_search(sectorI%H(2)%map,k2)
-                      j   = iup + (jdw-1)*sectorI%DimUp
-                      ed_Ekin = ed_Ekin + &
-                           Hij(Nspin,io,jo)*sg1*sg2*state_cvec(i)*conjg(state_cvec(j))*peso
-                   endif
+                !DW electrons
+                do io=1,Ns
+                   do jo=1,Ns
+                      Jcondition = &
+                           (Hij(Nspin,io,jo)/=zero) .AND. &
+                           (ndw(jo)==1) .AND. (ndw(io)==0)
+                      if (Jcondition) then
+                         call c(jo+Ns,m,k1,sg1)
+                         call cdg(io+Ns,k1,k2,sg2)
+                         j    = binary_search(Hsector%H(1)%map,k2)
+                         ed_Ekin = ed_Ekin + &
+                              Hij(Nspin,io,jo)*sg1*sg2*state_cvec(i)*conjg(state_cvec(j))*peso
+                      endif
+                   enddo
                 enddo
-             enddo
-             !
-             !
-             !SPIN-EXCHANGE Jx
-             if(Jhflag.AND.Jx/=0d0)then
+                !
+             else
+                !
+                !UP - hopping
                 iup = Indices(1)
                 idw = Indices(2)
                 mup = sectorI%H(1)%map(iup)
-                mdw = sectorI%H(2)%map(idw)
-                do iorb=1,Norb
-                   do jorb=1,Norb
-                      do isite=1,Nsites(iorb)
-                         do jsite=1,Nsites(jorb)
-                            if(isite/=jsite)cycle !local interaction only:
-                            io = pack_indices(isite,iorb)
-                            jo = pack_indices(isite,jorb)
-                            Jcondition=(&
-                                 (io/=jo).AND.&
-                                 (nup(jo)==1).AND.&
-                                 (ndw(io)==1).AND.&
-                                 (ndw(jo)==0).AND.&
-                                 (nup(io)==0))
-                            if(Jcondition)then
-                               call c(io,mdw,k1,sg1)  !DW
-                               call cdg(jo,k1,k2,sg2) !DW
-                               jdw=binary_search(sectorI%H(2)%map,k2)
-                               call c(jo,mup,k3,sg3)  !UP
-                               call cdg(io,k3,k4,sg4) !UP
-                               jup=binary_search(sectorI%H(1)%map,k4)
-                               j = jup + (jdw-1)*sectorI%DimUp
-                               !
-                               ed_Epot = ed_Epot + Jx*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
-                               ed_Dse = ed_Dse + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
-                               !
-                            endif
-                         enddo
-                      enddo
+                do io=1,Ns
+                   do jo=1,Ns
+                      Jcondition = &
+                           (Hij(1,io,jo)/=zero) .AND. &
+                           (Nup(jo)==1) .AND. (Nup(io)==0)
+                      if (Jcondition) then
+                         call c(jo,mup,k1,sg1)
+                         call cdg(io,k1,k2,sg2)
+                         jup = binary_search(sectorI%H(1)%map,k2)
+                         j   = jup + (idw-1)*sectorI%DimUp
+                         ed_Ekin = ed_Ekin + &
+                              Hij(1,io,jo)*sg1*sg2*state_cvec(i)*conjg(state_cvec(j))*peso
+                      endif
                    enddo
                 enddo
-             endif
-             !
-             ! PAIR-HOPPING Jp
-             if(Jhflag.AND.Jp/=0d0)then
+                !
+                !DW - hopping
                 iup = Indices(1)
                 idw = Indices(2)
-                mup = sectorI%H(1)%map(iup)
                 mdw = sectorI%H(2)%map(idw)
-                do iorb=1,Norb
-                   do jorb=1,Norb
-                      do isite=1,Nsites(iorb)
-                         do jsite=1,Nsites(jorb)
-                            if(isite/=jsite)cycle !local interaction only:
-                            io = pack_indices(isite,iorb)
-                            jo = pack_indices(isite,jorb)
-                            Jcondition=(&
-                                 (nup(jo)==1).AND.&
-                                 (ndw(jo)==1).AND.&
-                                 (ndw(io)==0).AND.&
-                                 (nup(io)==0))
-                            if(Jcondition)then
-                               call c(jo,mdw,k1,sg1)       !c_jo_dw
-                               call cdg(io,k1,k2,sg2)      !c^+_io_dw
-                               jdw = binary_search(sectorI%H(2)%map,k2)
-                               call c(jo,mup,k3,sg3)       !c_jo_up
-                               call cdg(io,k3,k4,sg4)      !c^+_io_up
-                               jup = binary_search(sectorI%H(1)%map,k4)
-                               j = jup + (jdw-1)*sectorI%DimUp
-                               !
-                               ed_Epot = ed_Epot + Jp*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
-                               ed_Dph = ed_Dph + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
-                               !
-                            endif
-                         enddo
-                      enddo
+                do io=1,Ns
+                   do jo=1,Ns
+                      Jcondition = &
+                           (Hij(Nspin,io,jo)/=zero) .AND. &
+                           (Ndw(jo)==1) .AND. (Ndw(io)==0)
+                      if (Jcondition) then
+                         call c(jo,mdw,k1,sg1)
+                         call cdg(io,k1,k2,sg2)
+                         jdw = binary_search(sectorI%H(2)%map,k2)
+                         j   = iup + (jdw-1)*sectorI%DimUp
+                         ed_Ekin = ed_Ekin + &
+                              Hij(Nspin,io,jo)*sg1*sg2*state_cvec(i)*conjg(state_cvec(j))*peso
+                      endif
                    enddo
                 enddo
+                !
+                !
              endif
              !
-             if(Jhflag.AND.Jk/=0d0)then
-                iup = Indices(1)
-                idw = Indices(2)
-                mup = sectorI%H(1)%map(iup)
-                mdw = sectorI%H(2)%map(idw)
-                do iorb=1,Norb
-                   do jorb=iorb+1,Norb
-                      do isite=1,Nsites(iorb)
-                         do jsite=1,Nsites(jorb)
-                            ! if(isite/=jsite)cycle !local interaction only:
-                            ! io = pack_indices(isite,iorb)!a
-                            ! jo = pack_indices(isite,jorb)!b
-                            if(jsite/=Jkindx(isite))cycle
-                            io = pack_indices(isite,iorb)!a
-                            jo = pack_indices(jsite,jorb)!b
-                            !
-                            ![cdg_io c_jo]_up [cdg_jo c_io]_dw
-                            Jcondition=(&
-                                 (ndw(io)==1).AND.&
-                                 (ndw(jo)==0).AND.&
-                                 (nup(jo)==1).AND.&
-                                 (nup(io)==0))
-                            if(Jcondition)then
-                               call c(io,mdw,k1,sg1)       !c_io.dw
-                               call cdg(jo,k1,k2,sg2)      !c^+_jo.dw
-                               jdw = binary_search(sectorI%H(2)%map,k2)
-                               call c(jo,mup,k3,sg3)       !c_jo.up
-                               call cdg(io,k3,k4,sg4)      !c^+_io.up
-                               jup = binary_search(sectorI%H(1)%map,k4)
-                               j = jup + (jdw-1)*sectorI%DimUp
-                               !
-                               ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
-                               ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
-                            endif
-                            !
-                            ![cdg_jo c_io]_up [cdg_io c_jo]_dw
-                            Jcondition=(&
-                                 (ndw(jo)==1).AND.&
-                                 (ndw(io)==0).AND.&
-                                 (nup(io)==1).AND.&
-                                 (nup(jo)==0))
-                            if(Jcondition)then
-                               call c(jo,mdw,k1,sg1)       !c_jo.dw
-                               call cdg(io,k1,k2,sg2)      !c^+_io.dw
-                               jdw = binary_search(sectorI%H(2)%map,k2)
-                               call c(io,mup,k3,sg3)       !c_io.up
-                               call cdg(jo,k3,k4,sg4)      !c^+_jo.up
-                               jup = binary_search(sectorI%H(1)%map,k4)
-                               j = jup + (jdw-1)*sectorI%DimUp
-                               !
-                               ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
-                               ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
-                            endif
-                            !
-                         enddo
-                      enddo
-                   enddo
-                enddo
-             endif
+             !
              !
              !
              !Euloc=\sum=i U_i*(n_u*n_d)_i
@@ -599,24 +518,6 @@ contains
              endif
              !
              !
-             if(Jhflag.AND.Jk/=0d0)then
-                do iorb=1,Norb
-                   do jorb=iorb+1,Norb
-                      do isite=1,Nsites(iorb)
-                         do jsite=1,Nsites(jorb)
-                            ! if(isite/=jsite)cycle !local interaction only:
-                            ! io = pack_indices(isite,iorb)!a
-                            ! jo = pack_indices(isite,jorb)!b
-                            if(jsite/=Jkindx(isite))cycle
-                            io = pack_indices(isite,iorb)
-                            jo = pack_indices(jsite,jorb)
-                            ed_Epot = ed_Epot - 2*Jk*Sz(io)*Sz(jo)*gs_weight
-                            ed_Dkz  = ed_Dkz  + Sz(io)*Sz(jo)*gs_weight
-                         enddo
-                      enddo
-                   enddo
-                enddo
-             endif
              !
              !HARTREE-TERMS CONTRIBUTION:
              if(hfmode)then
@@ -643,6 +544,217 @@ contains
                    enddo
                    !
                 endif
+             endif
+             !
+             !
+             !
+             if(KondoFlag)then
+                !
+                !SPIN-EXCHANGE Jx
+                if(Jhflag.AND.Jx/=0d0)then
+                   m  = Hsector%H(1)%map(i)
+                   do iorb=1,Norb
+                      do jorb=1,Norb
+                         do isite=1,Nsites(iorb)
+                            do jsite=1,Nsites(jorb)
+                               if(isite/=jsite)cycle !local interaction only:
+                               io = pack_indices(isite,iorb)
+                               jo = pack_indices(isite,jorb)
+                               Jcondition=(&
+                                    (io/=jo).AND.&
+                                    (nup(jo)==1).AND.&
+                                    (ndw(io)==1).AND.&
+                                    (ndw(jo)==0).AND.&
+                                    (nup(io)==0))
+                               if(Jcondition)then
+                                  call c(jo,m,k1,sg1)
+                                  call c(io+Ns,k1,k2,sg2)
+                                  call cdg(jo+Ns,k2,k3,sg3)
+                                  call cdg(io,k3,k4,sg4)
+                                  j=binary_search(Hsector%H(1)%map,k4)
+                                  ed_Epot = ed_Epot + Jx*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
+                                  ed_Dse = ed_Dse + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
+                               endif
+                            enddo
+                         enddo
+                      enddo
+                   enddo
+                endif
+                !
+                ! PAIR-HOPPING Jp
+                if(Jhflag.AND.Jp/=0d0)then
+                   m  = Hsector%H(1)%map(i)
+                   do iorb=1,Norb
+                      do jorb=1,Norb
+                         do isite=1,Nsites(iorb)
+                            do jsite=1,Nsites(jorb)
+                               if(isite/=jsite)cycle !local interaction only:
+                               io = pack_indices(isite,iorb)
+                               jo = pack_indices(isite,jorb)
+                               Jcondition=(&
+                                    (nup(jo)==1).AND.&
+                                    (ndw(jo)==1).AND.&
+                                    (ndw(io)==0).AND.&
+                                    (nup(io)==0))
+                               if(Jcondition)then
+                                  call c(jo,m,k1,sg1)
+                                  call c(jo+Ns,k1,k2,sg2)
+                                  call cdg(io+Ns,k2,k3,sg3)
+                                  call cdg(io,k3,k4,sg4)
+                                  j=binary_search(Hsector%H(1)%map,k4)
+                                  ed_Epot = ed_Epot + Jp*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
+                                  ed_Dph = ed_Dph + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
+                               endif
+                            enddo
+                         enddo
+                      enddo
+                   enddo
+                endif
+                !
+                !
+             else
+                !
+                !
+                !SPIN-EXCHANGE Jx
+                if(Jhflag.AND.Jx/=0d0)then
+                   iup = Indices(1)
+                   idw = Indices(2)
+                   mup = sectorI%H(1)%map(iup)
+                   mdw = sectorI%H(2)%map(idw)
+                   do iorb=1,Norb
+                      do jorb=1,Norb
+                         do isite=1,Nsites(iorb)
+                            do jsite=1,Nsites(jorb)
+                               if(isite/=jsite)cycle !local interaction only:
+                               io = pack_indices(isite,iorb)
+                               jo = pack_indices(isite,jorb)
+                               Jcondition=(&
+                                    (io/=jo).AND.&
+                                    (nup(jo)==1).AND.&
+                                    (ndw(io)==1).AND.&
+                                    (ndw(jo)==0).AND.&
+                                    (nup(io)==0))
+                               if(Jcondition)then
+                                  call c(io,mdw,k1,sg1)  !DW
+                                  call cdg(jo,k1,k2,sg2) !DW
+                                  jdw=binary_search(sectorI%H(2)%map,k2)
+                                  call c(jo,mup,k3,sg3)  !UP
+                                  call cdg(io,k3,k4,sg4) !UP
+                                  jup=binary_search(sectorI%H(1)%map,k4)
+                                  j = jup + (jdw-1)*sectorI%DimUp
+                                  !
+                                  ed_Epot = ed_Epot + Jx*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
+                                  ed_Dse = ed_Dse + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
+                                  !
+                               endif
+                            enddo
+                         enddo
+                      enddo
+                   enddo
+                endif
+                !
+                ! PAIR-HOPPING Jp
+                if(Jhflag.AND.Jp/=0d0)then
+                   iup = Indices(1)
+                   idw = Indices(2)
+                   mup = sectorI%H(1)%map(iup)
+                   mdw = sectorI%H(2)%map(idw)
+                   do iorb=1,Norb
+                      do jorb=1,Norb
+                         do isite=1,Nsites(iorb)
+                            do jsite=1,Nsites(jorb)
+                               if(isite/=jsite)cycle !local interaction only:
+                               io = pack_indices(isite,iorb)
+                               jo = pack_indices(isite,jorb)
+                               Jcondition=(&
+                                    (nup(jo)==1).AND.&
+                                    (ndw(jo)==1).AND.&
+                                    (ndw(io)==0).AND.&
+                                    (nup(io)==0))
+                               if(Jcondition)then
+                                  call c(jo,mdw,k1,sg1)       !c_jo_dw
+                                  call cdg(io,k1,k2,sg2)      !c^+_io_dw
+                                  jdw = binary_search(sectorI%H(2)%map,k2)
+                                  call c(jo,mup,k3,sg3)       !c_jo_up
+                                  call cdg(io,k3,k4,sg4)      !c^+_io_up
+                                  jup = binary_search(sectorI%H(1)%map,k4)
+                                  j = jup + (jdw-1)*sectorI%DimUp
+                                  !
+                                  ed_Epot = ed_Epot + Jp*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
+                                  ed_Dph = ed_Dph + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
+                                  !
+                               endif
+                            enddo
+                         enddo
+                      enddo
+                   enddo
+                endif
+                !
+                !
+             endif
+             !
+             !
+             !
+             if(KondoFlag)then
+                m  = Hsector%H(1)%map(i)
+                do iimp=1,Nimp
+                   do iorb=1,Norb
+                      do isite=1,Nsites(iorb)
+                         if(isite/=Jkindx(iimp))cycle
+                         io = pack_indices(isite,iorb)
+                         ed_Epot = ed_Epot - 2*Jk*Sz(io)*Szp(iimp)*gs_weight
+                         ed_Dkz  = ed_Dkz  + Sz(io)*Szp(iimp)*gs_weight
+                      enddo
+                   enddo
+                enddo
+                !
+                m  = Hsector%H(1)%map(i)
+                do iimp=1,Nimp
+                   do iorb=1,Norb
+                      do isite=1,Nsites(iorb)
+                         if(isite/=Jkindx(iimp))cycle
+                         io    = pack_indices(isite,iorb)
+                         io_up = io
+                         io_dw = io + Ns
+                         imp_up= 2*Ns + iimp
+                         imp_dw= 2*Ns + iimp + Nimp
+                         ![c^+.d]_up [d^+.c]_dw
+                         Jcondition=(&
+                              (ndw(io)==1).AND.(npdw(iimp)==0).AND.&
+                              (npup(iimp)==1).AND.(nup(io)==0) )
+                         if(Jcondition)then
+                            call c(io_dw,m,k1,sg1)     !c_dw
+                            call cdg(imp_dw,k1,k2,sg2) !d^+_dw
+                            call c(imp_up,k2,k3,sg3)   !d_up
+                            call cdg(io_up,k3,k4,sg4)  !c^+_up
+                            j=binary_search(Hsector%H(1)%map,k4)
+                            ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
+                            ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
+                         endif
+                         !
+                         ![d^+.c]_up [c^+.d]_dw 
+                         io    = pack_indices(isite,iorb)
+                         io_up = io
+                         io_dw = io + Ns
+                         imp_up= 2*Ns + iimp
+                         imp_dw= 2*Ns + iimp + Nimp
+                         Jcondition=(&
+                              (npdw(iimp)==1).AND.(ndw(io)==0).AND.&
+                              (nup(io)==1).AND.(npup(io)==0) )
+                         if(Jcondition)then
+                            call c(imp_dw,m,k1,sg1)    !d_dw
+                            call cdg(io_dw,k1,k2,sg2)  !c^+_dw
+                            call c(io_up,k2,k3,sg3)    !c_up
+                            call cdg(imp_up,k3,k4,sg4) !d^+_up
+                            j=binary_search(Hsector%H(1)%map,k4)
+                            ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
+                            ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
+                         endif
+                         !
+                      enddo
+                   enddo
+                enddo
+                !
              endif
              !
              !
@@ -1070,23 +1182,23 @@ contains
     close(unit)
 
     unit = fopen("dens.ed",.true.)
-    write(unit,"(90(F20.12,1X))")(dens(io),io=1,Ns)
+    write(unit,"(90(F20.12,1X))")(dens(io),io=1,Ns_imp)
     close(unit)         
 
     unit = fopen("dens_up.ed",.true.)
-    write(unit,"(90(F20.12,1X))")(dens_up(io),io=1,Ns)
+    write(unit,"(90(F20.12,1X))")(dens_up(io),io=1,Ns_imp)
     close(unit)         
 
     unit = fopen("dens_dw.ed",.true.)
-    write(unit,"(90(F20.12,1X))")(dens_dw(io),io=1,Ns)
+    write(unit,"(90(F20.12,1X))")(dens_dw(io),io=1,Ns_imp)
     close(unit)         
 
     unit = fopen("docc.ed",.true.)
-    write(unit,"(90(F20.12,1X))")(docc(io),io=1,Ns)
+    write(unit,"(90(F20.12,1X))")(docc(io),io=1,Ns_imp)
     close(unit)
 
     unit = fopen("magz.ed",.true.)
-    write(unit,"(90(F20.12,1X))")(magz(io),io=1,Ns)
+    write(unit,"(90(F20.12,1X))")(magz(io),io=1,Ns_imp)
     close(unit)         
 
     unit = fopen("egs.ed",.true.)
@@ -1094,14 +1206,14 @@ contains
     close(unit)
 
     unit = fopen("Sz_corr.ed",.true.)
-    do io=1,Ns
-       write(unit,"(90(F15.9,1X))")(sz2(io,jo),jo=1,Ns)
+    do io=1,Ns_imp
+       write(unit,"(90(F15.9,1X))")(sz2(io,jo),jo=1,Ns_imp)
     enddo
     close(unit)         
 
     unit = fopen("N_corr.ed",.true.)
-    do io=1,Ns
-       write(unit,"(90(F15.9,1X))")(n2(io,jo),jo=1,Ns)
+    do io=1,Ns_imp
+       write(unit,"(90(F15.9,1X))")(n2(io,jo),jo=1,Ns_imp)
     enddo
     close(unit)         
     !

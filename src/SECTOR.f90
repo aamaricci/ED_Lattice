@@ -64,7 +64,7 @@ contains
   subroutine build_sector(isector,self)
     integer,intent(in)                  :: isector
     type(sector)                        :: self
-    integer                             :: iup,idw,ip
+    integer                             :: i,iup,idw,dim,ipup,ipdw
     integer                             :: nup_,ndw_
     integer                             :: dim,iud
     !
@@ -79,21 +79,21 @@ contains
        allocate(self%Ndws(1))
        call get_Nup(isector,self%Nups);self%Nup=self%Nups(1)
        call get_Ndw(isector,self%Ndws);self%Ndw=self%Ndws(1)
-       self%DimEl=get_sector_dimension(Ns,self%Nup,self%Ndw)
+       self%DimEl=get_sector_dimension(self%Nup,self%Ndw)
        self%DimPh=1
        self%Dim=self%DimEl*self%DimPh
        !
        call map_allocate(self%H(1),self%Dim)
        dim = 0
-       do ip=0,2**Nimp-1     
+       do ipdw=0,2**Nimp-1
+          ipup = 2**Nimp-1-ipdw
+          if(popcnt(ipup)+popcnt(ipdw) /= Nimp)cycle
           do idw=0,2**Ns-1
-             ndw_ = popcnt(idw) + popcnt(2**Nimp-1-ip)
-             if(ndw_ /= ndw) cycle
+             if(popcnt(idw) + popcnt(ipdw) /= ndw) cycle
              do iup=0,2**Ns-1
-                nup_ = popcnt(iup) + popcnt(ip)
-                if(nup_ /= nup) cycle
+                if(popcnt(iup) + popcnt(ipup) /= nup) cycle
                 dim        = dim+1
-                self%H(1)%map(dim) = iup + idw*2**Ns + ip*2**(2*Ns)
+                self%H(1)%map(dim) = iup + idw*2**Ns + (ipup+ipdw*2**Nimp)*2**(2*Ns)
              enddo
           enddo
        enddo
@@ -227,56 +227,66 @@ contains
     integer,dimension(2*Ns_Ud)  :: Jndices
     integer,dimension(Ns_Orb)   :: Nud
     integer                     :: Iud
-    !
-    if(KondoFlag)stop "Apply_op_C ERROR: This function can not be called if KondoFlag=T"
+    integer,dimension(2*Ns_imp) :: ib
     !
     j=0
     sgn=0d0
     !
-    ibeta  = ialfa + (ispin-1)*Ns_Ud
-    iph = (i-1)/(sectorI%DimEl) + 1
-    i_el = mod(i-1,sectorI%DimEl) + 1
-    !
-    call state2indices(i_el,[sectorI%DimUps,sectorI%DimDws],Indices)
-    iud = sectorI%H(ibeta)%map(Indices(ibeta))
-    nud = Bdecomp(iud,Ns_Orb)
-    if(nud(ipos)/=1)return
-    call c(ipos,iud,r,sgn)
-    Jndices        = Indices
-    Jndices(ibeta) = binary_search(sectorJ%H(ibeta)%map,r)
-    call indices2state(Jndices,[sectorJ%DimUps,sectorJ%DimDws],j)
-    !
-    j = j + (iph-1)*sectorJ%DimEl
+    if(KondoFlag)then
+       ibeta = ipos
+       i_el = sectorI%H(1)%map(i)
+       ib   = bdecomp(i_el,2*Ns_imp)
+       if(ib(ibeta)/=1)return
+       call c(ibeta,i_el,r,sgn)
+       j    = binary_search(sectorJ%H(1)%map,r)
+    else
+       ibeta  = ialfa + (ispin-1)*Ns_Ud
+       call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
+       iud = sectorI%H(ibeta)%map(Indices(ibeta))
+       nud = Bdecomp(iud,Ns_Orb)
+       if(nud(ipos)/=1)return
+       call c(ipos,iud,r,sgn)
+       Jndices        = Indices
+       Jndices(ibeta) = binary_search(sectorJ%H(ibeta)%map,r)
+       call indices2state(Jndices,[sectorJ%DimUps,sectorJ%DimDws],j)
+    endif
   end subroutine apply_op_C
 
 
   subroutine apply_op_CDG(i,j,sgn,ipos,ialfa,ispin,sectorI,sectorJ) 
-    integer, intent(in)        :: i,ipos,ialfa,ispin
-    type(sector),intent(in)    :: sectorI,sectorJ
-    integer,intent(out)        :: j
-    real(8),intent(out)        :: sgn
-    integer                    :: ibeta
-    integer                    :: r
-    integer,dimension(2*Ns_Ud) :: Indices
-    integer,dimension(2*Ns_Ud) :: Jndices
-    integer,dimension(Ns_Orb)  :: Nud
-    integer                    :: Iud
-    !
-    if(KondoFlag)stop "Apply_op_CDG ERROR: This function can not be called if KondoFlag=T"
+    integer, intent(in)         :: i,ipos,ialfa,ispin
+    type(sector),intent(in)     :: sectorI,sectorJ
+    integer,intent(out)         :: j
+    real(8),intent(out)         :: sgn
+    integer                     :: ibeta
+    integer                     :: r
+    integer,dimension(2*Ns_Ud)  :: Indices
+    integer,dimension(2*Ns_Ud)  :: Jndices
+    integer,dimension(Ns_Orb)   :: Nud
+    integer                     :: Iud
+    integer,dimension(2*Ns_imp) :: ib
     !
     j=0
     sgn=0d0
     !
-    ibeta  = ialfa + (ispin-1)*Ns_Ud
-    !
-    call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
-    iud = sectorI%H(ibeta)%map(Indices(ibeta))
-    nud = Bdecomp(iud,Ns_Orb)
-    if(nud(ipos)/=0)return
-    call cdg(ipos,iud,r,sgn)
-    Jndices        = Indices
-    Jndices(ibeta) = binary_search(sectorJ%H(ibeta)%map,r)
-    call indices2state(Jndices,[sectorJ%DimUps,sectorJ%DimDws],j)
+    if(KondoFlag)then
+       ibeta = ipos
+       i_el = sectorI%H(1)%map(i)
+       ib   = bdecomp(i_el,2*Ns_imp)
+       if(ib(ibeta)/=0)return
+       call cdg(ibeta,i_el,r,sgn)
+       j    = binary_search(sectorJ%H(1)%map,r)
+    else
+       ibeta  = ialfa + (ispin-1)*Ns_Ud
+       call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
+       iud = sectorI%H(ibeta)%map(Indices(ibeta))
+       nud = Bdecomp(iud,Ns_Orb)
+       if(nud(ipos)/=0)return
+       call cdg(ipos,iud,r,sgn)
+       Jndices        = Indices
+       Jndices(ibeta) = binary_search(sectorJ%H(ibeta)%map,r)
+       call indices2state(Jndices,[sectorJ%DimUps,sectorJ%DimDws],j)
+    endif
   end subroutine apply_op_CDG
 
 
@@ -286,21 +296,29 @@ contains
     real(8),intent(out)         :: sgn
     integer,dimension(2*Ns_Ud)  :: Indices
     integer,dimension(2*Ns_Ud)  :: Jndices
-    integer,dimension(2,Ns_Orb) :: Nud !Nbits(Ns_Orb)
+    integer,dimension(2,Ns_Orb) :: Nud
     integer,dimension(2)        :: Iud
-    !
-    if(KondoFlag)stop "Apply_op_Sz ERROR: This function can not be called if KondoFlag=T"
+    integer,dimension(2*Ns_imp) :: ib
+    integer,dimension(Ns_imp)   :: Nup,Ndw  ![Ns]
     !
     sgn=0d0
     !
-    call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
-    iud(1)   = sectorI%H(ialfa)%map(Indices(ialfa))
-    iud(2)   = sectorI%H(ialfa+Ns_Ud)%map(Indices(ialfa+Ns_Ud))
-    nud(1,:) = Bdecomp(iud(1),Ns_Orb)
-    nud(2,:) = Bdecomp(iud(2),Ns_Orb)
-    !
-    sgn = dble(nud(1,ipos))-dble(nud(2,ipos))
-    sgn = sgn/2d0
+    if(KondoFlag)then
+       i_el = sectorI%H(1)%map(i)
+       ib   = bdecomp(i_el,2*Ns_imp)
+       Nup  = [ib(1:Ns),ib(2*Ns+1:2*Ns+Nimp)]
+       Ndw  = [ib(Ns+1:2*Ns),ib(2*Ns+Nimp+1:2*Ns+2*Nimp)]
+       sgn  = dble(nup(ipos))-dble(ndw(ipos))
+       sgn  = sgn/2d0
+    else
+       call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
+       iud(1)   = sectorI%H(ialfa)%map(Indices(ialfa))
+       iud(2)   = sectorI%H(ialfa+Ns_Ud)%map(Indices(ialfa+Ns_Ud))
+       nud(1,:) = Bdecomp(iud(1),Ns_Orb)
+       nud(2,:) = Bdecomp(iud(2),Ns_Orb)
+       sgn = dble(nud(1,ipos))-dble(nud(2,ipos))
+       sgn = sgn/2d0
+    endif
   end subroutine apply_op_Sz
 
 
@@ -313,18 +331,25 @@ contains
     integer,dimension(2*Ns_Ud)  :: Jndices
     integer,dimension(2,Ns_Orb) :: Nud !Nbits(Ns_Orb)
     integer,dimension(2)        :: Iud
-    !
-    if(KondoFlag)stop "Apply_op_N ERROR: This function can not be called if KondoFlag=T"
+    integer,dimension(2*Ns_imp) :: ib
+    integer,dimension(Ns_imp)   :: Nup,Ndw  ![Ns]
     !
     sgn=0d0
     !
-    call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
-    iud(1)   = sectorI%H(ialfa)%map(Indices(ialfa))
-    iud(2)   = sectorI%H(ialfa+Ns_Ud)%map(Indices(ialfa+Ns_Ud))
-    nud(1,:) = Bdecomp(iud(1),Ns_Orb)
-    nud(2,:) = Bdecomp(iud(2),Ns_Orb)
-    !
-    sgn = dble(nud(1,ipos))+dble(nud(2,ipos))
+    if(KondoFlag)then
+       i_el = sectorI%H(1)%map(i)
+       ib   = bdecomp(i_el,2*Ns_imp)
+       Nup  = [ib(1:Ns),ib(2*Ns+1:2*Ns+Nimp)]
+       Ndw  = [ib(Ns+1:2*Ns),ib(2*Ns+Nimp+1:2*Ns+2*Nimp)]
+       sgn  = dble(nup(ipos))+dble(ndw(ipos))
+    else
+       call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
+       iud(1)   = sectorI%H(ialfa)%map(Indices(ialfa))
+       iud(2)   = sectorI%H(ialfa+Ns_Ud)%map(Indices(ialfa+Ns_Ud))
+       nud(1,:) = Bdecomp(iud(1),Ns_Orb)
+       nud(2,:) = Bdecomp(iud(2),Ns_Orb)
+       sgn = dble(nud(1,ipos))+dble(nud(2,ipos))
+    endif
   end subroutine apply_op_N
 
 
@@ -332,24 +357,29 @@ contains
   subroutine build_op_Ns(i,Nup,Ndw,sectorI) 
     integer, intent(in)             :: i
     type(sector),intent(in)         :: sectorI
-    integer,dimension(Ns)           :: Nup,Ndw  ![Ns]
+    integer,dimension(Ns_imp)       :: Nup,Ndw  ![Ns]
     integer                         :: iph,i_el,ii,iorb
     integer,dimension(2*Ns_Ud)      :: Indices
     integer,dimension(Ns_Ud,Ns_Orb) :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
     integer,dimension(2)            :: Iud
+    integer,dimension(2*Ns_imp)     :: ib
     !
-    if(KondoFlag)stop "build_op_Ns ERROR: This function can not be called if KondoFlag=T"
-    !
-    call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
-    do ii=1,Ns_Ud
-       iud(1) = sectorI%H(ii)%map(Indices(ii))
-       iud(2) = sectorI%H(ii+Ns_Ud)%map(Indices(ii+Ns_ud))
-       Nups(ii,:) = Bdecomp(iud(1),Ns_Orb)
-       Ndws(ii,:) = Bdecomp(iud(2),Ns_Orb)
-    enddo
-    Nup = Nups(1,:)!Breorder(Nups)
-    Ndw = Ndws(1,:)!Breorder(Ndws)
-    !
+    if(KondoFlag)then
+       i_el = sectorI%H(1)%map(i)
+       ib   = bdecomp(i_el,2*Ns_imp)
+       Nup  = [ib(1:Ns),ib(2*Ns+1:2*Ns+Nimp)]
+       Ndw  = [ib(Ns+1:2*Ns),ib(2*Ns+Nimp+1:2*Ns+2*Nimp)]
+    else
+       call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
+       do ii=1,Ns_Ud
+          iud(1) = sectorI%H(ii)%map(Indices(ii))
+          iud(2) = sectorI%H(ii+Ns_Ud)%map(Indices(ii+Ns_ud))
+          Nups(ii,:) = Bdecomp(iud(1),Ns_Orb)
+          Ndws(ii,:) = Bdecomp(iud(2),Ns_Orb)
+       enddo
+       Nup = Nups(1,:)!Breorder(Nups)
+       Ndw = Ndws(1,:)!Breorder(Ndws)
+    endif
   end subroutine build_op_Ns
 
 

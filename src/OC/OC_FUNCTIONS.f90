@@ -33,11 +33,10 @@ contains
     character(len=32) :: suffix
     !
     write(LOGfile,"(A)")"Build lattice OC Drude:"
-
     call build_oc_electrons()
-    !
     if(MPIMASTER)&
          call write_GFmatrix(OcMatrix,"OcMatrix"//str(ed_file_suffix)//".restart")
+    !
   end subroutine build_oc_lattice
 
 
@@ -60,7 +59,6 @@ contains
     call eval_oc_electrons()
     !
     D = Drude_weight
-
     !
     do iorb=1,Norb
        if(.not.oc_flag(iorb))cycle

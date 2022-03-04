@@ -4,6 +4,7 @@ MODULE EDLAT
        Nsites        , &
        Norb          , &
        Nspin         , &
+       Nimp          , &
        Uloc          , &
        Ust           , &
        Jh            , &
@@ -33,8 +34,6 @@ MODULE EDLAT
        ed_Hij_write    => Hij_write
 
   USE ED_IO, only: &
-       ed_get_sigma_matsubara , &
-       ed_get_sigma_realaxis  , &
        ed_get_gimp_matsubara  , &
        ed_get_gimp_realaxis   , &
        ed_get_dens            , &

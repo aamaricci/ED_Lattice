@@ -73,7 +73,7 @@ contains
     call diagonalize_lattice            !-> store state_list, independent of TEMP
     if(gloabl_gf_flag))call build_gf_lattice    !-> store impGmatri
     if(global_chi_flag)call build_chi_lattice  !-> store ChiSpinMatrix
-    if(any(oc_flag))call build_oc_lattice    !-> store OcMatrix
+    if(global_oc_flag) call build_oc_lattice    !-> store OcMatrix
     !
     do itemp=1,size(temperature_list)
        temp = temperature_list(itemp)
@@ -85,9 +85,9 @@ contains
        call partition_function_lattice !-> get trimmed state_list
        call observables_lattice        !-> get static observables
        call energy_lattice             !-> get energies 
-       if(global_gf_flag))call eval_gf_lattice    !-> Eval GF
-       if(global_chi_flag)call eval_chi_lattice  !-> Eval Chi_spin
-       if(any(oc_flag))call eval_oc_lattice    !-> Eval Sigma(w), Drude
+       if(global_gf_flag))call eval_gf_lattice
+       if(global_chi_flag)call eval_chi_lattice
+       if(global_oc_flag) call eval_oc_lattice
        ed_file_suffix=""
     enddo
     !

@@ -44,29 +44,29 @@ contains
     !
     Ns_Orb = Ns
     Ns_Ud  = 1
+    Ns_Imp = Ns+Nimp
     !
     Nsectors = ((Ns_Orb+1)*(Ns_Orb+1))**Ns_Ud
-    if(KondoFlag)Nsectors = (Ns_Orb+Nimp+1)*(Ns_Orb+Nimp+1)-2
+    if(KondoFlag)Nsectors = (Ns_imp+1)*(Ns_Imp+1)-2
     !
     !
     if(MpiMaster)then
        write(LOGfile,"(A)")"Summary:"
        write(LOGfile,"(A)")"--------------------------------------------"
-       write(LOGfile,"(A,I15)")'# of levels           = ',Ns+Nimp
-       write(LOGfile,"(A,I15)")'# of spins            = ',2*Ns+Nimp
+       write(LOGfile,"(A,I15)")'# of levels           = ',Ns_Imp
+       write(LOGfile,"(A,I15)")'# of spins            = ',2*(Ns_Imp)
        write(LOGfile,"(A,I15)")'# of orbitals         = ',Norb
        write(LOGfile,"(A,I15)")'# of impurities       = ',Nimp
        write(LOGfile,"(A,5I4)")'# Nsites              = ',Nsites
        write(LOGfile,"(A,I15)")'# of  sectors         = ',Nsectors
     endif
     !
+
+    Nup = (Ns_Imp)/2
+    Ndw = (Ns_Imp)-Nup
     if(KondoFlag)then
-       Nup = (Ns_Orb+Nimp)/2
-       Ndw = (Ns_Orb+Nimp)-Nup
-       Dim = get_sector_dimension(Ns_Orb,Nup,Ndw)
+       Dim = get_sector_dimension(Nup,Ndw)
        if(MpiMaster)then
-          write(LOGfile,"(A,"//str(Ns_Ud)//"I8,2X,"//str(Ns_Ud)//"I8,I20)")&
-               'Largest Sector(s)     = ',(Ns_Orb+Nimp)/2,(Ns_Orb+Nimp)-(Ns_Orb+Nimp)/2,Dim
           write(LOGfile,"(A,I20)")'Largest Sector(s)     = ',Dim
           write(LOGfile,"(A)")"--------------------------------------------"
        endif
@@ -74,10 +74,8 @@ contains
        allocate(DimUps(Ns_Ud))
        allocate(DimDws(Ns_Ud))
        do iud=1,Ns_Ud
-          Nup = Ns_Orb/2
-          Ndw = Ns_Orb-Nup
-          DimUps(iud) = get_sector_dimension(Ns_Orb,Nup)
-          DimDws(iud) = get_sector_dimension(Ns_Orb,Ndw)
+          DimUps(iud) = get_sector_dimension(Nup)
+          DimDws(iud) = get_sector_dimension(Ndw)
        enddo
        if(MpiMaster)then
           write(LOGfile,"(A,"//str(Ns_Ud)//"I8,2X,"//str(Ns_Ud)//"I8,I20)")&
@@ -159,40 +157,42 @@ contains
     endif
     !
     !allocate functions
-    allocate(impGmats(Nspin,Nimp+Ns,Nimp+Ns,Lmats))
-    allocate(impGreal(Nspin,Nimp+Ns,Nimp+Ns,Lreal))
+    allocate(impGmats(Nspin,Ns_Imp,Ns_Imp,Lmats))
+    allocate(impGreal(Nspin,Ns_Imp,Ns_Imp,Lreal))
     impGmats=zero
     impGreal=zero
     !
-    allocate(impGMatrix(Nspin,Nimp+Ns,Nimp+Ns))
-    allocate(SpinChiMatrix(Nimp+Ns,Nimp+Ns))
-    allocate(OcMatrix(Nimp+Norb))
+    allocate(impGMatrix(Nspin,Ns_Imp,Ns_Imp))
+    allocate(SpinChiMatrix(Ns_Imp,Ns_Imp))
+    allocate(OcMatrix(Ns_Imp))
     !
     global_chi_flag=.false.
     if(any([chispin_flag,imp_chispin_flag]))global_chi_flag=.true.
     global_gf_flag=.false.
-    if(any([gf_flag,imp_gf_flag]))global_gf_flag=.true.
+    if(any([gf_flag]))global_gf_flag=.true.
+    global_oc_flag=.false.
+    if(any([oc_flag]))global_oc_flag=.true.
     !
     offdiag_gf_flag=offdiag_gf_flag.AND.Norb>1
     !
-    allocate(spinChi_tau(Nimp+Ns,Nimp+Ns,0:Ltau))
-    allocate(spinChi_w(Nimp+Ns,Nimp+Ns,Lreal))
-    allocate(spinChi_iv(Nimp+Ns,Nimp+Ns,0:Lmats))
+    allocate(spinChi_tau(Ns_Imp,Ns_Imp,0:Ltau))
+    allocate(spinChi_w(Ns_Imp,Ns_Imp,Lreal))
+    allocate(spinChi_iv(Ns_Imp,Ns_Imp,0:Lmats))
     !
     !allocate observables
-    allocate(ed_dens(Nimp+Ns))
-    allocate(ed_docc(Nimp+Ns))
-    allocate(ed_dens_up(Nimp+Ns))
-    allocate(ed_dens_dw(Nimp+Ns))
-    allocate(ed_mag(Nimp+Ns))
+    allocate(ed_dens(Ns_Imp))
+    allocate(ed_docc(Ns_Imp))
+    allocate(ed_dens_up(Ns_Imp))
+    allocate(ed_dens_dw(Ns_Imp))
+    allocate(ed_mag(Ns_Imp))
     ed_dens=0d0
     ed_docc=0d0
     ed_dens_up=0d0
     ed_dens_dw=0d0
     ed_mag =0d0
     !
-    allocate(Drude_weight(Nimp+Norb))
-    allocate(OptCond_w(Nimp+Norb,Lreal))
+    allocate(Drude_weight(Ns_Imp))
+    allocate(OptCond_w(Ns_Imp,Lreal))
     Drude_weight = 0d0
     OptCond_w    = zero
     !
@@ -248,15 +248,15 @@ contains
     !Store full dimension of the sectors:
     if(KondoFlag)then
        isector=0
-       do Nup=0,Ns+Nimp
-          do Ndw=0,Ns+Nimp
+       do Nup=0,Ns_Imp
+          do Ndw=0,Ns_Imp
              if(Nup==0.AND.Ndw==0)cycle
-             if(Nup==Ns+Nimp.AND.Ndw==Ns+Nimp)cycle
+             if(Nup==Ns_Imp.AND.Ndw==Ns_Imp)cycle
              isector=isector+1
              getSector(Nup,Ndw)=isector
              getNup(isector)=Nup
              getNdw(isector)=Ndw
-             getDim(isector)=get_sector_dimension(ns,nup,ndw)
+             getDim(isector)=get_sector_dimension(nup,ndw)
           enddo
        enddo
     else
@@ -338,14 +338,18 @@ contains
   !SECTOR PROCEDURES - Sectors,Nup,Ndw,DimUp,DimDw,...
   !##################################################################
   !##################################################################
-  elemental function get_sector_dimension(n,np,nd) result(dim)
-    integer,intent(in)          :: n,np
-    integer,optional,intent(in) :: nd
-    integer                     :: dim
+  elemental function get_sector_dimension(Nup,Ndw) result(dim)
+    integer,intent(in)          :: Nup
+    integer,optional,intent(in) :: Ndw
+    integer                     :: i,ip,dim,
     if(present(nd))then
-       dim = binomial(n,np)*binomial(n,nd-1) + binomial(n,np-1)*binomial(n,nd)
+       dim = 0
+       do i=0,Nimp
+          ip = Nimp-i
+          dim = dim + binomial(Nimp,i)*binomial(Ns,Nup-i)*binomial(Ns,Ndw-ip)
+       enddo
     else
-       dim = binomial(n,nup)
+       dim = binomial(Ns,Nup)
     enddo
   end function get_sector_dimension
 

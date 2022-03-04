@@ -1,19 +1,15 @@
   do i=MpiIstart,MpiIend
      m  = Hsector%H(1)%map(i)
-     ib  = bdecomp(m,2*Ns+Nimp)
+     ib  = bdecomp(m,2*Ns_imp)
      !
-     nup = ib(1:Ns)
-     ndw = ib(Ns+1:2*Ns)
-     sz  = 0.5d0*(Nup-Ndw)
-     np  = ib(2*Ns+1:)        !0=DW, 1=UP
-     szp = np-0.5d0          !-1/2:DW, 1/2:UP
+     Nup = ib(1:Ns)
+     Ndw = ib(Ns+1:2*Ns)
      !
      !> H_Imp: Diagonal Elements, i.e. local part
      htmp = zero
      do io=1,Ns
         htmp = htmp + Hdiag(1,io)*Nup(io) + Hdiag(Nspin,io)*Ndw(io)
      enddo
-     !
      !
      !> H_Int: Kanamori interaction part. 
      ! = \sum_\a U_\a*(n_{\a,up}*n_{\a,dw})

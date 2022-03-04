@@ -1,12 +1,10 @@
+  !We build the transposed H here, so we take conjg part
+  !to comply with the MPI decomposition of the matrix.
   do i=MpiIstart,MpiIend
      m  = Hsector%H(1)%map(i)
-     ib  = bdecomp(m,2*Ns+Nimp)
-     !
-     nup = ib(1:Ns)
-     ndw = ib(Ns+1:2*Ns)
-     sz  = 0.5d0*(Nup-Ndw)
-     np  = ib(2*Ns+1:)        !0=DW, 1=UP
-     szp = np-0.5d0          !-1/2:DW, 1/2:UP
+     ib  = bdecomp(m,2*Ns_imp)
+     Nup = ib(1:Ns)
+     Ndw = ib(Ns+1:2*Ns)
      !
      !UP electrons
      do io=1,Ns

@@ -14,9 +14,8 @@ MODULE ED_GF_ELECTRON
   private
 
 
-  public :: build_gf_normal
-  public :: eval_gf_normal
-  public :: eval_sigma_normal
+  public :: build_gf_electrons
+  public :: eval_gf_electrons
 
 
   integer                             :: istate
@@ -34,8 +33,8 @@ contains
 
 
   !PURPOSE  : Build and Store the Green's functions weights and poles structure
-  subroutine build_gf_normal()
-    integer :: ispin,i
+  subroutine build_gf_electrons()
+    integer :: ispin,i,iimp
     integer :: iorb,jorb
     integer :: isite,jsite
     integer :: io,jo
@@ -47,7 +46,20 @@ contains
        !do nothing
        return
     case default
-       !Evaluate diagonal GF:
+       !Impurity GF
+       if(KondoFlag.AND.gf_flag(Ns+1))then
+          do ispin=1,Nspin
+             do iimp=1,Nimp
+                if(MPIMASTER)call start_timer
+                if(MPIMASTER)write(LOGfile,"(A)")"Build G:"//" imp "//str(imp)//&
+                     " spin"//str(ispin)
+                call allocate_GFmatrix(impGmatrix(ispin,Ns+iimp,Ns+iimp),Nstate=state_list%size)
+                call lanc_build_gf_impurity_diag(iimp,ispin)
+                if(MPIMASTER)call stop_timer(unit=LOGfile)
+             enddo
+          enddo
+       endif
+       !Diagonal GF
        do ispin=1,Nspin
           do iorb=1,Norb
              if(.not.gf_flag(iorb))cycle
@@ -59,13 +71,12 @@ contains
                      " orb M"//str(iorb)//&
                      " spin"//str(ispin)
                 call allocate_GFmatrix(impGmatrix(ispin,io,io),Nstate=state_list%size)
-                call lanc_build_gf_normal_diag(isite,iorb,ispin)
+                call lanc_build_gf_electrons_diag(isite,iorb,ispin)
                 if(MPIMASTER)call stop_timer(unit=LOGfile)
              enddo
           enddo
        enddo
-       !
-       !Evalaute off-diagonal GF if required
+       !Off-diagonal GF
        if(offdiag_gf_flag)then
           do ispin=1,Nspin
              do iorb=1,Norb
@@ -84,7 +95,7 @@ contains
                               " spin"//str(ispin)
                          if(MPIMASTER)call start_timer
                          call allocate_GFmatrix(impGmatrix(ispin,io,jo),Nstate=state_list%size)
-                         call lanc_build_gf_normal_mix(isite,jsite,iorb,jorb,ispin)
+                         call lanc_build_gf_electrons_mix(isite,jsite,iorb,jorb,ispin)
                          if(MPIMASTER)call stop_timer(unit=LOGfile)
                       enddo
                    enddo
@@ -94,46 +105,36 @@ contains
        end if
        !
     end select
-  end subroutine build_gf_normal
-
-  ! subroutine build_gf_kondo()
-  !   integer :: ispin,i,iimp
-  !   integer :: iorb,jorb
-  !   integer :: isite,jsite
-  !   integer :: io,jo
-  !   !
-  !   call deallocate_GFmatrix(impGmatrix)
-  !   !
-  !   select case(ed_method)
-  !   case ('lapack','full')
-  !      !do nothing
-  !      return
-  !   case default
-  !      !Evaluate diagonal GF:
-  !      do iimp=1,Nimp
-  !         if(MPIMASTER)call start_timer
-  !         if(MPIMASTER)write(LOGfile,"(A)")"Build G:"//" imp "//str(imp)
-  !         call allocate_GFmatrix(impGmatrix(ispin,Ns+iimp,Ns+iimp),Nstate=state_list%size)
-  !         call lanc_build_gf_imp(iimp)
-  !         if(MPIMASTER)call stop_timer(unit=LOGfile)
-  !      enddo
-  !   end select
-  ! end subroutine build_gf_kondo
-
-
-
+  end subroutine build_gf_electrons
 
 
 
 
 
   !Evaluate the Green's functions from knowledge of the weights+poles for a given case
-  subroutine eval_gf_normal()
-    integer :: ispin,i
+  subroutine eval_gf_electrons()
+    integer :: ispin,i,iimp
     integer :: iorb,jorb
     integer :: isite,jsite
     integer :: io,jo
     !
+    if(KondoFlag)then
+       do ispin=1,Nspin
+          do iimp=1,Nimp
+             if(MPIMASTER)write(LOGfile,"(A)")"Eval G:"//" imp"//str(imp)//&
+                  " spin"//str(ispin)
+             if(MPIMASTER)call start_timer
+             select case(ed_method)
+             case default
+                call lanc_eval_gf_impurity(iimp)
+             case ('lapack','full')
+                call full_eval_gf_impurity(iimp)
+             end select
+             if(MPIMASTER)call stop_timer(unit=LOGfile)
+          enddo
+       enddo
+    endif
+
     do ispin=1,Nspin
        do iorb=1,Norb
           do isite=1,Nsites(iorb)
@@ -145,9 +146,9 @@ contains
              if(MPIMASTER)call start_timer
              select case(ed_method)
              case default
-                call lanc_eval_gf_normal(isite,isite,iorb,iorb,ispin)
+                call lanc_eval_gf_electrons(isite,isite,iorb,iorb,ispin)
              case ('lapack','full')
-                call full_eval_gf_normal_diag(isite,iorb,ispin)
+                call full_eval_gf_electrons_diag(isite,iorb,ispin)
              end select
              if(MPIMASTER)call stop_timer(unit=LOGfile)
           enddo
@@ -171,9 +172,9 @@ contains
                       if(MPIMASTER)call start_timer
                       select case(ed_method)
                       case default
-                         call lanc_eval_gf_normal(isite,jsite,iorb,jorb,ispin)
+                         call lanc_eval_gf_electrons(isite,jsite,iorb,jorb,ispin)
                       case ('lapack','full')
-                         call full_eval_gf_normal_mix(isite,jsite,iorb,jorb,ispin)
+                         call full_eval_gf_electrons_mix(isite,jsite,iorb,jorb,ispin)
                       end select
                       if(MPIMASTER)call stop_timer(unit=LOGfile)
                    enddo
@@ -202,28 +203,7 @@ contains
        end select
     end if
     !
-  end subroutine eval_gf_normal
-
-  ! subroutine eval_gf_kondo()
-  !   integer :: ispin,i,iimp
-  !   integer :: iorb,jorb
-  !   integer :: isite,jsite
-  !   integer :: io,jo
-  !   !
-  !   do iimp=1,Nimp
-  !      if(MPIMASTER)write(LOGfile,"(A)")"Eval G:"//" imp"//str(imp)
-  !      if(MPIMASTER)call start_timer
-  !      select case(ed_method)
-  !      case default
-  !         call lanc_eval_gf_imp(iimp)
-  !      case ('lapack','full')
-  !         call full_eval_gf_imp(iimp)
-  !      end select
-  !      if(MPIMASTER)call stop_timer(unit=LOGfile)
-  !   enddo
-  !   !
-  ! end subroutine eval_gf_kondo
-
+  end subroutine eval_gf_electrons
 
 
 
@@ -239,7 +219,7 @@ contains
 
 
 
-  subroutine lanc_build_gf_normal_diag(isite,iorb,ispin)
+  subroutine lanc_build_gf_electrons_diag(isite,iorb,ispin)
     integer,intent(in)                  :: isite,iorb,ispin
     integer                             :: io
     type(sector)                        :: sectorI,sectorJ
@@ -328,7 +308,7 @@ contains
        !
     enddo
     return
-  end subroutine lanc_build_gf_normal_diag
+  end subroutine lanc_build_gf_electrons_diag
 
 
 
@@ -338,9 +318,106 @@ contains
 
 
 
+  subroutine lanc_build_gf_impurity_diag(iimp,ispin)
+    integer,intent(in)                  :: iimp,ispin
+    integer                             :: io,ipos
+    type(sector)                        :: sectorI,sectorJ
+    complex(8),dimension(:),allocatable :: state_cvec
+    !
+    ialfa = 1
+    io    = Ns + iimp
+    ipos  = 2*Ns + iimp + (ispin-1)*Nimp
+    !
+    !
+    do istate=1,state_list%size
+       !
+       call allocate_GFmatrix(impGmatrix(ispin,io,io),istate,Nchan=2) !2=particle/hole exc
+       !
+       isector    =  es_return_sector(state_list,istate)
+       state_e    =  es_return_energy(state_list,istate)
+#ifdef _MPI
+       if(MpiStatus)then
+          call es_return_cvector(MpiComm,state_list,istate,state_cvec) 
+       else
+          call es_return_cvector(state_list,istate,state_cvec) 
+       endif
+#else
+       call es_return_cvector(state_list,istate,state_cvec)
+#endif
+       !
+       if(MpiMaster)then
+          call build_sector(isector,sectorI)
+          if(ed_verbose>=3)write(LOGfile,"(A,I6,20I4)")&
+               'From sector  :',isector,sectorI%Nups,sectorI%Ndws
+       endif
+       !
+       !ADD ONE PARTICLE:
+       jsector = getCDGsector(ialfa,ispin,isector)
+       if(jsector/=0)then 
+          if(MpiMaster)then
+             call build_sector(jsector,sectorJ)
+             if(ed_verbose>=3)write(LOGfile,"(A,I6,20I4)")&
+                  ' apply c^+_a,s:',jsector,sectorJ%Nups,sectorJ%Ndws
+             allocate(vvinit(sectorJ%Dim)) ; vvinit=zero
+             do i=1,sectorI%Dim
+                call apply_op_CDG(i,j,sgn,ipos,ialfa,1,sectorI,sectorJ)
+                if(sgn==0d0.OR.j==0)cycle
+                vvinit(j) = sgn*state_cvec(i)
+             enddo
+             call delete_sector(sectorJ)
+          else
+             allocate(vvinit(1));vvinit=zero
+          endif
+          !
+          call tridiag_Hv_sector(jsector,vvinit,alfa_,beta_,norm2)
+          call add_to_lanczos_gf_normal(one*norm2,state_e,alfa_,beta_,1,io,io,ispin,ichan=1,istate=istate)
+          deallocate(alfa_,beta_)
+          if(allocated(vvinit))deallocate(vvinit)
+       else
+          call allocate_GFmatrix(impGmatrix(ispin,io,io),istate,1,Nexc=0)
+       endif
+       !
+       !REMOVE ONE PARTICLE:
+       jsector = getCsector(ialfa,ispin,isector)
+       if(jsector/=0)then
+          if(MpiMaster)then
+             call build_sector(jsector,sectorJ)
+             if(ed_verbose>=3)write(LOGfile,"(A,I6,20I4)")&
+                  ' apply c_a,s:',jsector,sectorJ%Nups,sectorJ%Ndws
+             allocate(vvinit(sectorJ%Dim)) ; vvinit=zero
+             do i=1,sectorI%Dim
+                call apply_op_C(i,j,sgn,ipos,ialfa,1,sectorI,sectorJ)
+                if(sgn==0d0.OR.j==0)cycle
+                vvinit(j) = sgn*state_cvec(i)
+             enddo
+             call delete_sector(sectorJ)
+          else
+             allocate(vvinit(1));vvinit=zero
+          endif
+          !
+          call tridiag_Hv_sector(jsector,vvinit,alfa_,beta_,norm2)
+          call add_to_lanczos_gf_normal(one*norm2,state_e,alfa_,beta_,-1,io,io,ispin,ichan=2,istate=istate)
+          deallocate(alfa_,beta_)
+          if(allocated(vvinit))deallocate(vvinit)
+       else
+          call allocate_GFmatrix(impGmatrix(ispin,io,io),istate,2,Nexc=0)
+       endif
+       !
+       if(MpiMaster)call delete_sector(sectorI)
+       if(allocated(state_cvec))deallocate(state_cvec)
+       !
+    enddo
+    return
+  end subroutine lanc_build_gf_impurity_diag
 
 
-  subroutine lanc_build_gf_normal_mix(isite,jsite,iorb,jorb,ispin)
+
+
+  !################################################################
+
+
+
+  subroutine lanc_build_gf_electrons_mix(isite,jsite,iorb,jorb,ispin)
     integer                             :: isite,jsite,iorb,jorb,ispin
     integer                             :: io,jo
     type(sector)                        :: sectorI,sectorJ
@@ -444,7 +521,7 @@ contains
        !
     enddo
     return
-  end subroutine lanc_build_gf_normal_mix
+  end subroutine lanc_build_gf_electrons_mix
 
 
 
@@ -511,7 +588,7 @@ contains
 
 
 
-  subroutine lanc_eval_gf_normal(isite,jsite,iorb,jorb,ispin)
+  subroutine lanc_eval_gf_electrons(isite,jsite,iorb,jorb,ispin)
     integer,intent(in) :: isite,jsite,iorb,jorb,ispin
     integer            :: Nstates,istate
     integer            :: Nchannels,ichan
@@ -551,7 +628,7 @@ contains
        enddo
     enddo
     return
-  end subroutine lanc_eval_gf_normal
+  end subroutine lanc_eval_gf_electrons
 
 
 
@@ -569,7 +646,7 @@ contains
 
 
 
-  subroutine full_eval_gf_normal_diag(isite,iorb,ispin)
+  subroutine full_eval_gf_electrons_diag(isite,iorb,ispin)
     integer,intent(in) :: isite,iorb,ispin
     integer            :: io
     type(sector)       :: sectorI,sectorJ
@@ -641,13 +718,87 @@ contains
        call delete_sector(sectorI)
        call delete_sector(sectorJ)
     enddo
-  end subroutine full_eval_gf_normal_diag
+  end subroutine full_eval_gf_electrons_diag
+
+
+  subroutine full_eval_gf_impurity(iimp,ispin)
+    integer,intent(in) :: iimp,ispin
+    integer            :: io,ipos
+    type(sector)       :: sectorI,sectorJ
+    integer            :: Nups(Ns_Ud)
+    integer            :: Ndws(Ns_Ud)
+    complex(8)         :: op_mat(2)
+    real(8)            :: spectral_weight
+    real(8)            :: sgn_cdg,sgn_c
+    integer            :: m,i,j,li,rj
+    real(8)            :: Ei,Ej
+    real(8)            :: expterm,peso,de,w0
+    complex(8)         :: iw
+    !    
+    !
+    ialfa = 1
+    io    = Ns+iimp
+    ipos  = 2*Ns + iimp + (ispin-1)*Nimp
+    !
+    do isector=1,Nsectors
+       call get_Nup(isector,nups)
+       call get_Ndw(isector,ndws)
+       if(ed_filling/=0 .AND. (abs(sum(Nups)+sum(Ndws)-ed_filling)>1) )cycle
+       !
+       jsector=getCDGsector(ialfa,ispin,isector)
+       if(jsector==0)cycle
+       !
+       call build_sector(isector,sectorI)
+       call build_sector(jsector,sectorJ)
+       !
+       do i=1,sectorI%Dim          !loop over the states in the i-th sect.
+          do j=1,sectorJ%Dim       !loop over the states in the j-th sect.
+             !
+             expterm=exp(-espace(isector)%e(i)/temp)+exp(-espace(jsector)%e(j)/temp)
+             if(expterm < cutoff)cycle
+             !
+             op_mat=0d0
+             !
+             do li=1,sectorI%Dim              !loop over the component of |I> (IN state!)
+                call apply_op_CDG(li,rj,sgn_cdg,ipos,ialfa,1,sectorI,sectorJ)
+                if(sgn_cdg==0d0.OR.rj==0)cycle
+                !
+                op_mat(1)=op_mat(1) + conjg(espace(jsector)%M(rj,j))*sgn_cdg*espace(isector)%M(li,i)
+             enddo
+             !
+             do rj=1,sectorJ%Dim
+                call apply_op_C(rj,li,sgn_c,ipos,ialfa,1,sectorJ,sectorI)
+                if(sgn_c==0d0.OR.li==0)cycle
+                !
+                op_mat(2)=op_mat(2) + conjg(espace(isector)%M(li,i))*sgn_c*espace(jsector)%M(rj,j)
+             enddo
+             !
+             Ei=espace(isector)%e(i)
+             Ej=espace(jsector)%e(j)
+             de=Ej-Ei;
+             peso=expterm/zeta_function
+             spectral_weight=peso*product(op_mat)
+             !
+             do m=1,Lmats
+                iw=xi*wm(m)
+                impGmats(ispin,io,io,m)=impGmats(ispin,io,io,m)+spectral_weight/(iw-de)
+             enddo
+             !
+             do m=1,Lreal
+                w0=wr(m);iw=cmplx(w0,eps)
+                impGreal(ispin,io,io,m)=impGreal(ispin,io,io,m)+spectral_weight/(iw-de)
+             enddo
+             !
+          enddo
+       enddo
+       call delete_sector(sectorI)
+       call delete_sector(sectorJ)
+    enddo
+  end subroutine full_eval_gf_impurity
 
 
 
-
-
-  subroutine full_eval_gf_normal_mix(isite,jsite,iorb,jorb,ispin)
+  subroutine full_eval_gf_electrons_mix(isite,jsite,iorb,jorb,ispin)
     integer      :: isite,jsite,iorb,jorb,ispin
     integer      :: io,jo
     type(sector) :: sectorI,sectorJ
@@ -722,7 +873,7 @@ contains
        call delete_sector(sectorI)
        call delete_sector(sectorJ)
     enddo
-  end subroutine full_eval_gf_normal_mix
+  end subroutine full_eval_gf_electrons_mix
 
 
 

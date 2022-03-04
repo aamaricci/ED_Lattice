@@ -31,12 +31,11 @@ MODULE ED_INPUT_VARS
   real(8)              :: sb_field            !symmetry breaking field
   !
 
-  logical,allocatable  :: gf_flag(:)           !evaluate Green's functions for Norb
-  logical,allocatable  :: chispin_flag(:)      !evaluate spin susceptibility for Norb
-  logical,allocatable  :: oc_flag(:)           !evaluate Optical Conductivity and Drude Weight per orbital
-  logical,allocatable  :: imp_gf_flag(:)       !evaluate impurity Green's functions for Nimp
-  logical,allocatable  :: imp_chispin_flag(:)  !evaluate impurity spin susceptibility for Nimp
-  logical              :: offdiag_chispin_flag !flag to select the calculation of the off-diagonal spin Chi.
+  logical,allocatable  :: gf_flag(:)           !evaluate Green's functions for Norb+1
+  logical,allocatable  :: chispin_flag(:)      !evaluate spin susceptibility for Norb+1
+  logical,allocatable  :: oc_flag(:)           !evaluate Optical Conductivity and Drude Weight for Norb
+  logical              :: offdiag_gf_flag      !flag to select the calculation of the off-diagonal GFs as selected by gf_flag.
+  logical              :: offdiag_chispin_flag !flag to select the calculation of the off-diagonal spin Chi as selected by chispin_flag.
   !
   !
   integer              :: ed_filling          !Total number of allowed electrons not including Kondo impurities
@@ -90,7 +89,7 @@ contains
 #endif
     character(len=*) :: INPUTunit
     logical          :: master=.true.
-    integer          :: i,rank=0,dim
+    integer          :: i,rank=0,add
 #ifdef _MPI
     if(check_MPI())then
        master=get_Master_MPI(MPI_COMM_WORLD)
@@ -107,13 +106,13 @@ contains
     call parse_input_variable(Nimp,"NIMP",INPUTunit,default=0,comment="Number of Kondo impurities (max 1 for now)")
     call parse_input_variable(Nspin,"NSPIN",INPUTunit,default=1,comment="Number of spin degeneracy (max 2)")
     call parse_input_variable(ed_filling,"ED_FILLING",INPUTunit,default=0,comment="Total number of allowed electrons not including Kondo impurities if any")
+
     allocate(Nsites(Norb))
     allocate(Uloc(Norb))
-    allocate(gf_flag(Norb))
-    allocate(chispin_flag(Norb))
+    add =0;if(Nimp>0)add=1
+    allocate(gf_flag(Norb+add))
+    allocate(chispin_flag(Norb+add))
     allocate(oc_flag(Norb))
-    allocate(imp_gf_flag(min(1,Nimp)))
-    allocate(imp_chispin_flag(min(1,Nimp)))
     allocate(Jkindx(min(1,Nimp)))
     !
     call parse_input_variable(uloc,"ULOC",INPUTunit,default=(/( 2,i=1,Norb )/),comment="Values of the local interaction per orbital")
@@ -137,12 +136,11 @@ contains
     call parse_input_variable(Lreal,"LREAL",INPUTunit,default=5000,comment="Number of real-axis frequencies.")
     call parse_input_variable(Ltau,"LTAU",INPUTunit,default=1024,comment="Number of imaginary time points.")
     !    
-    call parse_input_variable(gf_flag,"GF_FLAG",INPUTunit,default=(/( .false.,i=1,Norb )/),comment="Flag to activate Greens functions calculation")
-    call parse_input_variable(chispin_flag,"CHISPIN_FLAG",INPUTunit,default=(/( .false.,i=1,Norb )/),comment="Flag to activate spin susceptibility calculation.")
-    call parse_input_variable(oc_flag,"OC_FLAG",INPUTunit,default=(/( .false.,i=1,Norb )/),comment="Flag to activate Optical Conductivity and Drude weight calculation")
-    call parse_input_variable(imp_gf_flag,"IMP_GF_FLAG",INPUTunit,default=(/( .false.,i=1,min(1,Nimp) )/),comment="Flag to activate impurity Greens functions calculation")
-    call parse_input_variable(imp_chispin_flag,"IMP_CHISPIN_FLAG",INPUTunit,default=(/( .false.,i=1,min(1,Nimp) )/),comment="Flag to activate impurity  spin susceptibility calculation.")
-    call parse_input_variable(offdiag_chispin_flag,"OFFDIAG_CHISPIN_FLAG",INPUTunit,default=.false.,comment="Flag to activate off-diagonal spin Chi calculation") 
+    call parse_input_variable(gf_flag,"GF_FLAG",INPUTunit,default=(/( .false.,i=1,size(gf_flag) )/),comment="Flag to activate Greens functions calculation")
+    call parse_input_variable(chispin_flag,"CHISPIN_FLAG",INPUTunit,default=(/( .false.,i=1,size(chispin_flag) )/),comment="Flag to activate spin susceptibility calculation.")
+    call parse_input_variable(oc_flag,"OC_FLAG",INPUTunit,default=(/( .false.,i=1,size(oc_flag) )/),comment="Flag to activate Optical Conductivity and Drude weight calculation")
+    call parse_input_variable(offdiag_gf_flag,"OFFDIAG_GF_FLAG",INPUTunit,default=.false.,comment="Flag to activate off-diagonal GF calculation as selected by gf_flag") 
+    call parse_input_variable(offdiag_chispin_flag,"OFFDIAG_CHISPIN_FLAG",INPUTunit,default=.false.,comment="Flag to activate off-diagonal spin Chi calculation as selected by chispin_flag") 
 
     call parse_input_variable(hfmode,"HFMODE",INPUTunit,default=.true.,comment="Flag to set the Hartree form of the interaction (n-1/2). see xmu.")
     call parse_input_variable(eps,"EPS",INPUTunit,default=0.01d0,comment="Broadening on the real-axis.")

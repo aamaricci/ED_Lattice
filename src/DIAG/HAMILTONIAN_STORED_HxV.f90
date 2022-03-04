@@ -132,13 +132,14 @@ contains
   subroutine ed_buildH_kondo(isector,Hmat)
     integer                            :: isector
     complex(8),dimension(:,:),optional :: Hmat
-    integer,dimension(2*Ns+Nimp)       :: ib
+    integer,dimension(2*Ns_imp)        :: ib
     integer,dimension(Ns)              :: Nup,Ndw
     real(8),dimension(Ns)              :: Sz
-    integer,dimension(Nimp)            :: Np
-    real(8),dimension(Nimp)            :: Szp 
+    integer,dimension(Nimp)            :: NpUp,NpDw
+    real(8),dimension(Nimp)            :: Szp
     complex(8),dimension(Nspin,Ns,Ns)  :: Hij,Hloc
     real(8),dimension(Nspin,Ns)        :: Hdiag
+    integer                            :: io_up,io_dw,imp_up,imp_dw
     !
 #ifdef _MPI
     if(Mpistatus .AND. MpiComm == MPI_COMM_NULL)return

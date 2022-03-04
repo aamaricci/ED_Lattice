@@ -115,9 +115,10 @@ MODULE ED_VARS_GLOBAL
   !SIZE OF THE PROBLEM
   !=========================================================
   integer,save                                     :: Ns       !Number of levels per spin
-  integer,save                                     :: Ntot     !Total number of electrons/spin
+  ! integer,save                                     :: Ntot     !Total number of electrons/spin
   integer,save                                     :: Nsectors !Number of sectors
   integer,save                                     :: Ns_orb
+  integer,save                                     :: Ns_imp
   integer,save                                     :: Ns_ud
   integer,save                                     :: DimImp   !Number of Imp states
 
@@ -211,6 +212,7 @@ MODULE ED_VARS_GLOBAL
   logical                                          :: finiteT             !flag for finite temperature calculation
   logical                                          :: global_gf_flag
   logical                                          :: global_chi_flag
+  logical                                          :: global_oc_flag
   integer                                          :: lanc_nstates_total=1  !Max number of states hold in the finite T calculation
 
   !This is the internal Mpi Communicator and variables.

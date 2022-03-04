@@ -159,7 +159,7 @@ contains
              write(LOGfile,"(1X,I9,A,I9,A6,"//str(Ns_Ud)//"I3,A6,"//str(Ns_Ud)//"I3,A7,I20",advance='no')&
                   iter,"-Solving sector:",isector,", nup:",nups,", ndw:",ndws,", dim=",getdim(isector)
              if(lanc_solve)write(LOGfile,"(A12,3I6)")", Lanc Info:",Neigen,Nitermax,Nblock
-          elseif(ed_verbose<=2)then
+          else
              call eta(iter,count(twin_mask),LOGfile)
           endif
        endif
