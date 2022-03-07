@@ -32,7 +32,7 @@ contains
     logical                          :: Tbool
     !
     Jhflag=.FALSE.
-    if(Norb>1.AND.(Jx/=0d0.OR.Jp/=0d0.OR.Jk/=0d0))Jhflag=.TRUE.
+    if(Norb>1.AND.any([Jx,Jp,Jk_z,Jk_xy]/=0d0))Jhflag=.TRUE.
     !
     call ed_checks_global
     !

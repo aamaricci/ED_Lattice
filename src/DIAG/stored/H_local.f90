@@ -60,7 +60,7 @@
      !
      !
      !Sz_a.Sz_b part of the Kondo coupling:
-     if(Jk/=0d0)then
+     if(Jk_z/=0d0)then
         do iorb=1,Norb
            do jorb=iorb+1,Norb
               do isite=1,Nsites(iorb)
@@ -68,10 +68,10 @@
                     ! if(isite/=jsite)cycle !local interaction only:
                     ! io = pack_indices(isite,iorb)!a
                     ! jo = pack_indices(isite,jorb)!b
-                    if(jsite/=Jkindx(isite))cycle
+                    if(isite/=Jkindx(jsite))cycle
                     io = pack_indices(isite,iorb)
                     jo = pack_indices(jsite,jorb)
-                    htmp = htmp - 2d0*Jk*Sz(io)*Sz(jo)
+                    htmp = htmp - 2d0*Jk_z*Sz(io)*Sz(jo)
                  enddo
               enddo
            enddo

@@ -508,65 +508,60 @@ contains
                 enddo
              endif
              !
-             if(Jhflag.AND.Jk/=0d0)then
-                iup = Indices(1)
-                idw = Indices(2)
-                mup = sectorI%H(1)%map(iup)
-                mdw = sectorI%H(2)%map(idw)
-                do iorb=1,Norb
-                   do jorb=iorb+1,Norb
-                      do isite=1,Nsites(iorb)
-                         do jsite=1,Nsites(jorb)
-                            ! if(isite/=jsite)cycle !local interaction only:
-                            ! io = pack_indices(isite,iorb)!a
-                            ! jo = pack_indices(isite,jorb)!b
-                            if(jsite/=Jkindx(isite))cycle
-                            io = pack_indices(isite,iorb)!a
-                            jo = pack_indices(jsite,jorb)!b
+             iup = Indices(1)
+             idw = Indices(2)
+             mup = sectorI%H(1)%map(iup)
+             mdw = sectorI%H(2)%map(idw)
+             do iorb=1,Norb
+                do jorb=iorb+1,Norb
+                   do isite=1,Nsites(iorb)
+                      do jsite=1,Nsites(jorb)
+                         if(isite/=Jkindx(jsite))cycle
+                         io = pack_indices(isite,iorb)!a
+                         jo = pack_indices(jsite,jorb)!b
+                         !
+                         ![cdg_io c_jo]_up [cdg_jo c_io]_dw
+                         Jcondition=(&
+                              (ndw(io)==1).AND.&
+                              (ndw(jo)==0).AND.&
+                              (nup(jo)==1).AND.&
+                              (nup(io)==0))
+                         if(Jcondition)then
+                            call c(io,mdw,k1,sg1)       !c_io.dw
+                            call cdg(jo,k1,k2,sg2)      !c^+_jo.dw
+                            jdw = binary_search(sectorI%H(2)%map,k2)
+                            call c(jo,mup,k3,sg3)       !c_jo.up
+                            call cdg(io,k3,k4,sg4)      !c^+_io.up
+                            jup = binary_search(sectorI%H(1)%map,k4)
+                            j = jup + (jdw-1)*sectorI%DimUp
                             !
-                            ![cdg_io c_jo]_up [cdg_jo c_io]_dw
-                            Jcondition=(&
-                                 (ndw(io)==1).AND.&
-                                 (ndw(jo)==0).AND.&
-                                 (nup(jo)==1).AND.&
-                                 (nup(io)==0))
-                            if(Jcondition)then
-                               call c(io,mdw,k1,sg1)       !c_io.dw
-                               call cdg(jo,k1,k2,sg2)      !c^+_jo.dw
-                               jdw = binary_search(sectorI%H(2)%map,k2)
-                               call c(jo,mup,k3,sg3)       !c_jo.up
-                               call cdg(io,k3,k4,sg4)      !c^+_io.up
-                               jup = binary_search(sectorI%H(1)%map,k4)
-                               j = jup + (jdw-1)*sectorI%DimUp
-                               !
-                               ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
-                               ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
-                            endif
+                            ed_Epot = ed_Epot + Jk_xy*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
+                            ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
+                         endif
+                         !
+                         ![cdg_jo c_io]_up [cdg_io c_jo]_dw
+                         Jcondition=(&
+                              (ndw(jo)==1).AND.&
+                              (ndw(io)==0).AND.&
+                              (nup(io)==1).AND.&
+                              (nup(jo)==0))
+                         if(Jcondition)then
+                            call c(jo,mdw,k1,sg1)       !c_jo.dw
+                            call cdg(io,k1,k2,sg2)      !c^+_io.dw
+                            jdw = binary_search(sectorI%H(2)%map,k2)
+                            call c(io,mup,k3,sg3)       !c_io.up
+                            call cdg(jo,k3,k4,sg4)      !c^+_jo.up
+                            jup = binary_search(sectorI%H(1)%map,k4)
+                            j = jup + (jdw-1)*sectorI%DimUp
                             !
-                            ![cdg_jo c_io]_up [cdg_io c_jo]_dw
-                            Jcondition=(&
-                                 (ndw(jo)==1).AND.&
-                                 (ndw(io)==0).AND.&
-                                 (nup(io)==1).AND.&
-                                 (nup(jo)==0))
-                            if(Jcondition)then
-                               call c(jo,mdw,k1,sg1)       !c_jo.dw
-                               call cdg(io,k1,k2,sg2)      !c^+_io.dw
-                               jdw = binary_search(sectorI%H(2)%map,k2)
-                               call c(io,mup,k3,sg3)       !c_io.up
-                               call cdg(jo,k3,k4,sg4)      !c^+_jo.up
-                               jup = binary_search(sectorI%H(1)%map,k4)
-                               j = jup + (jdw-1)*sectorI%DimUp
-                               !
-                               ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
-                               ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
-                            endif
-                            !
-                         enddo
+                            ed_Epot = ed_Epot + Jk_xy*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
+                            ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*peso
+                         endif
+                         !
                       enddo
                    enddo
                 enddo
-             endif
+             enddo
              !
              !
              !Euloc=\sum=i U_i*(n_u*n_d)_i
@@ -599,24 +594,19 @@ contains
              endif
              !
              !
-             if(Jhflag.AND.Jk/=0d0)then
-                do iorb=1,Norb
-                   do jorb=iorb+1,Norb
-                      do isite=1,Nsites(iorb)
-                         do jsite=1,Nsites(jorb)
-                            ! if(isite/=jsite)cycle !local interaction only:
-                            ! io = pack_indices(isite,iorb)!a
-                            ! jo = pack_indices(isite,jorb)!b
-                            if(jsite/=Jkindx(isite))cycle
-                            io = pack_indices(isite,iorb)
-                            jo = pack_indices(jsite,jorb)
-                            ed_Epot = ed_Epot - 2*Jk*Sz(io)*Sz(jo)*gs_weight
-                            ed_Dkz  = ed_Dkz  + Sz(io)*Sz(jo)*gs_weight
-                         enddo
+             do iorb=1,Norb
+                do jorb=iorb+1,Norb
+                   do isite=1,Nsites(iorb)
+                      do jsite=1,Nsites(jorb)
+                         if(isite/=Jkindx(jsite))cycle
+                         io = pack_indices(isite,iorb)
+                         jo = pack_indices(jsite,jorb)
+                         ed_Epot = ed_Epot - 2d0*Jk_z*Sz(io)*Sz(jo)*gs_weight
+                         ed_Dkz  = ed_Dkz  + Sz(io)*Sz(jo)*gs_weight
                       enddo
                    enddo
                 enddo
-             endif
+             enddo
              !
              !HARTREE-TERMS CONTRIBUTION:
              if(hfmode)then
@@ -710,7 +700,7 @@ contains
     real(8)                           :: weight
     real(8)                           :: norm,temp_
     real(8),dimension(Nspin,Norb)     :: eloc
-    complex(8),dimension(:),pointer      :: evec
+    complex(8),dimension(:),pointer   :: evec
     integer                           :: iud(2),jud(2)
     integer,dimension(2*Ns_Ud)        :: Indices,Jndices
     integer,dimension(Ns_Ud,Ns_Orb)   :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
@@ -718,8 +708,8 @@ contains
     logical                           :: Jcondition
     complex(8),dimension(Nspin,Ns,Ns) :: Hij,Hloc
     complex(8),dimension(Nspin,Ns)    :: Hdiag
-    integer            :: Iups(Ns_Ud)
-    integer            :: Idws(Ns_Ud)
+    integer                           :: Iups(Ns_Ud)
+    integer                           :: Idws(Ns_Ud)
     !
     !
     ed_Ehartree= 0.d0
@@ -898,62 +888,60 @@ contains
                 enddo
              endif
              !
-             if(Jhflag.AND.Jk/=0d0)then
-                iup = Indices(1)
-                idw = Indices(2)
-                mup = sectorI%H(1)%map(iup)
-                mdw = sectorI%H(2)%map(idw)
-                do iorb=1,Norb
-                   do jorb=iorb+1,Norb
-                      do isite=1,Nsites(iorb)
-                         do jsite=1,Nsites(jorb)
-                            if(isite/=jsite)cycle !local interaction only:
-                            io = pack_indices(isite,iorb)!a
-                            jo = pack_indices(isite,jorb)!b
+             iup = Indices(1)
+             idw = Indices(2)
+             mup = sectorI%H(1)%map(iup)
+             mdw = sectorI%H(2)%map(idw)
+             do iorb=1,Norb
+                do jorb=iorb+1,Norb
+                   do isite=1,Nsites(iorb)
+                      do jsite=1,Nsites(jorb)
+                         if(isite/=Jkindx(jsite))cycle
+                         io = pack_indices(isite,iorb)
+                         jo = pack_indices(jsite,jorb)
+                         !
+                         ![cdg_io c_jo]_up [cdg_jo c_io]_dw
+                         Jcondition=(&
+                              (ndw(io)==1).AND.&
+                              (ndw(jo)==0).AND.&
+                              (nup(jo)==1).AND.&
+                              (nup(io)==0))
+                         if(Jcondition)then
+                            call c(io,mdw,k1,sg1)       !c_io.dw
+                            call cdg(jo,k1,k2,sg2)      !c^+_jo.dw
+                            jdw = binary_search(sectorI%H(2)%map,k2)
+                            call c(jo,mup,k3,sg3)       !c_jo.up
+                            call cdg(io,k3,k4,sg4)      !c^+_io.up
+                            jup = binary_search(sectorI%H(1)%map,k4)
+                            j = jup + (jdw-1)*sectorI%DimUp
                             !
-                            ![cdg_io c_jo]_up [cdg_jo c_io]_dw
-                            Jcondition=(&
-                                 (ndw(io)==1).AND.&
-                                 (ndw(jo)==0).AND.&
-                                 (nup(jo)==1).AND.&
-                                 (nup(io)==0))
-                            if(Jcondition)then
-                               call c(io,mdw,k1,sg1)       !c_io.dw
-                               call cdg(jo,k1,k2,sg2)      !c^+_jo.dw
-                               jdw = binary_search(sectorI%H(2)%map,k2)
-                               call c(jo,mup,k3,sg3)       !c_jo.up
-                               call cdg(io,k3,k4,sg4)      !c^+_io.up
-                               jup = binary_search(sectorI%H(1)%map,k4)
-                               j = jup + (jdw-1)*sectorI%DimUp
-                               !
-                               ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
-                               ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
-                            endif
+                            ed_Epot = ed_Epot + Jk_xy*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
+                            ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
+                         endif
+                         !
+                         ![cdg_jo c_io]_up [cdg_io c_jo]_dw
+                         Jcondition=(&
+                              (ndw(jo)==1).AND.&
+                              (ndw(io)==0).AND.&
+                              (nup(io)==1).AND.&
+                              (nup(jo)==0))
+                         if(Jcondition)then
+                            call c(jo,mdw,k1,sg1)       !c_jo.dw
+                            call cdg(io,k1,k2,sg2)      !c^+_io.dw
+                            jdw = binary_search(sectorI%H(2)%map,k2)
+                            call c(io,mup,k3,sg3)       !c_io.up
+                            call cdg(jo,k3,k4,sg4)      !c^+_jo.up
+                            jup = binary_search(sectorI%H(1)%map,k4)
+                            j = jup + (jdw-1)*sectorI%DimUp
                             !
-                            ![cdg_jo c_io]_up [cdg_io c_jo]_dw
-                            Jcondition=(&
-                                 (ndw(jo)==1).AND.&
-                                 (ndw(io)==0).AND.&
-                                 (nup(io)==1).AND.&
-                                 (nup(jo)==0))
-                            if(Jcondition)then
-                               call c(jo,mdw,k1,sg1)       !c_jo.dw
-                               call cdg(io,k1,k2,sg2)      !c^+_io.dw
-                               jdw = binary_search(sectorI%H(2)%map,k2)
-                               call c(io,mup,k3,sg3)       !c_io.up
-                               call cdg(jo,k3,k4,sg4)      !c^+_jo.up
-                               jup = binary_search(sectorI%H(1)%map,k4)
-                               j = jup + (jdw-1)*sectorI%DimUp
-                               !
-                               ed_Epot = ed_Epot + Jk/2d0*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
-                               ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
-                            endif
-                            !
-                         enddo
+                            ed_Epot = ed_Epot + Jk_xy*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
+                            ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
+                         endif
+                         !
                       enddo
                    enddo
                 enddo
-             endif
+             enddo
              !
              !
              !Euloc=\sum=i U_i*(n_u*n_d)_i
@@ -985,18 +973,19 @@ contains
                 enddo
              endif
              !
-             if(Jhflag.AND.Jk/=0d0)then
-                do iorb=1,Norb
-                   do jorb=iorb+1,Norb
-                      do isite=1,Nsites(iorb)
-                         do jsite=1,Nsites(jorb)
-                            ed_Epot = ed_Epot - 2*Jk*Sz(io)*Sz(jo)*state_weight*boltzman_weight
-                            ed_Dkz  = ed_Dkz  + Sz(io)*Sz(jo)*state_weight*boltzman_weight
-                         enddo
+             do iorb=1,Norb
+                do jorb=iorb+1,Norb
+                   do isite=1,Nsites(iorb)
+                      do jsite=1,Nsites(jorb)
+                         if(isite/=Jkindx(jsite))cycle
+                         io = pack_indices(isite,iorb)
+                         jo = pack_indices(jsite,jorb)
+                         ed_Epot = ed_Epot - 2d0*Jk_z*Sz(io)*Sz(jo)*state_weight*boltzman_weight
+                         ed_Dkz  = ed_Dkz  + Sz(io)*Sz(jo)*state_weight*boltzman_weight
                       enddo
                    enddo
                 enddo
-             endif
+             enddo
              !
              !HARTREE-TERMS CONTRIBUTION:
              if(hfmode)then
@@ -1066,7 +1055,7 @@ contains
     integer :: unit
     integer :: io,jo,iorb
     unit = fopen("parameters_last.ed",.true.)
-    write(unit,"(90F15.9)")xmu,temp,(uloc(iorb),iorb=1,Norb),Ust,Jh,Jx,Jp,Jk
+    write(unit,"(90F15.9)")xmu,temp,(uloc(iorb),iorb=1,Norb),Ust,Jh,Jx,Jp,Jk_z,Jk_xy
     close(unit)
 
     unit = fopen("dens.ed",.true.)

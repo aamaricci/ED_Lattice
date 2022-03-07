@@ -99,7 +99,7 @@
      ! Jk: -Jk/2*(-1)**[2+1]  [cdg_a.up c_b.up] [cdg_b.dw c_a.dw] +
      !   : -Jk/2*(-1)**[2+1] [cdg_a.dw c_b.dw] [cdg_b.up c_a.up ]
      !   : Jk/2*{[cdg_a c_b]_up [cdg_b c_a]_dw + [cdg_b c_a]_up [cdg_a c_b]_dw }
-     if(Jk/=0d0)then
+     if(Jk_xy/=0d0)then
         do iorb=1,Norb
            do jorb=iorb+1,Norb
               do isite=1,Nsites(iorb)
@@ -107,7 +107,7 @@
                     ! if(isite/=jsite)cycle !local interaction only:
                     ! io = pack_indices(isite,iorb)!a
                     ! jo = pack_indices(isite,jorb)!b
-                    if(jsite/=Jkindx(isite))cycle
+                    if(isite/=Jkindx(jsite))cycle
                     io = pack_indices(isite,iorb)!a
                     jo = pack_indices(jsite,jorb)!b
                     !
@@ -124,7 +124,7 @@
                        call c(jo,mup,k3,sg3)       !c_jo.up
                        call cdg(io,k3,k4,sg4)      !c^+_io.up
                        jup = binary_search(Hsector%H(1)%map,k4)
-                       htmp = one*Jk*sg1*sg2*sg3*sg4
+                       htmp = one*Jk_xy*sg1*sg2*sg3*sg4
                        j = jup + (jdw-1)*DimUp
                        !
                        select case(MpiStatus)
@@ -148,7 +148,7 @@
                        call c(io,mup,k3,sg3)       !c_io.up
                        call cdg(jo,k3,k4,sg4)      !c^+_jo.up
                        jup = binary_search(Hsector%H(1)%map,k4)
-                       htmp = one*Jk*sg1*sg2*sg3*sg4
+                       htmp = one*Jk_xy*sg1*sg2*sg3*sg4
                        j = jup + (jdw-1)*DimUp
                        !
                        select case(MpiStatus)

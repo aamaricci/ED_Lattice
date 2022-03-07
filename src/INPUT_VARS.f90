@@ -16,7 +16,8 @@ MODULE ED_INPUT_VARS
   real(8)              :: Jh                  !J_Hund: Hunds' coupling constant 
   real(8)              :: Jx                  !J_X: coupling constant for the spin-eXchange interaction term
   real(8)              :: Jp                  !J_P: coupling constant for the Pair-hopping interaction term
-  real(8)              :: Jk                  !J_Kondo: Kondo coupling
+  real(8)              :: Jk_z                !J_Kondo_z: Kondo coupling for the Sz.Sz part 
+  real(8)              :: Jk_xy               !J_Kondo_xy: Kondo coupling for the xx,yy part
   integer,allocatable  :: Jkindx(:)           !tags the position of the impurity sites with respect to the electron band, dim(Jkflags)=Nsites(impurity_orbital)
   real(8)              :: xmu                 !chemical potential
   real(8)              :: temp                !temperature
@@ -118,8 +119,9 @@ contains
     call parse_input_variable(Jh,"JH",INPUTunit,default=0.d0,comment="Hunds coupling")
     call parse_input_variable(Jx,"JX",INPUTunit,default=0.d0,comment="S-E coupling")
     call parse_input_variable(Jp,"JP",INPUTunit,default=0.d0,comment="P-H coupling")
-    call parse_input_variable(Jk,"JK",INPUTunit,default=0.d0,comment="Kondo coupling")
-    Jdim = 1 ;  if(Jk/=0d0)Jdim=Nsites(1)
+    call parse_input_variable(Jk_z,"JK_Z",INPUTunit,default=0.d0,comment="Kondo coupling, z-component")
+    call parse_input_variable(Jk_xy,"JK_XY",INPUTunit,default=0.d0,comment="Kondo coupling, in-plane component")
+    Jdim = 1 ;  if(any([Jk_z,Jk_xy]/=0d0))Jdim=Nsites(1)
     allocate(Jkindx(Jdim))
     call parse_input_variable(Jkindx,"Jkindx",INPUTunit,default=(/(1,i=1,size(Jkindx) )/),comment="!index the position of the impurity sites with respect to the electron band, dim(Jkflags)=Nsites(impurity_orbital)")
     !
