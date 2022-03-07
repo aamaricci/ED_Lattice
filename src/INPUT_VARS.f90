@@ -89,7 +89,7 @@ contains
 #endif
     character(len=*) :: INPUTunit
     logical          :: master=.true.
-    integer          :: i,rank=0,add
+    integer          :: i,rank=0,add,dim
 #ifdef _MPI
     if(check_MPI())then
        master=get_Master_MPI(MPI_COMM_WORLD)
@@ -117,8 +117,10 @@ contains
     call parse_input_variable(Jp,"JP",INPUTunit,default=0.d0,comment="P-H coupling")
     call parse_input_variable(Jk,"JK",INPUTunit,default=0.d0,comment="Kondo coupling")
     !
-    add =1;if(Nimp>0)add=Nimp
-    allocate(Jkindx(add))
+    dim=1
+    if(Nimp>0)dim=Nimp
+    if(Nimp==0.AND.Nsites(Norb)>1)dim=Nsites(Norb)
+    allocate(Jkindx(dim))
     call parse_input_variable(Jkindx,"JKINDX",INPUTunit,default=(/( 1,i=1,size(Jkindx) )/),comment="!index the position of the impurity sites with respect to the electron band, dim(Jkflags)=Nsites(impurity_orbital)")
     !
     call parse_input_variable(temp,"TEMP",INPUTunit,default=0.001d0,comment="temperature, at T=0 is used as a IR cut-off.")

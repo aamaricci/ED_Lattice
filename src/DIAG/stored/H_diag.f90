@@ -4,6 +4,8 @@
      !
      Nup = ib(1:Ns)
      Ndw = ib(Ns+1:2*Ns)
+     NpUp= ib(2*Ns+1:2*Ns+Nimp)
+     NpDw= ib(2*Ns+Nimp+1:2*Ns+2*Nimp)
      !
      !> H_Imp: Diagonal Elements, i.e. local part
      htmp = zero
@@ -56,6 +58,9 @@
      if(ed_filling==0)then
         do io=1,Ns
            htmp = htmp - xmu*( Nup(io)+Ndw(io) )
+        enddo
+        do iimp=1,Nimp
+           htmp = htmp - xmu*( Nup(iimp)+Ndw(iimp) )
         enddo
         if(hfmode)then
            if(any(Uloc/=0d0))then

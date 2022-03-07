@@ -14,7 +14,7 @@
               call c(jo,mup,k1,sg1)
               call cdg(io,k1,k2,sg2)
               iup = binary_search(Hsector%H(1)%map,k2)
-              htmp = Hij(1,io,jo)*sg1*sg2
+              htmp = conjg(Hij(1,io,jo))*sg1*sg2
               !
               call sp_insert_element(spH0ups(1),htmp,iup,jup)
               !
