@@ -10,13 +10,15 @@
         Sz  = 0.5d0*(Nup-Ndw)
         Szp = 0.5d0*(NpUp-NpDw)
         !
+        htmp = zero
+        !
         ! KONDO COUPLING
         do iimp=1,Nimp
            do iorb=1,Norb
               do isite=1,Nsites(iorb)
                  if(isite/=Jkindx(iimp))cycle
                  io = pack_indices(isite,iorb)
-                 htmp = htmp - 2.d0*Jk_z*Sz(io)*Szp(iimp)
+                 htmp = -2.d0*Jk_z*Sz(io)*Szp(iimp)
               enddo
            enddo
         enddo

@@ -7,8 +7,9 @@
      NpUp= ib(2*Ns+1:2*Ns+Nimp)
      NpDw= ib(2*Ns+Nimp+1:2*Ns+2*Nimp)
      !
-     !> H_Imp: Diagonal Elements, i.e. local part
      htmp = zero
+     !
+     !> H_Imp: Diagonal Elements, i.e. local part
      do io=1,Ns
         htmp = htmp + Hdiag(1,io)*Nup(io) + Hdiag(Nspin,io)*Ndw(io)
      enddo

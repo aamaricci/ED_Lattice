@@ -1,3 +1,5 @@
+  htmp = zero
+  !
   ! SPIN-EXCHANGE (S-E) TERMS
   !    S-E: J Cdg_a.up Cdg_b.dw C_a.dw C_b.up
   if(jhflag.AND.Jx/=0d0)then

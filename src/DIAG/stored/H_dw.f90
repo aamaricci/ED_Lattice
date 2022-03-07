@@ -2,6 +2,8 @@
      mdw  = Hsector%H(2)%map(jdw)
      Ndw  = bdecomp(mdw,Ns)
      !
+     htmp = zero
+     !
      !> Hdw: Off-diagonal elements, i.e. non-local part. 
      !remark: io=jo cant have simultaneously n=0 and n=1 (Jcondition)
      !        so diagonal element (in H_local) are neglected

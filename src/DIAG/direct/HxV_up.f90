@@ -4,6 +4,8 @@
         nup  = bdecomp(mup,Ns)
         j    = jup + (jdw-1)*dimUp
         !
+        htmp = zero
+        !
         !
         !> Hup: Off-diagonal elements, i.e. non-local part. 
         !remark: io=jo cant have simultaneously n=0 and n=1 (Jcondition)

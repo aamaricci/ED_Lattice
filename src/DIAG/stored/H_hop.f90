@@ -6,6 +6,8 @@
      Nup = ib(1:Ns)
      Ndw = ib(Ns+1:2*Ns)
      !
+     htmp = zero
+     !
      !UP electrons
      do io=1,Ns
         do jo=1,Ns

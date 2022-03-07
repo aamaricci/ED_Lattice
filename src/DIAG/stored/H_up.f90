@@ -2,6 +2,8 @@
      mup  = Hsector%H(1)%map(jup)
      Nup  = Bdecomp(mup,Ns)
      !
+     htmp = zero
+     !
      !> Hup: Off-diagonal elements, i.e. non-local part. 
      !remark: io=jo cant have simultaneously n=0 and n=1 (Jcondition)
      !        so diagonal element (in H_local) are neglected

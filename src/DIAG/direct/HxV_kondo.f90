@@ -1,12 +1,14 @@
   ! KONDO COUPLING
   if(any([Jk_z,Jk_xy]/=0d0))then     
      !
+     htmp = zero
+     !
      do iimp=1,Nimp
         do iorb=1,Norb
            do isite=1,Nsites(iorb)
               if(isite/=Jkindx(iimp))cycle
               io = pack_indices(isite,iorb)
-              htmp = htmp - 2d0*Jk_z*Sz(io)*Szp(iimp)
+              htmp = -2d0*Jk_z*Sz(io)*Szp(iimp)
            enddo
         enddo
      enddo

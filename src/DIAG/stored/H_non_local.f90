@@ -12,6 +12,8 @@
         nup = bdecomp(mup,Ns)
         ndw = bdecomp(mdw,Ns)
         !
+        htmp = zero
+        !
         ! SPIN-EXCHANGE (S-E) TERMS
         !    S-E: J Cdg_a.up Cdg_b.dw C_a.dw C_b.up
         !    S-E: J (-1)*2 [Cdg_a C_b]_up [Cdg_b C_a]_dw

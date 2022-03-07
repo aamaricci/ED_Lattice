@@ -9,9 +9,10 @@
      Ndw = bdecomp(mdw,Ns)
      Sz  = 0.5d0*(Nup-Ndw)
      !
+     htmp = zero
+     !
      !
      !> HxV_imp: Diagonal Elements, i.e. local part
-     htmp = zero
      do io=1,Ns
         htmp = htmp + Hdiag(1,io)*Nup(io) + Hdiag(Nspin,io)*Ndw(io)
      enddo
