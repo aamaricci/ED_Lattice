@@ -10,7 +10,8 @@ MODULE EDLAT
        Jh            , &
        Jx            , &
        Jp            , &
-       Jk            , &
+       Jk_z          , &
+       Jk_xy         , &
        Jkindx        , &
        xmu           , &
        temp          , &

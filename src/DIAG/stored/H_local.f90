@@ -90,24 +90,6 @@
         endif
      endif
      !
-     ! ! KONDO COUPLING
-     ! ! -Jk(s.S) = -Jk*[Sx.Simpx + Sy.Simpy]  -2Jk[Sz.Simpz]
-     ! !            = -Jk*1/2[S^+.Simp^- + S^-.Simp^+] - 2Jk*{S^z.Simp^z}
-     ! !- 2Jk*{S^z.Simp^z} part of the Kondo coupling:
-     ! if(Jk/=0d0)then
-     !    do iorb=1,Norb
-     !       do jorb=iorb+1,Norb
-     !          do isite=1,Nsites(iorb)
-     !             do jsite=1,Nsites(jorb)
-     !                if(isite/=Jkindx(jsite))cycle
-     !                io = pack_indices(isite,iorb)
-     !                jo = pack_indices(jsite,jorb)
-     !                htmp = htmp - 2d0*Jk*Sz(io)*Sz(jo)
-     !             enddo
-     !          enddo
-     !       enddo
-     !    enddo
-     ! endif
      !
      select case(MpiStatus)
      case (.true.)

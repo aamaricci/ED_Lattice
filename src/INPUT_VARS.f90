@@ -17,7 +17,8 @@ MODULE ED_INPUT_VARS
   real(8)              :: Jh                  !J_Hund: Hunds' coupling constant 
   real(8)              :: Jx                  !J_X: coupling constant for the spin-eXchange interaction term
   real(8)              :: Jp                  !J_P: coupling constant for the Pair-hopping interaction term
-  real(8)              :: Jk                  !J_Kondo: Kondo coupling
+  real(8)              :: Jk_z                !J_Kondo: Kondo coupling, z-axis component
+  real(8)              :: Jk_xy               !J_Kondo: Kondo coupling, in-plane component
   integer,allocatable  :: Jkindx(:)           !tags the position of the impurity sites with respect to the electron band, dim(Jkflags)=Nimp
   !
   real(8)              :: xmu                 !chemical potential
@@ -115,7 +116,8 @@ contains
     call parse_input_variable(Jh,"JH",INPUTunit,default=0.d0,comment="Hunds coupling")
     call parse_input_variable(Jx,"JX",INPUTunit,default=0.d0,comment="S-E coupling")
     call parse_input_variable(Jp,"JP",INPUTunit,default=0.d0,comment="P-H coupling")
-    call parse_input_variable(Jk,"JK",INPUTunit,default=0.d0,comment="Kondo coupling")
+    call parse_input_variable(Jk_z,"JK_Z",INPUTunit,default=0.d0,comment="Kondo coupling, z-axis component")
+    call parse_input_variable(Jk_xy,"JK_XY",INPUTunit,default=0.d0,comment="Kondo coupling, xy-plane component")
     !
     dim=1
     if(Nimp>0)dim=Nimp

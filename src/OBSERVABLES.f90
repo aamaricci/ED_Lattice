@@ -564,72 +564,6 @@ contains
              enddo
              !
              !
-             !
-             ! do iorb=1,Norb
-             !    do jorb=iorb+1,Norb
-             !       do isite=1,Nsites(iorb)
-             !          do jsite=1,Nsites(jorb)
-             !             if(isite/=Jkindx(jsite))cycle
-             !             io = pack_indices(isite,iorb)
-             !             jo = pack_indices(jsite,jorb)
-             !             ed_Epot = ed_Epot - 2*Jk*Sz(io)*Sz(jo)*boltzman_weight
-             !             ed_Dkz  = ed_Dkz  + Sz(io)*Sz(jo)*boltzman_weight
-             !          enddo
-             !       enddo
-             !    enddo
-             ! enddo
-             ! do iorb=1,Norb
-             !    do jorb=iorb+1,Norb
-             !       do isite=1,Nsites(iorb)
-             !          do jsite=1,Nsites(jorb)
-             !             if(isite/=Jkindx(jsite))cycle
-             !             io = pack_indices(isite,iorb)!a
-             !             jo = pack_indices(jsite,jorb)!b
-             !             !
-             !             ![cdg_io c_jo]_up [cdg_jo c_io]_dw
-             !             Jcondition=(&
-             !                  (ndw(io)==1).AND.&
-             !                  (ndw(jo)==0).AND.&
-             !                  (nup(jo)==1).AND.&
-             !                  (nup(io)==0))
-             !             if(Jcondition)then
-             !                call c(io,mdw,k1,sg1)       !c_io.dw
-             !                call cdg(jo,k1,k2,sg2)      !c^+_jo.dw
-             !                jdw = binary_search(sectorI%H(2)%map,k2)
-             !                call c(jo,mup,k3,sg3)       !c_jo.up
-             !                call cdg(io,k3,k4,sg4)      !c^+_io.up
-             !                jup = binary_search(sectorI%H(1)%map,k4)
-             !                j = jup + (jdw-1)*sectorI%DimUp
-             !                !
-             !                ed_Epot = ed_Epot + Jk*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
-             !                ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
-             !             endif
-             !             !
-             !             ![cdg_jo c_io]_up [cdg_io c_jo]_dw
-             !             Jcondition=(&
-             !                  (ndw(jo)==1).AND.&
-             !                  (ndw(io)==0).AND.&
-             !                  (nup(io)==1).AND.&
-             !                  (nup(jo)==0))
-             !             if(Jcondition)then
-             !                call c(jo,mdw,k1,sg1)       !c_jo.dw
-             !                call cdg(io,k1,k2,sg2)      !c^+_io.dw
-             !                jdw = binary_search(sectorI%H(2)%map,k2)
-             !                call c(io,mup,k3,sg3)       !c_io.up
-             !                call cdg(jo,k3,k4,sg4)      !c^+_jo.up
-             !                jup = binary_search(sectorI%H(1)%map,k4)
-             !                j = jup + (jdw-1)*sectorI%DimUp
-             !                !
-             !                ed_Epot = ed_Epot + Jk*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
-             !                ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
-             !             endif
-             !             !
-             !          enddo
-             !       enddo
-             !    enddo
-             ! enddo
-             !
-             !
           enddo
           call delete_sector(sectorI)         
        endif
@@ -911,7 +845,7 @@ contains
                    do isite=1,Nsites(iorb)
                       if(isite/=Jkindx(iimp))cycle
                       io = pack_indices(isite,iorb)
-                      ed_Epot = ed_Epot - 2*Jk*Sz(io)*Szp(iimp)*boltzman_weight*state_weight
+                      ed_Epot = ed_Epot - 2*Jk_z*Sz(io)*Szp(iimp)*boltzman_weight*state_weight
                       ed_Dkz  = ed_Dkz  + Sz(io)*Szp(iimp)*boltzman_weight*state_weight
                    enddo
                 enddo
@@ -936,7 +870,7 @@ contains
                          call c(imp_up,k2,k3,sg3)   !d_up
                          call cdg(io_up,k3,k4,sg4)  !c^+_up
                          j=binary_search(sectorI%H(1)%map,k4)
-                         ed_Epot = ed_Epot + Jk*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
+                         ed_Epot = ed_Epot + Jk_xy*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
                          ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
                       endif
                       !
@@ -955,7 +889,7 @@ contains
                          call c(io_up,k2,k3,sg3)    !c_up
                          call cdg(imp_up,k3,k4,sg4) !d^+_up
                          j=binary_search(sectorI%H(1)%map,k4)
-                         ed_Epot = ed_Epot + Jk*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
+                         ed_Epot = ed_Epot + Jk_xy*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
                          ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
                       endif
                       !
@@ -1507,7 +1441,7 @@ contains
                    do isite=1,Nsites(iorb)
                       if(isite/=Jkindx(iimp))cycle
                       io = pack_indices(isite,iorb)
-                      ed_Epot = ed_Epot - 2*Jk*Sz(io)*Szp(iimp)*boltzman_weight*state_weight
+                      ed_Epot = ed_Epot - 2*Jk_z*Sz(io)*Szp(iimp)*boltzman_weight*state_weight
                       ed_Dkz  = ed_Dkz  + Sz(io)*Szp(iimp)*boltzman_weight*state_weight
                    enddo
                 enddo
@@ -1531,7 +1465,7 @@ contains
                          call c(imp_up,k2,k3,sg3)   !d_up
                          call cdg(io_up,k3,k4,sg4)  !c^+_up
                          j=binary_search(sectorI%H(1)%map,k4)
-                         ed_Epot = ed_Epot + Jk*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
+                         ed_Epot = ed_Epot + Jk_xy*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
                          ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
                       endif
                       !
@@ -1550,7 +1484,7 @@ contains
                          call c(io_up,k2,k3,sg3)    !c_up
                          call cdg(imp_up,k3,k4,sg4) !d^+_up
                          j=binary_search(sectorI%H(1)%map,k4)
-                         ed_Epot = ed_Epot + Jk*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
+                         ed_Epot = ed_Epot + Jk_xy*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
                          ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
                       endif
                    enddo
@@ -1598,7 +1532,7 @@ contains
     integer :: unit
     integer :: io,jo,iorb
     unit = fopen("parameters_last.ed",.true.)
-    write(unit,"(90F15.9)")xmu,temp,(uloc(iorb),iorb=1,Norb),Ust,Jh,Jx,Jp,Jk
+    write(unit,"(90F15.9)")xmu,temp,(uloc(iorb),iorb=1,Norb),Ust,Jh,Jx,Jp,Jk_z,Jk_xy
     close(unit)
 
     unit = fopen("dens.ed",.true.)

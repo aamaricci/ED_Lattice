@@ -1,4 +1,4 @@
-  if(Jk/=0d0)then
+  if(any([Jk_z,Jk_xy]/=0d0))then
      do i=MpiIstart,MpiIend
         m  = Hsector%H(1)%map(i)
         ib  = bdecomp(m,2*Ns_imp)
@@ -11,16 +11,12 @@
         Szp = 0.5d0*(NpUp-NpDw)
         !
         ! KONDO COUPLING
-        ! -Jk(s.S) = -2.Jk*[Sx.Simpx + Sy.Simpy]  -2.Jk*[Sz.Simpz]
-        !          = -Jk[S^+.Simp^- + S^-.Simp^+] - 2.Jk*{S^z.Simp^z}
-        !
-        !- Jk*{S^z.Simp^z} part of the Kondo coupling:
         do iimp=1,Nimp
            do iorb=1,Norb
               do isite=1,Nsites(iorb)
                  if(isite/=Jkindx(iimp))cycle
                  io = pack_indices(isite,iorb)
-                 htmp = htmp - 2.d0*Jk*Sz(io)*Szp(iimp)
+                 htmp = htmp - 2.d0*Jk_z*Sz(io)*Szp(iimp)
               enddo
            enddo
         enddo
@@ -31,10 +27,6 @@
            call sp_insert_element(spH0d,htmp,i,i)
         end select
         !
-        !
-        !  -Jk/2[S^+ Simp^- + S^-Simp^+]
-        !  -Jk/2[c^+_up c_dw d^+_dw d_up + c^+_dw c_up d^+_up d_dw]
-        !   Jk/2[c^+_up d^+_dw c_dw  d_up + c^+_dw d^+_up c_up  d_dw]
         do iimp=1,Nimp
            do iorb=1,Norb
               do isite=1,Nsites(iorb)
@@ -56,7 +48,7 @@
                     call cdg(imp_dw,k2,k3,sg3) !d^+_dw
                     call cdg(io_up,k3,k4,sg4)  !c^+_up
                     j=binary_search(Hsector%H(1)%map,k4)
-                    htmp = one*Jk*sg1*sg2*sg3*sg4
+                    htmp = one*Jk_xy*sg1*sg2*sg3*sg4
                     !
                     select case(MpiStatus)
                     case (.true.)
@@ -78,7 +70,7 @@
                     call cdg(imp_up,k2,k3,sg3) !d^+_up
                     call cdg(io_dw,k3,k4,sg4)  !c^+_dw
                     j=binary_search(Hsector%H(1)%map,k4)
-                    htmp = one*Jk*sg1*sg2*sg3*sg4
+                    htmp = one*Jk_xy*sg1*sg2*sg3*sg4
                     !
                     select case(MpiStatus)
                     case (.true.)
