@@ -9,9 +9,10 @@
      Ndw = bdecomp(mdw,Ns)
      Sz  = 0.5d0*(Nup-Ndw)
      !
+     htmp = zero
+     !
      !
      !> HxV_imp: Diagonal Elements, i.e. local part
-     htmp = zero
      do io=1,Ns
         htmp = htmp + Hdiag(1,io)*Nup(io) + Hdiag(Nspin,io)*Ndw(io)
      enddo
@@ -58,23 +59,36 @@
         enddo
      enddo
      !
-     !Sz_a.Sz_b part of the Kondo coupling:
-     if(Jk_z/=0d0)then
-        do iorb=1,Norb
-           do jorb=iorb+1,Norb
-              do isite=1,Nsites(iorb)
-                 do jsite=1,Nsites(jorb)
-                    ! if(isite/=jsite)cycle !local interaction only:
-                    ! io = pack_indices(isite,iorb)
-                    ! jo = pack_indices(isite,jorb)
-                    if(isite/=Jkindx(jsite))cycle
+     !
+     if(ed_filling==0)then
+        do io=1,Ns
+           htmp = htmp - xmu*(Nup(io)+Ndw(io))
+        enddo
+        if(hfmode)then
+           if(any(Uloc/=0d0))then
+              do iorb=1,Norb
+                 do isite=1,Nsites(iorb) 
                     io = pack_indices(isite,iorb)
-                    jo = pack_indices(jsite,jorb)
-                    htmp = htmp - 2*Jk_z*Sz(io)*Sz(jo)
+                    htmp = htmp-0.5d0*Uloc(iorb)*(Nup(io)+Ndw(io))
                  enddo
               enddo
-           enddo
-        enddo
+           endif
+           if(Norb>1)then
+              do iorb=1,Norb
+                 do jorb=iorb+1,Norb
+                    do isite=1,Nsites(iorb)
+                       do jsite=1,Nsites(jorb)
+                          if(isite/=jsite)cycle !local interaction only:
+                          io = pack_indices(isite,iorb)
+                          jo = pack_indices(isite,jorb)
+                          htmp=htmp - 0.5d0*Ust*(Nup(io)+Ndw(io)+Nup(jo)+Ndw(jo))
+                          htmp=htmp - 0.5d0*(Ust-Jh)*(Nup(io)+Ndw(io)+Nup(jo)+Ndw(jo))
+                       enddo
+                    enddo
+                 enddo
+              enddo
+           endif
+        endif
      endif
      !
      !

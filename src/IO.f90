@@ -9,8 +9,6 @@ MODULE ED_IO
   implicit none
   private
 
-  public :: ed_get_sigma_matsubara
-  public :: ed_get_sigma_realaxis
   public :: ed_get_gimp_matsubara
   public :: ed_get_gimp_realaxis
   public :: ed_get_dens
@@ -19,9 +17,7 @@ MODULE ED_IO
   public :: ed_get_energy
   public :: ed_get_doubles
   !
-  public :: ed_print_impSigma
   public :: ed_print_impG
-  public :: ed_print_impG0
   public :: ed_print_impChi
 
   character(len=128) :: suffix
@@ -46,23 +42,11 @@ contains
     Func = impGmats
   end subroutine ed_get_gimp_matsubara
 
-  !NORMAL, REAL SELF-ENERGY
+  !NORMAL, REAL GF
   subroutine ed_get_gimp_realaxis(Func) 
     complex(8),dimension(Nspin,Ns,Ns,Lmats),intent(inout) :: Func
     Func = impGreal
   end subroutine ed_get_gimp_realaxis
-
-  !NORMAL, MATSUBARA SELF-ENEGRGY
-  subroutine ed_get_sigma_matsubara(Func) 
-    complex(8),dimension(Nspin,Ns,Ns,Lmats),intent(inout) :: Func
-    Func = impSmats
-  end subroutine ed_get_sigma_matsubara
-
-  !NORMAL, REAL SELF-ENERGY
-  subroutine ed_get_sigma_realaxis(Func) 
-    complex(8),dimension(Nspin,Ns,Ns,Lmats),intent(inout) :: Func
-    Func = impSreal
-  end subroutine ed_get_sigma_realaxis
 
 
 
@@ -105,15 +89,6 @@ contains
   !+------------------------------------------------------------------+
   !                         PRINT LATTICE FUNCTIONS:
   !+------------------------------------------------------------------+
-  subroutine ed_print_impSigma
-    integer :: iprint
-    iprint=1
-    if(offdiag_gf_flag)iprint=3
-    call allocate_grids()
-    call ed_write_func(impSmats,"Sigma",'mats',wm,iprint)
-    call ed_write_func(impSreal,"Sigma",'real',wr,iprint)
-    call deallocate_grids()
-  end subroutine ed_print_impSigma
 
   subroutine ed_print_impG
     integer :: iprint
@@ -125,17 +100,6 @@ contains
     call deallocate_grids()
   end subroutine ed_print_impG
 
-  subroutine ed_print_impG0
-    integer :: iprint
-    iprint=1
-    if(offdiag_gf_flag)iprint=3
-    call allocate_grids()
-    call ed_write_func(impG0mats,"G0",'mats',wm,iprint)
-    call ed_write_func(impG0real,"G0",'real',wr,iprint)
-    call deallocate_grids()
-  end subroutine ed_print_impG0
-
-
 
   subroutine ed_print_impChi
     if(any(chispin_flag))call print_chi_spin
@@ -145,7 +109,7 @@ contains
   end subroutine ed_print_impChi
 
 
-  
+
 
   !                         SPIN-SPIN
   subroutine print_chi_spin

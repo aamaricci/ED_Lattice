@@ -1,13 +1,11 @@
   do i=MpiIstart,MpiIend
-     iup = iup_index(i,DimUp)
-     idw = idw_index(i,DimUp)
+     m  = Hsector%H(1)%map(i)
+     ib  = bdecomp(m,2*Ns_imp)
      !
-     mup = Hsector%H(1)%map(iup)
-     mdw = Hsector%H(2)%map(idw)
-     !
-     Nup = bdecomp(mup,Ns)
-     Ndw = bdecomp(mdw,Ns)
-     Sz  = 0.5d0*(Nup-Ndw)
+     Nup = ib(1:Ns)
+     Ndw = ib(Ns+1:2*Ns)
+     NpUp= ib(2*Ns+1:2*Ns+Nimp)
+     NpDw= ib(2*Ns+Nimp+1:2*Ns+2*Nimp)
      !
      htmp = zero
      !
@@ -15,7 +13,6 @@
      do io=1,Ns
         htmp = htmp + Hdiag(1,io)*Nup(io) + Hdiag(Nspin,io)*Ndw(io)
      enddo
-     !
      !
      !> H_Int: Kanamori interaction part. 
      ! = \sum_\a U_\a*(n_{\a,up}*n_{\a,dw})
@@ -58,11 +55,13 @@
         enddo
      enddo
      !
-     !     
      !
      if(ed_filling==0)then
         do io=1,Ns
            htmp = htmp - xmu*( Nup(io)+Ndw(io) )
+        enddo
+        do iimp=1,Nimp
+           htmp = htmp - xmu*( Nup(iimp)+Ndw(iimp) )
         enddo
         if(hfmode)then
            if(any(Uloc/=0d0))then

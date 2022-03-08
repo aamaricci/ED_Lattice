@@ -103,11 +103,11 @@ contains
   subroutine lanc_ed_build_oc(iorb)
     integer,intent(in)                  :: iorb
     integer                             :: iup,idw,jup,jdw
-    integer                             :: mup,mdw
+    integer                             :: mup,mdw,m
     integer                             :: io,jo
     integer                             :: k1,k2
     real(8)                             :: sg1,sg2
-    integer                             :: nup(Ns),ndw(Ns)
+    integer                             :: nup(Ns),ndw(Ns),ib(2*Ns_imp)
     integer                             :: isite,jsite
     type(sector)                        :: sectorI
     complex(8),dimension(:),allocatable :: state_cvec
@@ -135,67 +135,128 @@ contains
                'Apply J  :',isector,sectorI%Nups,sectorI%Ndws
           allocate(vvinit(sectorI%Dim)) ; vvinit=zero
           !
-          do i=1,sectorI%Dim
-             iup = iup_index(i,sectorI%DimUp)
-             idw = idw_index(i,sectorI%DimUp)
+          if(KondoFlag)then
              !
-             mup = sectorI%H(1)%map(iup)
-             mdw = sectorI%H(2)%map(idw)
-             !
-             nup = bdecomp(mup,Ns)
-             ndw = bdecomp(mdw,Ns)
-             !
-             !Apply J_{iorb} =  -xi*\sum_sigma \sum_i
-             !                  H(sigma,iorb,i,i+1) Cdg_{sigma,iorb,i}C_{sigma,iorb,i+1} -
-             !                  H*(sigma,iorb,i+1,i) Cdg_{sigma,iorb,i+1}C_{sigma,iorb,i}
-             !     == Jdg_{iorb}
-             do isite=1,Nsites(iorb)
-                !H(sigma,iorb,i,i+1) Cdg_{sigma,iorb,i}C_{sigma,iorb,i+1} ==
-                jsite = isite+1
-                if(isite==Nsites(iorb))jsite=1
-                io = pack_indices(isite,iorb)
-                jo = pack_indices(jsite,iorb)
-                ! UP
-                if((nup(jo)==1) .AND. (nup(io)==0) .AND. (Hij(1,io,jo)/=zero) )then
-                   call c(jo,mup,k1,sg1)
-                   call cdg(io,k1,k2,sg2)
-                   jup= binary_search(sectorI%H(1)%map,k2)
-                   j  = jup + (idw-1)*sectorI%DimUp                   
-                   vvinit(j) = vvinit(j) + Hij(1,io,jo)*sg1*sg2*state_cvec(i)
-                endif
-                ! DW
-                if((ndw(jo)==1) .AND. (ndw(io)==0).AND. (Hij(Nspin,io,jo)/=zero))then
-                   call c(jo,mdw,k1,sg1)
-                   call cdg(io,k1,k2,sg2)
-                   jdw= binary_search(sectorI%H(2)%map,k2)
-                   j  = iup + (jdw-1)*sectorI%DimUp                   
-                   vvinit(j) = vvinit(j) + Hij(Nspin,io,jo)*sg1*sg2*state_cvec(i)
-                endif
+             do i=1,sectorI%Dim
+                m = sectorI%H(1)%map(i)
+                ib  = bdecomp(m,2*Ns_imp)
                 !
+                Nup = ib(1:Ns)
+                Ndw = ib(Ns+1:2*Ns)
                 !
-                !-H*(sigma,iorb,i+1,i) Cdg_{sigma,iorb,i+1}C_{sigma,iorb,i} == 
-                jsite = isite+1
-                if(isite==Nsites(iorb))jsite=1
-                io = pack_indices(jsite,iorb)
-                jo = pack_indices(isite,iorb)
-                ! UP
-                if((nup(jo)==1) .AND. (nup(io)==0) .AND. (Hij(1,io,jo)/=zero) )then
-                   call c(jo,mup,k1,sg1)
-                   call cdg(io,k1,k2,sg2)
-                   jup= binary_search(sectorI%H(1)%map,k2)
-                   j  = jup + (idw-1)*sectorI%DimUp                   
-                   vvinit(j) = vvinit(j) - conjg(Hij(1,io,jo))*sg1*sg2*state_cvec(i)
-                endif
-                ! DW
-                if((ndw(jo)==1) .AND. (ndw(io)==0).AND. (Hij(Nspin,io,jo)/=zero))then
-                   call c(jo,mdw,k1,sg1)
-                   call cdg(io,k1,k2,sg2)
-                   jdw= binary_search(sectorI%H(2)%map,k2)
-                   j  = iup + (jdw-1)*sectorI%DimUp                   
-                   vvinit(j) = vvinit(j) - conjg(Hij(Nspin,io,jo))*sg1*sg2*state_cvec(i)
-                endif
+                !Apply J_{iorb} =  -xi*\sum_sigma \sum_i
+                !                  H(sigma,iorb,i,i+1) Cdg_{sigma,iorb,i}C_{sigma,iorb,i+1} -
+                !                  H*(sigma,iorb,i+1,i) Cdg_{sigma,iorb,i+1}C_{sigma,iorb,i}
+                !     == Jdg_{iorb}
+                do isite=1,Nsites(iorb)
+                   !H(sigma,iorb,i,i+1) Cdg_{sigma,iorb,i}C_{sigma,iorb,i+1} ==
+                   jsite = isite+1
+                   if(isite==Nsites(iorb))jsite=1
+                   io = pack_indices(isite,iorb)
+                   jo = pack_indices(jsite,iorb)
+                   ! UP
+                   if((nup(jo)==1) .AND. (nup(io)==0) .AND. (Hij(1,io,jo)/=zero) )then
+                      call c(jo,m,k1,sg1)
+                      call cdg(io,k1,k2,sg2)
+                      j = binary_search(sectorI%H(1)%map,k2)
+                      vvinit(j) = vvinit(j) + Hij(1,io,jo)*sg1*sg2*state_cvec(i)
+                   endif
+                   ! DW
+                   if((ndw(jo)==1) .AND. (ndw(io)==0).AND. (Hij(Nspin,io,jo)/=zero))then
+                      call c(jo+Ns,m,k1,sg1)
+                      call cdg(io+Ns,k1,k2,sg2)
+                      j = binary_search(sectorI%H(1)%map,k2)
+                      vvinit(j) = vvinit(j) + Hij(Nspin,io,jo)*sg1*sg2*state_cvec(i)
+                   endif
+                   !
+                   !
+                   !-H*(sigma,iorb,i+1,i) Cdg_{sigma,iorb,i+1}C_{sigma,iorb,i} == 
+                   jsite = isite+1
+                   if(isite==Nsites(iorb))jsite=1
+                   io = pack_indices(jsite,iorb)
+                   jo = pack_indices(isite,iorb)
+                   ! UP
+                   if((nup(jo)==1) .AND. (nup(io)==0) .AND. (Hij(1,io,jo)/=zero) )then
+                      call c(jo,m,k1,sg1)
+                      call cdg(io,k1,k2,sg2)
+                      j  = binary_search(sectorI%H(1)%map,k2)
+                      vvinit(j) = vvinit(j) - conjg(Hij(1,io,jo))*sg1*sg2*state_cvec(i)
+                   endif
+                   ! DW
+                   if((ndw(jo)==1) .AND. (ndw(io)==0).AND. (Hij(Nspin,io,jo)/=zero))then
+                      call c(jo+Ns,m,k1,sg1)
+                      call cdg(io+Ns,k1,k2,sg2)
+                      j  = binary_search(sectorI%H(1)%map,k2)
+                      vvinit(j) = vvinit(j) - conjg(Hij(Nspin,io,jo))*sg1*sg2*state_cvec(i)
+                   endif
+                enddo
              enddo
-          enddo
+             !
+          else
+             !
+             do i=1,sectorI%Dim
+                iup = iup_index(i,sectorI%DimUp)
+                idw = idw_index(i,sectorI%DimUp)
+                !
+                mup = sectorI%H(1)%map(iup)
+                mdw = sectorI%H(2)%map(idw)
+                !
+                nup = bdecomp(mup,Ns)
+                ndw = bdecomp(mdw,Ns)
+                !
+                !Apply J_{iorb} =  -xi*\sum_sigma \sum_i
+                !                  H(sigma,iorb,i,i+1) Cdg_{sigma,iorb,i}C_{sigma,iorb,i+1} -
+                !                  H*(sigma,iorb,i+1,i) Cdg_{sigma,iorb,i+1}C_{sigma,iorb,i}
+                !     == Jdg_{iorb}
+                do isite=1,Nsites(iorb)
+                   !H(sigma,iorb,i,i+1) Cdg_{sigma,iorb,i}C_{sigma,iorb,i+1} ==
+                   jsite = isite+1
+                   if(isite==Nsites(iorb))jsite=1
+                   io = pack_indices(isite,iorb)
+                   jo = pack_indices(jsite,iorb)
+                   ! UP
+                   if((nup(jo)==1) .AND. (nup(io)==0) .AND. (Hij(1,io,jo)/=zero) )then
+                      call c(jo,mup,k1,sg1)
+                      call cdg(io,k1,k2,sg2)
+                      jup= binary_search(sectorI%H(1)%map,k2)
+                      j  = jup + (idw-1)*sectorI%DimUp                   
+                      vvinit(j) = vvinit(j) + Hij(1,io,jo)*sg1*sg2*state_cvec(i)
+                   endif
+                   ! DW
+                   if((ndw(jo)==1) .AND. (ndw(io)==0).AND. (Hij(Nspin,io,jo)/=zero))then
+                      call c(jo,mdw,k1,sg1)
+                      call cdg(io,k1,k2,sg2)
+                      jdw= binary_search(sectorI%H(2)%map,k2)
+                      j  = iup + (jdw-1)*sectorI%DimUp                   
+                      vvinit(j) = vvinit(j) + Hij(Nspin,io,jo)*sg1*sg2*state_cvec(i)
+                   endif
+                   !
+                   !
+                   !-H*(sigma,iorb,i+1,i) Cdg_{sigma,iorb,i+1}C_{sigma,iorb,i} == 
+                   jsite = isite+1
+                   if(isite==Nsites(iorb))jsite=1
+                   io = pack_indices(jsite,iorb)
+                   jo = pack_indices(isite,iorb)
+                   ! UP
+                   if((nup(jo)==1) .AND. (nup(io)==0) .AND. (Hij(1,io,jo)/=zero) )then
+                      call c(jo,mup,k1,sg1)
+                      call cdg(io,k1,k2,sg2)
+                      jup= binary_search(sectorI%H(1)%map,k2)
+                      j  = jup + (idw-1)*sectorI%DimUp                   
+                      vvinit(j) = vvinit(j) - conjg(Hij(1,io,jo))*sg1*sg2*state_cvec(i)
+                   endif
+                   ! DW
+                   if((ndw(jo)==1) .AND. (ndw(io)==0).AND. (Hij(Nspin,io,jo)/=zero))then
+                      call c(jo,mdw,k1,sg1)
+                      call cdg(io,k1,k2,sg2)
+                      jdw= binary_search(sectorI%H(2)%map,k2)
+                      j  = iup + (jdw-1)*sectorI%DimUp                   
+                      vvinit(j) = vvinit(j) - conjg(Hij(Nspin,io,jo))*sg1*sg2*state_cvec(i)
+                   endif
+                enddo
+             enddo
+             !
+          endif
           call delete_sector(sectorI)
        else
           allocate(vvinit(1));vvinit=zero
@@ -333,8 +394,9 @@ contains
     type(sector) :: sectorI,sectorJ
     real(8)      :: sg1,sg2
     complex(8)   :: Chio
-    integer      :: Nups(Ns_Ud)
+    integer      :: Nups(Ns_Ud),ib(2*Ns_imp)
     integer      :: Ndws(Ns_Ud)
+
     integer      :: i,j,ll,m,isector,k1,k2,li,rj
     integer      :: idim,ia,nup(Ns),ndw(Ns)
     real(8)      :: Ei,Ej,cc,peso,pesotot
@@ -356,67 +418,129 @@ contains
              Chio=zero
              expterm=exp(-espace(isector)%e(i)/temp)+exp(-espace(isector)%e(j)/temp)
              if(expterm<cutoff)cycle
-             do li=1,sectorI%Dim
-                iup = iup_index(li,sectorI%DimUp)
-                idw = idw_index(li,sectorI%DimUp)
+             if(KondoFlag)then
                 !
-                mup = sectorI%H(1)%map(iup)
-                mdw = sectorI%H(2)%map(idw)
-                !
-                nup = bdecomp(mup,Ns)
-                ndw = bdecomp(mdw,Ns)
-                !
-                !Apply J_{iorb} =  xi*\sum_sigma \sum_i
-                !                  H(sigma,iorb,i,i+1) Cdg_{sigma,iorb,i}C_{sigma,iorb,i+1} -
-                !                  H*(sigma,iorb,i+1,i) Cdg_{sigma,iorb,i+1}C_{sigma,iorb,i}
-                !     == J^+_{iorb}
-                do isite=1,Nsites(iorb)-1
-                   ! i->i+1
-                   io = pack_indices(isite,iorb)
-                   jo = pack_indices(isite+1,iorb)
-                   !H(sigma,iorb,i,i+1) Cdg_{sigma,iorb,i}C_{sigma,iorb,i+1} ==
-                   !H(sigma,iorb,io,jo) Cdg_{sigma,iorb,io}C_{sigma,iorb,jo}
-                   ! UP
-                   if( (nup(jo)==1) .AND. (nup(io)==0) .AND. (Hij(1,io,jo)/=zero) )then
-                      call c(jo,mup,k1,sg1)
-                      call cdg(io,k1,k2,sg2)
-                      jup =binary_search(sectorI%H(1)%map,k2)
-                      rj  = jup + (idw-1)*sectorI%DimUp                   
-                      Chio= Chio + conjg(espace(isector)%M(rj,j))*Hij(1,io,jo)*sg1*sg2*espace(isector)%M(li,i)
-                   endif
-                   ! DW
-                   if((ndw(jo)==1) .AND. (ndw(io)==0).AND. (Hij(Nspin,io,jo)/=zero))then
-                      call c(jo,mdw,k1,sg1)
-                      call cdg(io,k1,k2,sg2)
-                      jdw = binary_search(sectorI%H(2)%map,k2)
-                      rj  = iup + (jdw-1)*sectorI%DimUp                   
-                      Chio= Chio + conjg(espace(isector)%M(rj,j))*Hij(Nspin,io,jo)*sg1*sg2*espace(isector)%M(li,i)
-                   endif
+                do li=1,sectorI%Dim
+                   m = sectorI%H(1)%map(li)
+                   ib  = bdecomp(m,2*Ns_imp)
+                   Nup = ib(1:Ns)
+                   Ndw = ib(Ns+1:2*Ns)
                    !
-                   !
-                   ! i+1->i
-                   io = pack_indices(isite+1,iorb)
-                   jo = pack_indices(isite,iorb)
-                   !-H*(sigma,iorb,i+1,i) Cdg_{sigma,iorb,i+1}C_{sigma,iorb,i} == 
-                   !-H*(sigma,iorb,io,jo) Cdg_{sigma,iorb,io}C_{sigma,iorb,jo}
-                   ! UP
-                   if((nup(jo)==1) .AND. (nup(io)==0) .AND. (Hij(1,io,jo)/=zero) )then
-                      call c(jo,mup,k1,sg1)
-                      call cdg(io,k1,k2,sg2)
-                      jup =binary_search(sectorI%H(1)%map,k2)
-                      rj  = jup + (idw-1)*sectorI%DimUp                   
-                      Chio= Chio - conjg(espace(isector)%M(rj,j))*Hij(1,io,jo)*sg1*sg2*espace(isector)%M(li,i)
-                   endif
-                   ! DW
-                   if((ndw(jo)==1) .AND. (ndw(io)==0).AND. (hij(Nspin,io,jo)/=zero))then
-                      call c(jo,mdw,k1,sg1)
-                      call cdg(io,k1,k2,sg2)
-                      jdw = binary_search(sectorI%H(2)%map,k2)
-                      rj  = iup + (jdw-1)*sectorI%DimUp                   
-                      Chio= Chio - conjg(espace(isector)%M(rj,j))*hij(Nspin,io,jo)*sg1*sg2*espace(isector)%M(li,i)
-                   endif
+                   !Apply J_{iorb} =  xi*\sum_sigma \sum_i
+                   !                  H(sigma,iorb,i,i+1) Cdg_{sigma,iorb,i}C_{sigma,iorb,i+1} -
+                   !                  H*(sigma,iorb,i+1,i) Cdg_{sigma,iorb,i+1}C_{sigma,iorb,i}
+                   !     == J^+_{iorb}
+                   do isite=1,Nsites(iorb)-1
+                      ! i->i+1
+                      io = pack_indices(isite,iorb)
+                      jo = pack_indices(isite+1,iorb)
+                      !H(sigma,iorb,i,i+1) Cdg_{sigma,iorb,i}C_{sigma,iorb,i+1} ==
+                      !H(sigma,iorb,io,jo) Cdg_{sigma,iorb,io}C_{sigma,iorb,jo}
+                      ! UP
+                      if( (nup(jo)==1) .AND. (nup(io)==0) .AND. (Hij(1,io,jo)/=zero) )then
+                         call c(jo,mup,k1,sg1)
+                         call cdg(io,k1,k2,sg2)
+                         rj =binary_search(sectorI%H(1)%map,k2)
+                         Chio= Chio + conjg(espace(isector)%M(rj,j))*Hij(1,io,jo)*sg1*sg2*espace(isector)%M(li,i)
+                      endif
+                      ! DW
+                      if((ndw(jo)==1) .AND. (ndw(io)==0).AND. (Hij(Nspin,io,jo)/=zero))then
+                         call c(jo+Ns,mdw,k1,sg1)
+                         call cdg(io+Ns,k1,k2,sg2)
+                         rj = binary_search(sectorI%H(1)%map,k2)
+                         Chio= Chio + conjg(espace(isector)%M(rj,j))*Hij(Nspin,io,jo)*sg1*sg2*espace(isector)%M(li,i)
+                      endif
+                      !
+                      !
+                      ! i+1->i
+                      io = pack_indices(isite+1,iorb)
+                      jo = pack_indices(isite,iorb)
+                      !-H*(sigma,iorb,i+1,i) Cdg_{sigma,iorb,i+1}C_{sigma,iorb,i} == 
+                      !-H*(sigma,iorb,io,jo) Cdg_{sigma,iorb,io}C_{sigma,iorb,jo}
+                      ! UP
+                      if((nup(jo)==1) .AND. (nup(io)==0) .AND. (Hij(1,io,jo)/=zero) )then
+                         call c(jo,mup,k1,sg1)
+                         call cdg(io,k1,k2,sg2)
+                         rj =binary_search(sectorI%H(1)%map,k2)
+                         Chio= Chio - conjg(espace(isector)%M(rj,j))*Hij(1,io,jo)*sg1*sg2*espace(isector)%M(li,i)
+                      endif
+                      ! DW
+                      if((ndw(jo)==1) .AND. (ndw(io)==0).AND. (hij(Nspin,io,jo)/=zero))then
+                         call c(jo+Ns,mdw,k1,sg1)
+                         call cdg(io+Ns,k1,k2,sg2)
+                         rj = binary_search(sectorI%H(1)%map,k2)
+                         Chio= Chio - conjg(espace(isector)%M(rj,j))*hij(Nspin,io,jo)*sg1*sg2*espace(isector)%M(li,i)
+                      endif
+                   enddo
                 enddo
-             enddo
+                !
+             else
+                !
+                do li=1,sectorI%Dim
+                   iup = iup_index(li,sectorI%DimUp)
+                   idw = idw_index(li,sectorI%DimUp)
+                   !
+                   mup = sectorI%H(1)%map(iup)
+                   mdw = sectorI%H(2)%map(idw)
+                   !
+                   nup = bdecomp(mup,Ns)
+                   ndw = bdecomp(mdw,Ns)
+                   !
+                   !Apply J_{iorb} =  xi*\sum_sigma \sum_i
+                   !                  H(sigma,iorb,i,i+1) Cdg_{sigma,iorb,i}C_{sigma,iorb,i+1} -
+                   !                  H*(sigma,iorb,i+1,i) Cdg_{sigma,iorb,i+1}C_{sigma,iorb,i}
+                   !     == J^+_{iorb}
+                   do isite=1,Nsites(iorb)-1
+                      ! i->i+1
+                      io = pack_indices(isite,iorb)
+                      jo = pack_indices(isite+1,iorb)
+                      !H(sigma,iorb,i,i+1) Cdg_{sigma,iorb,i}C_{sigma,iorb,i+1} ==
+                      !H(sigma,iorb,io,jo) Cdg_{sigma,iorb,io}C_{sigma,iorb,jo}
+                      ! UP
+                      if( (nup(jo)==1) .AND. (nup(io)==0) .AND. (Hij(1,io,jo)/=zero) )then
+                         call c(jo,mup,k1,sg1)
+                         call cdg(io,k1,k2,sg2)
+                         jup =binary_search(sectorI%H(1)%map,k2)
+                         rj  = jup + (idw-1)*sectorI%DimUp                   
+                         Chio= Chio + conjg(espace(isector)%M(rj,j))*Hij(1,io,jo)*sg1*sg2*espace(isector)%M(li,i)
+                      endif
+                      ! DW
+                      if((ndw(jo)==1) .AND. (ndw(io)==0).AND. (Hij(Nspin,io,jo)/=zero))then
+                         call c(jo,mdw,k1,sg1)
+                         call cdg(io,k1,k2,sg2)
+                         jdw = binary_search(sectorI%H(2)%map,k2)
+                         rj  = iup + (jdw-1)*sectorI%DimUp                   
+                         Chio= Chio + conjg(espace(isector)%M(rj,j))*Hij(Nspin,io,jo)*sg1*sg2*espace(isector)%M(li,i)
+                      endif
+                      !
+                      !
+                      ! i+1->i
+                      io = pack_indices(isite+1,iorb)
+                      jo = pack_indices(isite,iorb)
+                      !-H*(sigma,iorb,i+1,i) Cdg_{sigma,iorb,i+1}C_{sigma,iorb,i} == 
+                      !-H*(sigma,iorb,io,jo) Cdg_{sigma,iorb,io}C_{sigma,iorb,jo}
+                      ! UP
+                      if((nup(jo)==1) .AND. (nup(io)==0) .AND. (Hij(1,io,jo)/=zero) )then
+                         call c(jo,mup,k1,sg1)
+                         call cdg(io,k1,k2,sg2)
+                         jup =binary_search(sectorI%H(1)%map,k2)
+                         rj  = jup + (idw-1)*sectorI%DimUp                   
+                         Chio= Chio - conjg(espace(isector)%M(rj,j))*Hij(1,io,jo)*sg1*sg2*espace(isector)%M(li,i)
+                      endif
+                      ! DW
+                      if((ndw(jo)==1) .AND. (ndw(io)==0).AND. (hij(Nspin,io,jo)/=zero))then
+                         call c(jo,mdw,k1,sg1)
+                         call cdg(io,k1,k2,sg2)
+                         jdw = binary_search(sectorI%H(2)%map,k2)
+                         rj  = iup + (jdw-1)*sectorI%DimUp                   
+                         Chio= Chio - conjg(espace(isector)%M(rj,j))*hij(Nspin,io,jo)*sg1*sg2*espace(isector)%M(li,i)
+                      endif
+                   enddo
+                enddo
+                !
+             endif
+
+
              Chio = xi*Chio
              Ei=espace(isector)%e(i)
              Ej=espace(isector)%e(j)

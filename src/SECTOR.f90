@@ -64,7 +64,7 @@ contains
   subroutine build_sector(isector,self)
     integer,intent(in)                  :: isector
     type(sector)                        :: self
-    integer                             :: iup,idw
+    integer                             :: i,iup,idw,ipup,ipdw
     integer                             :: nup_,ndw_
     integer                             :: dim,iud
     !
@@ -72,42 +72,71 @@ contains
     !
     self%index = isector
     !
-    allocate(self%H(2*Ns_Ud))
-    allocate(self%DimUps(Ns_Ud))
-    allocate(self%DimDws(Ns_Ud))
-    allocate(self%Nups(Ns_Ud))
-    allocate(self%Ndws(Ns_Ud))
-    !
-    call get_Nup(isector,self%Nups);self%Nup=sum(self%Nups)
-    call get_Ndw(isector,self%Ndws);self%Ndw=sum(self%Ndws)
-    call get_DimUp(isector,self%DimUps);self%DimUp=product(self%DimUps)
-    call get_DimDw(isector,self%DimDws);self%DimDw=product(self%DimDws)
-    self%DimEl=self%DimUp*self%DimDw
-    self%DimPh=1
-    self%Dim=self%DimEl*self%DimPh
-    !
-    call map_allocate(self%H,[self%DimUps,self%DimDws])
-    do iud=1,Ns_Ud
-       !UP    
-       dim=0
-       do iup=0,2**Ns_Orb-1
-          nup_ = popcnt(iup)
-          if(nup_ /= self%Nups(iud))cycle
-          dim  = dim+1
-          self%H(iud)%map(dim) = iup
+    if(KondoFlag)then
+       !
+       allocate(self%H(1))
+       allocate(self%Nups(1))
+       allocate(self%Ndws(1))
+       call get_Nup(isector,self%Nups);self%Nup=self%Nups(1)
+       call get_Ndw(isector,self%Ndws);self%Ndw=self%Ndws(1)
+       self%DimEl=getDim(isector)
+       self%Dim=self%DimEl
+       !
+       call map_allocate(self%H(1),self%Dim)
+       dim = 0
+       do ipdw=0,2**Nimp-1
+          ipup = 2**Nimp-1-ipdw
+          if(popcnt(ipup)+popcnt(ipdw) /= Nimp)cycle
+          do idw=0,2**Ns-1
+             if(popcnt(idw) + popcnt(ipdw) /= self%Ndw) cycle
+             do iup=0,2**Ns-1
+                if(popcnt(iup) + popcnt(ipup) /= self%Nup) cycle
+                dim        = dim+1
+                self%H(1)%map(dim) = iup + idw*2**Ns + (ipup+ipdw*2**Nimp)*2**(2*Ns)
+             enddo
+          enddo
        enddo
-       !DW
-       dim=0
-       do idw=0,2**Ns_Orb-1
-          ndw_= popcnt(idw)
-          if(ndw_ /= self%Ndws(iud))cycle
-          dim = dim+1
-          self%H(iud+Ns_Ud)%map(dim) = idw
+       !
+    else
+       !
+       allocate(self%H(2*Ns_Ud))
+       allocate(self%DimUps(Ns_Ud))
+       allocate(self%DimDws(Ns_Ud))
+       allocate(self%Nups(Ns_Ud))
+       allocate(self%Ndws(Ns_Ud))
+       !
+       call get_Nup(isector,self%Nups);self%Nup=sum(self%Nups)
+       call get_Ndw(isector,self%Ndws);self%Ndw=sum(self%Ndws)
+       call get_DimUp(isector,self%DimUps);self%DimUp=product(self%DimUps)
+       call get_DimDw(isector,self%DimDws);self%DimDw=product(self%DimDws)
+       self%DimEl=self%DimUp*self%DimDw
+       self%Dim=self%DimEl
+       !
+       call map_allocate(self%H,[self%DimUps,self%DimDws])
+       do iud=1,Ns_Ud
+          !UP    
+          dim=0
+          do iup=0,2**Ns_Orb-1
+             nup_ = popcnt(iup)
+             if(nup_ /= self%Nups(iud))cycle
+             dim  = dim+1
+             self%H(iud)%map(dim) = iup
+          enddo
+          !DW
+          dim=0
+          do idw=0,2**Ns_Orb-1
+             ndw_= popcnt(idw)
+             if(ndw_ /= self%Ndws(iud))cycle
+             dim = dim+1
+             self%H(iud+Ns_Ud)%map(dim) = idw
+          enddo
        enddo
-    enddo
+       !
+    endif
     !
     self%Nlanc = min(self%Dim,lanc_nGFiter)
     self%status=.true.
+    !
   end subroutine build_sector
 
 
@@ -124,7 +153,6 @@ contains
     self%DimDw=0
     self%Dim=0
     self%DimEl=0
-    self%DimPh=0
     self%Nup=0
     self%Ndw=0
     self%Nlanc=0
@@ -191,57 +219,72 @@ contains
     real(8),intent(out)         :: sgn
     integer                     :: ibeta
     integer                     :: r
-    integer                     :: iph,i_el
+    integer                     :: i_el,ii,iorb
     integer,dimension(2*Ns_Ud)  :: Indices
     integer,dimension(2*Ns_Ud)  :: Jndices
     integer,dimension(Ns_Orb)   :: Nud
     integer                     :: Iud
+    integer,dimension(2*Ns_imp) :: ib
     !
     j=0
     sgn=0d0
     !
-    ibeta  = ialfa + (ispin-1)*Ns_Ud
-    iph = (i-1)/(sectorI%DimEl) + 1
-    i_el = mod(i-1,sectorI%DimEl) + 1
-    !
-    call state2indices(i_el,[sectorI%DimUps,sectorI%DimDws],Indices)
-    iud = sectorI%H(ibeta)%map(Indices(ibeta))
-    nud = Bdecomp(iud,Ns_Orb)
-    if(nud(ipos)/=1)return
-    call c(ipos,iud,r,sgn)
-    Jndices        = Indices
-    Jndices(ibeta) = binary_search(sectorJ%H(ibeta)%map,r)
-    call indices2state(Jndices,[sectorJ%DimUps,sectorJ%DimDws],j)
-    !
-    j = j + (iph-1)*sectorJ%DimEl
+    if(KondoFlag)then
+       ibeta = ipos
+       i_el = sectorI%H(1)%map(i)
+       ib   = bdecomp(i_el,2*Ns_imp)
+       if(ib(ibeta)/=1)return
+       call c(ibeta,i_el,r,sgn)
+       j    = binary_search(sectorJ%H(1)%map,r)
+    else
+       ibeta  = ialfa + (ispin-1)*Ns_Ud
+       call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
+       iud = sectorI%H(ibeta)%map(Indices(ibeta))
+       nud = Bdecomp(iud,Ns_Orb)
+       if(nud(ipos)/=1)return
+       call c(ipos,iud,r,sgn)
+       Jndices        = Indices
+       Jndices(ibeta) = binary_search(sectorJ%H(ibeta)%map,r)
+       call indices2state(Jndices,[sectorJ%DimUps,sectorJ%DimDws],j)
+    endif
   end subroutine apply_op_C
 
 
   subroutine apply_op_CDG(i,j,sgn,ipos,ialfa,ispin,sectorI,sectorJ) 
-    integer, intent(in)        :: i,ipos,ialfa,ispin
-    type(sector),intent(in)    :: sectorI,sectorJ
-    integer,intent(out)        :: j
-    real(8),intent(out)        :: sgn
-    integer                    :: ibeta
-    integer                    :: r
-    integer,dimension(2*Ns_Ud) :: Indices
-    integer,dimension(2*Ns_Ud) :: Jndices
-    integer,dimension(Ns_Orb)  :: Nud
-    integer                    :: Iud
+    integer, intent(in)         :: i,ipos,ialfa,ispin
+    type(sector),intent(in)     :: sectorI,sectorJ
+    integer,intent(out)         :: j
+    real(8),intent(out)         :: sgn
+    integer                     :: ibeta
+    integer                     :: r
+    integer                     :: i_el,ii,iorb
+    integer,dimension(2*Ns_Ud)  :: Indices
+    integer,dimension(2*Ns_Ud)  :: Jndices
+    integer,dimension(Ns_Orb)   :: Nud
+    integer                     :: Iud
+    integer,dimension(2*Ns_imp) :: ib
     !
     j=0
     sgn=0d0
     !
-    ibeta  = ialfa + (ispin-1)*Ns_Ud
-    !
-    call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
-    iud = sectorI%H(ibeta)%map(Indices(ibeta))
-    nud = Bdecomp(iud,Ns_Orb)
-    if(nud(ipos)/=0)return
-    call cdg(ipos,iud,r,sgn)
-    Jndices        = Indices
-    Jndices(ibeta) = binary_search(sectorJ%H(ibeta)%map,r)
-    call indices2state(Jndices,[sectorJ%DimUps,sectorJ%DimDws],j)
+    if(KondoFlag)then
+       ibeta = ipos
+       i_el = sectorI%H(1)%map(i)
+       ib   = bdecomp(i_el,2*Ns_imp)
+       if(ib(ibeta)/=0)return
+       call cdg(ibeta,i_el,r,sgn)
+       j    = binary_search(sectorJ%H(1)%map,r)
+    else
+       ibeta  = ialfa + (ispin-1)*Ns_Ud
+       call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
+       iud = sectorI%H(ibeta)%map(Indices(ibeta))
+       nud = Bdecomp(iud,Ns_Orb)
+       if(nud(ipos)/=0)return
+       call cdg(ipos,iud,r,sgn)
+       Jndices        = Indices
+       Jndices(ibeta) = binary_search(sectorJ%H(ibeta)%map,r)
+       call indices2state(Jndices,[sectorJ%DimUps,sectorJ%DimDws],j)
+    endif
   end subroutine apply_op_CDG
 
 
@@ -249,21 +292,32 @@ contains
     integer, intent(in)         :: i,ipos,ialfa
     type(sector),intent(in)     :: sectorI
     real(8),intent(out)         :: sgn
+    integer                     :: i_el,ii,iorb
     integer,dimension(2*Ns_Ud)  :: Indices
     integer,dimension(2*Ns_Ud)  :: Jndices
-    integer,dimension(2,Ns_Orb) :: Nud !Nbits(Ns_Orb)
+    integer,dimension(2,Ns_Orb) :: Nud
     integer,dimension(2)        :: Iud
+    integer,dimension(2*Ns_imp) :: ib
+    integer,dimension(Ns_imp)   :: Nup,Ndw  ![Ns]
     !
     sgn=0d0
     !
-    call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
-    iud(1)   = sectorI%H(ialfa)%map(Indices(ialfa))
-    iud(2)   = sectorI%H(ialfa+Ns_Ud)%map(Indices(ialfa+Ns_Ud))
-    nud(1,:) = Bdecomp(iud(1),Ns_Orb)
-    nud(2,:) = Bdecomp(iud(2),Ns_Orb)
-    !
-    sgn = dble(nud(1,ipos))-dble(nud(2,ipos))
-    sgn = sgn/2d0
+    if(KondoFlag)then
+       i_el = sectorI%H(1)%map(i)
+       ib   = bdecomp(i_el,2*Ns_imp)
+       Nup  = [ib(1:Ns),ib(2*Ns+1:2*Ns+Nimp)]
+       Ndw  = [ib(Ns+1:2*Ns),ib(2*Ns+Nimp+1:2*Ns+2*Nimp)]
+       sgn  = dble(nup(ipos))-dble(ndw(ipos))
+       sgn  = sgn/2d0
+    else
+       call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
+       iud(1)   = sectorI%H(ialfa)%map(Indices(ialfa))
+       iud(2)   = sectorI%H(ialfa+Ns_Ud)%map(Indices(ialfa+Ns_Ud))
+       nud(1,:) = Bdecomp(iud(1),Ns_Orb)
+       nud(2,:) = Bdecomp(iud(2),Ns_Orb)
+       sgn = dble(nud(1,ipos))-dble(nud(2,ipos))
+       sgn = sgn/2d0
+    endif
   end subroutine apply_op_Sz
 
 
@@ -272,20 +326,30 @@ contains
     integer, intent(in)         :: i,ipos,ialfa
     type(sector),intent(in)     :: sectorI
     real(8),intent(out)         :: sgn
+    integer                     :: i_el,ii,iorb
     integer,dimension(2*Ns_Ud)  :: Indices
     integer,dimension(2*Ns_Ud)  :: Jndices
     integer,dimension(2,Ns_Orb) :: Nud !Nbits(Ns_Orb)
     integer,dimension(2)        :: Iud
+    integer,dimension(2*Ns_imp) :: ib
+    integer,dimension(Ns_imp)   :: Nup,Ndw  ![Ns]
     !
     sgn=0d0
     !
-    call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
-    iud(1)   = sectorI%H(ialfa)%map(Indices(ialfa))
-    iud(2)   = sectorI%H(ialfa+Ns_Ud)%map(Indices(ialfa+Ns_Ud))
-    nud(1,:) = Bdecomp(iud(1),Ns_Orb)
-    nud(2,:) = Bdecomp(iud(2),Ns_Orb)
-    !
-    sgn = dble(nud(1,ipos))+dble(nud(2,ipos))
+    if(KondoFlag)then
+       i_el = sectorI%H(1)%map(i)
+       ib   = bdecomp(i_el,2*Ns_imp)
+       Nup  = [ib(1:Ns),ib(2*Ns+1:2*Ns+Nimp)]
+       Ndw  = [ib(Ns+1:2*Ns),ib(2*Ns+Nimp+1:2*Ns+2*Nimp)]
+       sgn  = dble(nup(ipos))+dble(ndw(ipos))
+    else
+       call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
+       iud(1)   = sectorI%H(ialfa)%map(Indices(ialfa))
+       iud(2)   = sectorI%H(ialfa+Ns_Ud)%map(Indices(ialfa+Ns_Ud))
+       nud(1,:) = Bdecomp(iud(1),Ns_Orb)
+       nud(2,:) = Bdecomp(iud(2),Ns_Orb)
+       sgn = dble(nud(1,ipos))+dble(nud(2,ipos))
+    endif
   end subroutine apply_op_N
 
 
@@ -293,22 +357,29 @@ contains
   subroutine build_op_Ns(i,Nup,Ndw,sectorI) 
     integer, intent(in)             :: i
     type(sector),intent(in)         :: sectorI
-    integer,dimension(Ns)           :: Nup,Ndw  ![Ns]
-    integer                         :: iph,i_el,ii,iorb
+    integer,dimension(Ns_imp)       :: Nup,Ndw  ![Ns]
+    integer                         :: i_el,ii,iorb
     integer,dimension(2*Ns_Ud)      :: Indices
     integer,dimension(Ns_Ud,Ns_Orb) :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
     integer,dimension(2)            :: Iud
+    integer,dimension(2*Ns_imp)     :: ib
     !
-    call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
-    do ii=1,Ns_Ud
-       iud(1) = sectorI%H(ii)%map(Indices(ii))
-       iud(2) = sectorI%H(ii+Ns_Ud)%map(Indices(ii+Ns_ud))
-       Nups(ii,:) = Bdecomp(iud(1),Ns_Orb)
-       Ndws(ii,:) = Bdecomp(iud(2),Ns_Orb)
-    enddo
-    Nup = Nups(1,:)!Breorder(Nups)
-    Ndw = Ndws(1,:)!Breorder(Ndws)
-    !
+    if(KondoFlag)then
+       i_el = sectorI%H(1)%map(i)
+       ib   = bdecomp(i_el,2*Ns_imp)
+       Nup  = [ib(1:Ns),ib(2*Ns+1:2*Ns+Nimp)]
+       Ndw  = [ib(Ns+1:2*Ns),ib(2*Ns+Nimp+1:2*Ns+2*Nimp)]
+    else
+       call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
+       do ii=1,Ns_Ud
+          iud(1) = sectorI%H(ii)%map(Indices(ii))
+          iud(2) = sectorI%H(ii+Ns_Ud)%map(Indices(ii+Ns_ud))
+          Nups(ii,:) = Bdecomp(iud(1),Ns_Orb)
+          Ndws(ii,:) = Bdecomp(iud(2),Ns_Orb)
+       enddo
+       Nup = Nups(1,:)!Breorder(Nups)
+       Ndw = Ndws(1,:)!Breorder(Ndws)
+    endif
   end subroutine build_op_Ns
 
 
@@ -324,30 +395,45 @@ contains
     integer,dimension(:) :: QN
     integer              :: N
     integer              :: isector
-    integer              :: i,Nind,factor
-    Nind = size(QN)
-    Factor = N+1
-    isector = 1
-    do i=Nind,1,-1
-       isector = isector + QN(i)*(Factor)**(Nind-i)
-    enddo
-  end subroutine get_Sector
+    integer              :: i,Nind,factor,Nup,Ndw
+    if(KondoFlag)then
+       Nup = QN(1)
+       Ndw = QN(2)
+       isector=getSector(Nup,Ndw)
+       if(isector==0)then
+          print*,Nup,Ndw
+          stop "get_Sector ERROR: KondoFlag, looking for inexistent sector (0,0), (N+Nimp,N+Nimp)"
+       endif
+       else
+          Nind = size(QN)
+          Factor = N+1
+          isector = 1
+          do i=Nind,1,-1
+             isector = isector + QN(i)*(Factor)**(Nind-i)
+          enddo
+       endif
+     end subroutine get_Sector
 
 
   subroutine get_QuantumNumbers(isector,N,QN)
-    integer                          :: isector,N
-    integer,dimension(:)             :: QN
-    integer                          :: i,count,Dim
+    integer                     :: isector,N
+    integer,dimension(:)        :: QN
+    integer                     :: i,count,Dim
     integer,dimension(size(QN)) :: QN_
     !
-    Dim = size(QN)
-    if(mod(Dim,2)/=0)stop "get_QuantumNumbers error: Dim%2 != 0"
-    count=isector-1
-    do i=1,Dim
-       QN_(i) = mod(count,N+1)
-       count      = count/(N+1)
-    enddo
-    QN = QN_(Dim:1:-1)
+    if(KondoFlag)then
+       QN(1)=getNup(isector)
+       QN(2)=getNdw(isector)
+    else
+       Dim = size(QN)
+       if(mod(Dim,2)/=0)stop "get_QuantumNumbers error: Dim%2 != 0"
+       count=isector-1
+       do i=1,Dim
+          QN_(i) = mod(count,N+1)
+          count      = count/(N+1)
+       enddo
+       QN = QN_(Dim:1:-1)
+    endif
   end subroutine get_QuantumNumbers
 
 
@@ -355,12 +441,16 @@ contains
     integer                   :: isector,Nup(Ns_Ud)
     integer                   :: i,count
     integer,dimension(2*Ns_Ud)  :: indices_
-    count=isector-1
-    do i=1,2*Ns_Ud
-       indices_(i) = mod(count,Ns_Orb+1)
-       count      = count/(Ns_Orb+1)
-    enddo
-    Nup = indices_(2*Ns_Ud:Ns_Ud+1:-1)
+    if(KondoFlag)then
+       Nup(1) = getNup(isector)
+    else
+       count=isector-1
+       do i=1,2*Ns_Ud
+          indices_(i) = mod(count,Ns_Orb+1)
+          count      = count/(Ns_Orb+1)
+       enddo
+       Nup = indices_(2*Ns_Ud:Ns_Ud+1:-1)
+    endif
   end subroutine get_Nup
 
 
@@ -368,12 +458,16 @@ contains
     integer                   :: isector,Ndw(Ns_Ud)
     integer                   :: i,count
     integer,dimension(2*Ns_Ud) :: indices_
-    count=isector-1
-    do i=1,2*Ns_Ud
-       indices_(i) = mod(count,Ns_Orb+1)
-       count      = count/(Ns_Orb+1)
-    enddo
-    Ndw = indices_(Ns_Ud:1:-1)
+    if(KondoFlag)then
+       Ndw(1) = getNdw(isector)
+    else
+       count=isector-1
+       do i=1,2*Ns_Ud
+          indices_(i) = mod(count,Ns_Orb+1)
+          count      = count/(Ns_Orb+1)
+       enddo
+       Ndw = indices_(Ns_Ud:1:-1)
+    endif
   end subroutine get_Ndw
 
 
@@ -486,7 +580,7 @@ contains
     enddo
     call delete_sector(sectorH)
     !
-    call sort_array(Order) !sorted and changed the values from the global state numbers to the ones of the sector {1:DimUp*DimDw*DimPh}
+    call sort_array(Order) !sorted and changed the values from the global state numbers to the ones of the sector {1:DimUp*DimDw}
     !
   end subroutine twin_sector_order
 

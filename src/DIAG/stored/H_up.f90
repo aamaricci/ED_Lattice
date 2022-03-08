@@ -2,6 +2,8 @@
      mup  = Hsector%H(1)%map(jup)
      Nup  = Bdecomp(mup,Ns)
      !
+     htmp = zero
+     !
      !> Hup: Off-diagonal elements, i.e. non-local part. 
      !remark: io=jo cant have simultaneously n=0 and n=1 (Jcondition)
      !        so diagonal element (in H_local) are neglected
@@ -14,7 +16,7 @@
               call c(jo,mup,k1,sg1)
               call cdg(io,k1,k2,sg2)
               iup = binary_search(Hsector%H(1)%map,k2)
-              htmp = Hij(1,io,jo)*sg1*sg2
+              htmp = conjg(Hij(1,io,jo))*sg1*sg2
               !
               call sp_insert_element(spH0ups(1),htmp,iup,jup)
               !
