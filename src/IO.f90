@@ -113,8 +113,18 @@ contains
 
   !                         SPIN-SPIN
   subroutine print_chi_spin
-    integer :: iorb,jorb,ilat,jlat,io,jo
+    integer :: iorb,jorb,ilat,jlat,io,jo,iimp
     call allocate_grids()
+    if(KondoFlag)then
+       do iimp=1,Nimp
+          io = Ns+iimp
+          if(.not.chispin_flag(io))cycle
+          suffix="spinChi_i"//str(iimp)
+          call splot(reg(suffix)//"_tau"//reg(ed_file_suffix)//".ed",tau,spinChi_tau(io,io,0:))
+          call splot(reg(suffix)//"_realw"//reg(ed_file_suffix)//".ed",vr,spinChi_w(io,io,:))
+          call splot(reg(suffix)//"_iv"//reg(ed_file_suffix)//".ed",vm,spinChi_iv(io,io,:))
+       enddo
+    endif
     do iorb=1,Norb
        if(.not.chispin_flag(iorb))cycle
        do ilat=1,Nsites(iorb)
