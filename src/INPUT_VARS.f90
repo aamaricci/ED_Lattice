@@ -183,7 +183,6 @@ contains
 #endif
     !
     !
-    Ltau=max(int(1d0/temp),Ltau)
     if(master)then
        call print_input()
        call save_input(INPUTunit)

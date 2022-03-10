@@ -67,11 +67,11 @@ contains
     enddo
     !
     if(MPIMASTER)then
-       do iorb=1,Norb
-          if(.not.oc_flag(iorb))cycle
-          suffix="OptCond"//"_l"//str(iorb)
-          call splot(reg(suffix)//"_realw"//reg(ed_file_suffix)//".ed",vr,OptCond_w(iorb,:))
-       enddo
+       ! do iorb=1,Norb
+       !    if(.not.oc_flag(iorb))cycle
+       !    suffix="OptCond"//"_l"//str(iorb)
+       !    call splot(reg(suffix)//"_realw"//reg(ed_file_suffix)//".ed",vr,OptCond_w(iorb,:))
+       ! enddo
        !
        unit = fopen("drude.ed",append=.true.)
        write(unit,*)(Drude_weight(iorb),iorb=1,Norb)

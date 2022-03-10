@@ -328,6 +328,7 @@ contains
   !+------------------------------------------------------------------+
   subroutine allocate_grids
     integer :: i
+    Ltau=max(int(1d0/temp),Ltau)
     if(.not.allocated(wm))allocate(wm(Lmats))
     if(.not.allocated(vm))allocate(vm(0:Lmats))          !bosonic frequencies
     if(.not.allocated(wr))allocate(wr(Lreal))
