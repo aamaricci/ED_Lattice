@@ -527,6 +527,9 @@ contains        !some routine to perform simple operation on the lists
     if(MpiComm==MPI_COMM_NULL)return
     if(MpiComm==MPI_UNDEFINED)stop "es_return_cvector ERRROR: MpiComm = MPI_UNDEFINED"
     !
+    MpiRank   = get_rank_MPI(MpiComm)
+    MpiMaster = get_master_MPI(MpiComm)
+    !
     if(.not.space%status) stop "es_return_cvector ERRROR: espace not allocated"
     pos= space%size ; if(present(n))pos=n
     if(pos>space%size)      stop "es_return_cvector ERRROR: n > espace.size"
@@ -550,7 +553,6 @@ contains        !some routine to perform simple operation on the lists
     call Allreduce_MPI(MpiComm,Nloc,Ndim)
     if(Dim/=Ndim)stop "es_return_cvector ERROR: Dim != Ndim from v chunks"
     !
-    MpiMaster = get_master_MPI(MpiComm)
     !
     if(.not.c%itwin)then
        if(MpiMaster)then

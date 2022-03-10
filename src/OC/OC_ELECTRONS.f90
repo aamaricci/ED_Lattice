@@ -369,9 +369,9 @@ contains
              if(abs(dE)<cutoff)cycle
              if(abs(peso/dE)<cutoff)cycle
              Drude_weight(iorb) = Drude_weight(iorb) + peso/dE
-             do i=1,Lreal
-                OptCond_w(iorb,i)=OptCond_w(iorb,i) + peso/dE*eps/( (vr(i)-dE)**2 + eps**2 )
-             enddo
+             ! do i=1,Lreal
+             !    OptCond_w(iorb,i)=OptCond_w(iorb,i) + peso/dE*eps/( (vr(i)-dE)**2 + eps**2 )
+             ! enddo
           enddo
        enddo
     enddo
@@ -551,10 +551,10 @@ contains
              if(abs(dE)<1d-12)cycle
              Drude_weight(iorb) = Drude_weight(iorb) + peso/de
              !Real-frequency: Retarded = Commutator = response function
-             do m=1,Lreal
-                iw=vr(m)-dE
-                OptCond_w(iorb,m)=OptCond_w(iorb,m)+peso/dE*eps/(iw**2+eps**2)
-             enddo
+             ! do m=1,Lreal
+             !    iw=vr(m)-dE
+             !    OptCond_w(iorb,m)=OptCond_w(iorb,m)+peso/dE*eps/(iw**2+eps**2)
+             ! enddo
              !
           enddo
        enddo

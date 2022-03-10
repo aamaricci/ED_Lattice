@@ -1,6 +1,7 @@
 MODULE ED_CHI_FUNCTIONS
   USE SF_CONSTANTS, only:one,xi,zero,pi
-  USE SF_TIMER  
+  USE SF_TIMER
+  USE SF_INTEGRATE, only: trapz,simps
   USE SF_IOTOOLS, only: str,free_unit,reg,free_units,txtfy
   USE SF_LINALG,  only: inv,eigh,eye
   USE SF_SP_LINALG, only: sp_lanc_tridiag
@@ -39,6 +40,9 @@ contains
 
 
   subroutine eval_chi_lattice()
+    integer                      :: iorb,iimp,unit,io,isite
+    real(8),dimension(Ns_imp)    :: ChiT
+    real(8) :: beta
     !
     call allocate_grids
     !
@@ -47,7 +51,34 @@ contains
     spinChi_iv=zero
     !
     call eval_chi_spin()
-    if(MPIMASTER)call ed_print_impChi()
+    if(MPIMASTER)then
+       call ed_print_impChi()
+       chiT= 0d0
+       beta= 1d0/temp
+       if(KondoFlag)then
+          do iimp=1,Nimp
+             io = Ns+iimp
+             if(.not.chispin_flag(io))cycle
+             chiT(io) = trapz(spinChi_tau(io,io,0:),0d0,beta)
+          enddo
+          unit = fopen("chiT_imp.ed",append=.true.)
+          write(unit,*)temp,(chiT(Ns+io),io=1,Nimp)
+          close(unit)
+       endif
+       if(any([chispin_flag(1:Norb)]))then
+          do iorb=1,Norb
+             if(.not.chispin_flag(iorb))cycle
+             do isite=1,Nsites(iorb)
+                io  = pack_indices(isite,iorb)
+                chiT(io) = trapz(spinChi_tau(io,io,:),0d0,beta)
+                print*,io,ChiT(io)
+             enddo
+          enddo
+          unit = fopen("chiT.ed",append=.true.)
+          write(unit,*)temp,(chiT(io),io=1,Ns_imp)
+          close(unit)
+       endif
+    endif
     !
     call deallocate_grids
     !
