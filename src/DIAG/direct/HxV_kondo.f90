@@ -66,4 +66,19 @@
         enddo
      enddo
      !
+     !Kondo exchange (U'-Jk/4): use Jk_z as Jk here
+     if(Ust/=0d0)then
+        htmp=zero
+        do iimp=1,Nimp
+           do iorb=1,Norb
+              do isite=1,Nsites(iorb)
+                 if(isite/=Jkindx(iimp))cycle
+                 io = pack_indices(isite,iorb)                 
+                 htmp = htmp + Ust*(Nup(io)*NpUp(iimp) + Nup(io)*NpDw(iimp) + Ndw(io)*NpUp(iimp) + Ndw(io)*NpDw(iimp))
+              enddo
+           enddo
+        enddo
+        i = j
+        hv(i-MpiIshift) = hv(i-MpiIshift) + htmp*vin(i)
+     endif
   endif
