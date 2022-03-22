@@ -1,6 +1,6 @@
   if(any([Jk_z,Jk_xy]/=0d0))then
      do i=MpiIstart,MpiIend
-        m  = Hsector%H(1)%map(i)
+        m   = Hsector%H(1)%map(i)
         ib  = bdecomp(m,2*Ns_imp)
         !
         Nup = ib(1:Ns)
@@ -85,6 +85,26 @@
               enddo
            enddo
         enddo
+        !
+        !Kondo exchange. Using Ust as Vdir*=Vdir-Jk/4 (user provided)
+        if(Ust/=0d0)then
+           htmp=zero
+           do iimp=1,Nimp
+              do iorb=1,Norb
+                 do isite=1,Nsites(iorb)
+                    if(isite/=Jkindx(iimp))cycle
+                    io = pack_indices(isite,iorb)                 
+                    htmp = htmp + Ust*(Nup(io)*Nup(iimp) + Nup(io)*Ndw(iimp) + Ndw(io)*Nup(iimp) + Ndw(io)*Ndw(iimp))
+                 enddo
+              enddo
+           enddo
+           select case(MpiStatus)
+           case (.true.)
+              call sp_insert_element(MpiComm,spH0d,htmp,i,i)
+           case (.false.)
+              call sp_insert_element(spH0d,htmp,i,i)
+           end select
+        endif
         !
      enddo
   endif
