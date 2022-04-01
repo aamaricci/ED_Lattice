@@ -11,6 +11,7 @@ MODULE ED_INPUT_VARS
   integer,allocatable  :: Nsites(:)           !# of sites per orbital species
   integer              :: Nspin               !Nspin=# spin degeneracy (max 2)
   integer              :: Nimp                !Number of Kondo impurities (max 1)
+  integer              :: NimpSites           !Number of impurity sites
   !
   real(8),allocatable  :: Uloc(:)             !local interactions
   real(8)              :: Ust                 !intra-orbitals interactions
@@ -59,7 +60,7 @@ MODULE ED_INPUT_VARS
   integer              :: lanc_ncv_add        !Adds up to the size of the block to prevent it to become too small (Ncv=lanc_ncv_factor*Neigen+lanc_ncv_add)
   integer              :: lanc_nstates_sector !Max number of required eigenvalues per sector
   integer              :: lanc_dim_threshold  !Min dimension threshold to use Lanczos determination of the spectrum rather than Lapack based exact diagonalization.
-  !
+  
 
 
   !Some parameters for function dimension:
@@ -68,11 +69,13 @@ MODULE ED_INPUT_VARS
   integer              :: Lreal
   integer              :: Ltau
 
+  
   !LOG AND Hamiltonian UNITS
   !=========================================================
   character(len=100)   :: Tfile
   integer,save         :: LOGfile
 
+  
   !THIS IS JUST A RELOCATED GLOBAL VARIABLE
   character(len=200)   :: ed_input_file=""
 
@@ -106,10 +109,10 @@ contains
     allocate(Nsites(Norb))
     call parse_input_variable(Nsites,"NSITES",INPUTunit,default=(/( 4,i=1,Norb )/),comment="Number of sites per orbital species")
     call parse_input_variable(Nimp,"NIMP",INPUTunit,default=0,comment="Number of Kondo impurities (max 1 for now)")
+    call parse_input_variable(NimpSites,"NIMPSITES",INPUTunit,default=0,comment="Number of impurity sites (min Nimp, max=max(Nsites))")
     call parse_input_variable(Nspin,"NSPIN",INPUTunit,default=1,comment="Number of spin degeneracy (max 2)")
     call parse_input_variable(ed_filling,"ED_FILLING",INPUTunit,default=0,comment="Total number of allowed electrons not including Kondo impurities if any")
-
-
+    !
     allocate(Uloc(Norb))
     call parse_input_variable(uloc,"ULOC",INPUTunit,default=(/( 2d0,i=1,size(Uloc) )/),comment="Values of the local interaction per orbital")
     call parse_input_variable(ust,"UST",INPUTunit,default=0.d0,comment="Value of the inter-orbital interaction term")
@@ -145,7 +148,7 @@ contains
     call parse_input_variable(oc_flag,"OC_FLAG",INPUTunit,default=(/( .false.,i=1,size(oc_flag) )/),comment="Flag to activate Optical Conductivity and Drude weight calculation")
     call parse_input_variable(offdiag_gf_flag,"OFFDIAG_GF_FLAG",INPUTunit,default=.false.,comment="Flag to activate off-diagonal GF calculation as selected by gf_flag") 
     call parse_input_variable(offdiag_chispin_flag,"OFFDIAG_CHISPIN_FLAG",INPUTunit,default=.false.,comment="Flag to activate off-diagonal spin Chi calculation as selected by chispin_flag") 
-
+    !
     call parse_input_variable(hfmode,"HFMODE",INPUTunit,default=.true.,comment="Flag to set the Hartree form of the interaction (n-1/2). see xmu.")
     call parse_input_variable(eps,"EPS",INPUTunit,default=0.01d0,comment="Broadening on the real-axis.")
     call parse_input_variable(cutoff,"CUTOFF",INPUTunit,default=1.d-9,comment="Spectrum cut-off, used to determine the number states to be retained.")
@@ -156,7 +159,7 @@ contains
     call parse_input_variable(ed_sparse_H,"ED_SPARSE_H",INPUTunit,default=.true.,comment="flag to select  storage of sparse matrix H (mem--, cpu++) if TRUE, or direct on-the-fly H*v product (mem++, cpu--) if FALSE ")   
     call parse_input_variable(ed_print_G,"ED_PRINT_G",INPUTunit,default=.true.,comment="flag to print impurity Greens function")
     call parse_input_variable(ed_verbose,"ED_VERBOSE",INPUTunit,default=3,comment="Verbosity level: 0=almost nothing --> 5:all. Really: all")
-    !    
+    !
     call parse_input_variable(lanc_method,"LANC_METHOD",INPUTunit,default="arpack",comment="select the lanczos method to be used in the determination of the spectrum. ARPACK (default), LANCZOS (T=0 only)")
     call parse_input_variable(lanc_nstates_sector,"LANC_NSTATES_SECTOR",INPUTunit,default=2,comment="Initial number of states per sector to be determined.")
     call parse_input_variable(lanc_ncv_factor,"LANC_NCV_FACTOR",INPUTunit,default=10,comment="Set the size of the block used in Lanczos-Arpack by multiplying the required Neigen (Ncv=lanc_ncv_factor*Neigen+lanc_ncv_add)")

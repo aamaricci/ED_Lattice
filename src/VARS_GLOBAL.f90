@@ -115,11 +115,13 @@ MODULE ED_VARS_GLOBAL
   !SIZE OF THE PROBLEM
   !=========================================================
   integer,save                                     :: Ns       !Number of levels per spin
-  ! integer,save                                     :: Ntot     !Total number of electrons/spin
-  integer,save                                     :: Nsectors !Number of sectors
+  integer,save                                     :: Ns_tot   !Number of electrons and impurity levels (Ns+NimpSites) per spin
+  integer,save                                     :: Ns_imp   !Number of electrons and actual impurity present (Ns+Nimp)
+  !kept for simplicity here:
   integer,save                                     :: Ns_orb
-  integer,save                                     :: Ns_imp
   integer,save                                     :: Ns_ud
+  !other
+  integer,save                                     :: Nsectors !Number of sectors
   integer,save                                     :: DimImp   !Number of Imp states
 
 
