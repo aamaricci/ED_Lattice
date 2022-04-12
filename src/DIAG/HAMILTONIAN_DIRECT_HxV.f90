@@ -24,7 +24,7 @@ contains
     complex(8),dimension(Nloc)          :: Hv
     complex(8),dimension(:),allocatable :: vt,Hvt
     integer,dimension(2*Ns_Ud)          :: Indices,Jndices ![2-2*Norb]
-    integer,dimension(Ns_Ud,Ns_Orb)     :: Nups,Ndws       ![1,Ns]-[Norb,1+Nbath]
+    integer,dimension(Ns_Ud,Ns)     :: Nups,Ndws       ![1,Ns]-[Norb,1+Nbath]
     integer,dimension(Ns)               :: Nup,Ndw
     real(8),dimension(Ns)               :: Sz 
     complex(8),dimension(Nspin,Ns,Ns)   :: Hij,Hloc
@@ -132,7 +132,7 @@ contains
     complex(8),dimension(:),allocatable  :: vt,Hvt
     !
     integer,dimension(2*Ns_Ud)        :: Indices,Jndices ![2-2*Norb]
-    integer,dimension(Ns_Ud,Ns_Orb)   :: Nups,Ndws       ![1,Ns]-[Norb,1+Nbath]
+    integer,dimension(Ns_Ud,Ns)   :: Nups,Ndws       ![1,Ns]-[Norb,1+Nbath]
     integer,dimension(Ns)             :: Nup,Ndw
     real(8),dimension(Ns)             :: Sz 
     complex(8),dimension(Nspin,Ns,Ns) :: Hij,Hloc

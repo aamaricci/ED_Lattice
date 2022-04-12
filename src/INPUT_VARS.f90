@@ -8,10 +8,9 @@ MODULE ED_INPUT_VARS
   !input variables
   !=========================================================
   integer              :: Norb                !# of orbitals
-  integer,allocatable  :: Nsites(:)           !# of sites per orbital species
+  integer,allocatable  :: Nsites(:)           !# of sites per orbital species and impurity levels
   integer              :: Nspin               !Nspin=# spin degeneracy (max 2)
   integer              :: Nimp                !Number of Kondo impurities (max 1)
-  integer              :: NimpSites           !Number of impurity sites
   !
   real(8),allocatable  :: Uloc(:)             !local interactions
   real(8)              :: Ust                 !intra-orbitals interactions
@@ -106,10 +105,11 @@ contains
     !
     !DEFAULT VALUES OF THE PARAMETERS:
     call parse_input_variable(Norb,"NORB",INPUTunit,default=1,comment="Number of impurity orbitals (max 5).")
-    allocate(Nsites(Norb))
-    call parse_input_variable(Nsites,"NSITES",INPUTunit,default=(/( 4,i=1,Norb )/),comment="Number of sites per orbital species")
     call parse_input_variable(Nimp,"NIMP",INPUTunit,default=0,comment="Number of Kondo impurities (max 1 for now)")
-    call parse_input_variable(NimpSites,"NIMPSITES",INPUTunit,default=0,comment="Number of impurity sites (min Nimp, max=max(Nsites))")
+    !
+    add=0;if(Nimp>0)add=1
+    allocate(Nsites(Norb+add))
+    call parse_input_variable(Nsites,"NSITES",INPUTunit,default=(/( 1,i=1,size(Nsites) )/),comment="Number of sites per orbital species and impurity")
     call parse_input_variable(Nspin,"NSPIN",INPUTunit,default=1,comment="Number of spin degeneracy (max 2)")
     call parse_input_variable(ed_filling,"ED_FILLING",INPUTunit,default=0,comment="Total number of allowed electrons not including Kondo impurities if any")
     !
@@ -122,9 +122,9 @@ contains
     call parse_input_variable(Jk_z,"JK_Z",INPUTunit,default=0.d0,comment="Kondo coupling, z-axis component")
     call parse_input_variable(Jk_xy,"JK_XY",INPUTunit,default=0.d0,comment="Kondo coupling, xy-plane component")
     !
-    dim=max(1,Nimp)
+    dim=1;if(Nimp>0)dim=Nsites(Norb+1)
     allocate(Jkindx(dim))
-    call parse_input_variable(Jkindx,"JKINDX",INPUTunit,default=(/( 1,i=1,size(Jkindx) )/),comment="!index the position of the impurity sites with respect to the electron band, dim(Jkflags)=Nsites(impurity_orbital)")
+    call parse_input_variable(Jkindx,"JKINDX",INPUTunit,default=(/( 1,i=1,size(Jkindx) )/),comment="labels of the Norb sites corresponding to the impurity sites, dim(Jkflags)=Nsites(Norb+1)")
     !
     call parse_input_variable(temp,"TEMP",INPUTunit,default=0.001d0,comment="temperature, at T=0 is used as a IR cut-off.")
     call parse_input_variable(ed_finite_temp,"ED_FINITE_TEMP",INPUTunit,default=.false.,comment="flag to select finite temperature method. note that if T then lanc_nstates_total must be > 1")

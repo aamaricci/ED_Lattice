@@ -23,6 +23,7 @@ MODULE ED_OBSERVABLES
   real(8),dimension(:),allocatable   :: docc
   real(8),dimension(:),allocatable   :: magz
   real(8),dimension(:,:),allocatable :: sz2,n2
+  real(8),dimension(:,:),allocatable :: dens_ImpUp,dens_ImpDw
   real(8)                            :: dens_ph
   real(8)                            :: s2tot
   real(8)                            :: Egs
@@ -98,9 +99,9 @@ contains
   !PURPOSE  : Lanc method
   !+-------------------------------------------------------------------+
   subroutine lanc_observables()
-    integer                             :: iprob,istate,Nud(2,Ns),iud(2),jud(2),val
+    integer                             :: iprob,istate,Nud(2,Ns),iud(2),jud(2),val,iimp
     integer,dimension(2*Ns_Ud)          :: Indices,Jndices
-    integer,dimension(Ns_Ud,Ns_Orb)     :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
+    integer,dimension(Ns_Ud,Ns)     :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
     integer,dimension(Ns_imp)           :: IbUp,IbDw  ![Ns]
     real(8),dimension(Ns_imp)           :: nup,ndw,Sz,nt
     complex(8),dimension(:),allocatable :: state_cvec
@@ -110,6 +111,8 @@ contains
     allocate(dens(Ns_imp),dens_up(Ns_imp),dens_dw(Ns_imp))
     allocate(docc(Ns_imp))
     allocate(magz(Ns_imp),sz2(Ns_imp,Ns_imp),n2(Ns_imp,Ns_imp))
+    allocate(dens_ImpUp(2,Ns))
+    allocate(dens_ImpDw(2,Ns))
     !
     Egs     = state_list%emin
     dens    = 0.d0
@@ -120,6 +123,8 @@ contains
     sz2     = 0.d0
     n2      = 0.d0
     s2tot   = 0.d0
+    dens_impup = 0.d0
+    dens_impdw = 0.d0
     !
     call es_trim_size(state_list,temp,cutoff)
     do istate=1,state_list%trimd_size
@@ -167,6 +172,23 @@ contains
                 enddo
              enddo
              s2tot = s2tot  + (sum(sz))**2*state_weight*boltzman_weight
+
+             if(any([Jk_z,Jk_xy]/=0d0))then
+                do iimp=1,Nimp
+                   if(nup(Ns+iimp)==1)then
+                      do is=1,Ns
+                         dens_ImpUp(1,is)  = dens_ImpUp(1,is)   +  nup(is)*state_weight*boltzman_weight
+                         dens_ImpUp(2,is)  = dens_ImpUp(2,is)   +  ndw(is)*state_weight*boltzman_weight
+                      enddo
+                   endif
+                   if(ndw(Ns+iimp)==1)then
+                      do is=1,Ns
+                         dens_ImpDw(1,is)  = dens_ImpDw(1,is)   +  nup(is)*state_weight*boltzman_weight
+                         dens_ImpDw(2,is)  = dens_ImpDw(2,is)   +  ndw(is)*state_weight*boltzman_weight
+                      enddo
+                   endif
+                enddo
+             endif
           enddo
           !
           call delete_sector(sectorI)
@@ -201,10 +223,12 @@ contains
        call Bcast_MPI(MpiComm,ed_dens)
        call Bcast_MPI(MpiComm,ed_docc)
        call Bcast_MPI(MpiComm,ed_mag)
+       call Bcast_MPI(MpiComm,dens_ImpUp)
+       call Bcast_MPI(MpiComm,dens_Impdw)
     endif
 #endif
     !
-    deallocate(dens,docc,dens_up,dens_dw,magz,sz2,n2)
+    deallocate(dens,docc,dens_up,dens_dw,magz,sz2,n2,dens_impup,dens_impdw)
   end subroutine lanc_observables
 
 
@@ -329,7 +353,7 @@ contains
   subroutine lanc_energy_main()
     integer                             :: istate,iud(2),jud(2),iimp
     integer,dimension(2*Ns_Ud)          :: Indices,Jndices
-    integer,dimension(Ns_Ud,Ns_Orb)     :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
+    integer,dimension(Ns_Ud,Ns)     :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
     integer,dimension(Ns_imp)           :: IbUp,IbDw  ![Ns]
     integer,dimension(Ns)               :: Nup,Ndw
     real(8),dimension(Ns)               :: Sz
@@ -384,8 +408,8 @@ contains
              do ii=1,Ns_Ud
                 mup = sectorI%H(ii)%map(Indices(ii))
                 mdw = sectorI%H(ii+Ns_Ud)%map(Indices(ii+Ns_ud))
-                Nups(ii,:) = Bdecomp(mup,Ns_Orb)
-                Ndws(ii,:) = Bdecomp(mdw,Ns_Orb)
+                Nups(ii,:) = Bdecomp(mup,Ns)
+                Ndws(ii,:) = Bdecomp(mdw,Ns)
              enddo
              Nup =  Nups(1,:)
              Ndw =  Ndws(1,:)
@@ -844,66 +868,62 @@ contains
              endif
              !
              !
-             if(Jk_z/=0d0)then
-                do iimp=1,Nimp
-                   do iorb=1,Norb
-                      do isite=1,Nsites(iorb)
-                         if(isite/=Jkindx(iimp))cycle
-                         io = pack_indices(isite,iorb)
-                         ed_Epot = ed_Epot - 2*Jk_z*Sz(io)*Szp(iimp)*boltzman_weight*state_weight
-                         ed_Dkz  = ed_Dkz  + Sz(io)*Szp(iimp)*boltzman_weight*state_weight
-                      enddo
+             do iimp=1,Nimp
+                do iorb=1,Norb
+                   do isite=1,Nsites(iorb)
+                      if(isite/=Jkindx(iimp))cycle
+                      io = pack_indices(isite,iorb)
+                      ed_Epot = ed_Epot - 2*Jk_z*Sz(io)*Szp(iimp)*boltzman_weight*state_weight
+                      ed_Dkz  = ed_Dkz  + Sz(io)*Szp(iimp)*boltzman_weight*state_weight
                    enddo
                 enddo
-             endif
+             enddo
              !
-             if(Jk_xy/=0d0)then
-                do iimp=1,Nimp
-                   do iorb=1,Norb
-                      do isite=1,Nsites(iorb)
-                         if(isite/=Jkindx(iimp))cycle
-                         io    = pack_indices(isite,iorb)
-                         io_up = io
-                         io_dw = io + Ns
-                         imp_up= 2*Ns + iimp
-                         imp_dw= 2*Ns + iimp + Nimp
-                         ![c^+.d]_up [d^+.c]_dw
-                         Jcondition=(&
-                              (ndw(io)==1).AND.(npdw(iimp)==0).AND.&
-                              (npup(iimp)==1).AND.(nup(io)==0) )
-                         if(Jcondition)then
-                            call c(io_dw,m,k1,sg1)     !c_dw
-                            call cdg(imp_dw,k1,k2,sg2) !d^+_dw
-                            call c(imp_up,k2,k3,sg3)   !d_up
-                            call cdg(io_up,k3,k4,sg4)  !c^+_up
-                            j=binary_search(sectorI%H(1)%map,k4)
-                            ed_Epot = ed_Epot + Jk_xy*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
-                            ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
-                         endif
-                         !
-                         ![d^+.c]_up [c^+.d]_dw 
-                         io    = pack_indices(isite,iorb)
-                         io_up = io
-                         io_dw = io + Ns
-                         imp_up= 2*Ns + iimp
-                         imp_dw= 2*Ns + iimp + Nimp
-                         Jcondition=(&
-                              (npdw(iimp)==1).AND.(ndw(io)==0).AND.&
-                              (nup(io)==1).AND.(npup(iimp)==0) )
-                         if(Jcondition)then
-                            call c(imp_dw,m,k1,sg1)    !d_dw
-                            call cdg(io_dw,k1,k2,sg2)  !c^+_dw
-                            call c(io_up,k2,k3,sg3)    !c_up
-                            call cdg(imp_up,k3,k4,sg4) !d^+_up
-                            j=binary_search(sectorI%H(1)%map,k4)
-                            ed_Epot = ed_Epot + Jk_xy*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
-                            ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
-                         endif
-                         !
-                      enddo
+             do iimp=1,Nimp
+                do iorb=1,Norb
+                   do isite=1,Nsites(iorb)
+                      if(isite/=Jkindx(iimp))cycle
+                      io    = pack_indices(isite,iorb)
+                      io_up = io
+                      io_dw = io + Ns
+                      imp_up= 2*Ns + iimp
+                      imp_dw= 2*Ns + iimp + Nimp
+                      ![c^+.d]_up [d^+.c]_dw
+                      Jcondition=(&
+                           (ndw(io)==1).AND.(npdw(iimp)==0).AND.&
+                           (npup(iimp)==1).AND.(nup(io)==0) )
+                      if(Jcondition)then
+                         call c(io_dw,m,k1,sg1)     !c_dw
+                         call cdg(imp_dw,k1,k2,sg2) !d^+_dw
+                         call c(imp_up,k2,k3,sg3)   !d_up
+                         call cdg(io_up,k3,k4,sg4)  !c^+_up
+                         j=binary_search(sectorI%H(1)%map,k4)
+                         ed_Epot = ed_Epot + Jk_xy*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
+                         ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
+                      endif
+                      !
+                      ![d^+.c]_up [c^+.d]_dw 
+                      io    = pack_indices(isite,iorb)
+                      io_up = io
+                      io_dw = io + Ns
+                      imp_up= 2*Ns + iimp
+                      imp_dw= 2*Ns + iimp + Nimp
+                      Jcondition=(&
+                           (npdw(iimp)==1).AND.(ndw(io)==0).AND.&
+                           (nup(io)==1).AND.(npup(iimp)==0) )
+                      if(Jcondition)then
+                         call c(imp_dw,m,k1,sg1)    !d_dw
+                         call cdg(io_dw,k1,k2,sg2)  !c^+_dw
+                         call c(io_up,k2,k3,sg3)    !c_up
+                         call cdg(imp_up,k3,k4,sg4) !d^+_up
+                         j=binary_search(sectorI%H(1)%map,k4)
+                         ed_Epot = ed_Epot + Jk_xy*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
+                         ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
+                      endif
+                      !
                    enddo
                 enddo
-             endif
+             enddo
              !
              !
              !
@@ -974,7 +994,7 @@ contains
     complex(8),dimension(:),pointer   :: evec
     integer                           :: iud(2),jud(2)
     integer,dimension(2*Ns_Ud)        :: Indices,Jndices
-    integer,dimension(Ns_Ud,Ns_Orb)   :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
+    integer,dimension(Ns_Ud,Ns)   :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
     real(8),dimension(Ns)             :: Nup,Ndw,Sz
     logical                           :: Jcondition
     complex(8),dimension(Nspin,Ns,Ns) :: Hij,Hloc
@@ -1023,8 +1043,8 @@ contains
              do ii=1,Ns_Ud
                 mup = sectorI%H(ii)%map(Indices(ii))
                 mdw = sectorI%H(ii+Ns_Ud)%map(Indices(ii+Ns_ud))
-                Nups(ii,:) = Bdecomp(mup,Ns_Orb)
-                Ndws(ii,:) = Bdecomp(mdw,Ns_Orb)
+                Nups(ii,:) = Bdecomp(mup,Ns)
+                Ndws(ii,:) = Bdecomp(mdw,Ns)
              enddo
              Nup =  Nups(1,:)
              Ndw =  Ndws(1,:)
@@ -1578,7 +1598,23 @@ contains
        write(unit,"(90(F15.9,1X))")(n2(io,jo),jo=1,io)
     enddo
     close(unit)         
-    !
+    
+
+    if(any([Jk_z,Jk_xy]/=0d0))then
+       unit = fopen("dens_up_w_impup.ed",.true.)
+       write(unit,"(90(F20.12,1X))")(dens_ImpUp(1,io),io=1,Ns)
+       close(unit)
+       unit = fopen("dens_dw_w_impup.ed",.true.)
+       write(unit,"(90(F20.12,1X))")(dens_ImpUp(2,io),io=1,Ns)
+       close(unit)         
+
+       unit = fopen("dens_up_w_impdw.ed",.true.)
+       write(unit,"(90(F20.12,1X))")(dens_ImpDw(1,io),io=1,Ns)
+       close(unit)
+       unit = fopen("dens_dw_w_impdw.ed",.true.)
+       write(unit,"(90(F20.12,1X))")(dens_ImpDw(2,io),io=1,Ns)
+       close(unit)         
+    endif
   end subroutine write_observables
 
   subroutine write_energy()

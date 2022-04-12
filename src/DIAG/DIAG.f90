@@ -486,7 +486,7 @@ contains
        open(free_unit(unit),file="state_list.ed")
        do istate=1,state_list%size
           isector = es_return_sector(state_list,istate)
-          call get_QuantumNumbers(isector,Ns_Orb,Indices)
+          call get_QuantumNumbers(isector,Ns,Indices)
           write(unit,"(i8,i12,"//str(2*Ns_Ud)//"i8)")istate,isector,Indices
        enddo
        close(unit)
@@ -506,7 +506,7 @@ contains
           isector = es_return_sector(state_list,istate)
           write(unit,"(i6,f18.12,2x,ES19.12,1x,2I10)",advance='no')&
                istate,Estate,exp(-(Estate-state_list%emin)/temp),isector,getdim(isector)
-          call get_QuantumNumbers(isector,Ns_Orb,Indices)
+          call get_QuantumNumbers(isector,Ns,Indices)
           write(unit,"("//str(2*Ns_Ud)//"I4)")Indices
        enddo
     endif
@@ -529,7 +529,7 @@ contains
        else
           write(unit,"(A10,A15)")" #X Sector","Indices"
        endif
-       call get_QuantumNumbers(isector,Ns_Orb,Indices)
+       call get_QuantumNumbers(isector,Ns,Indices)
        write(unit,"(I9,"//str(2*Ns_Ud)//"I6)")isector,Indices
        do i=1,size(eig_values)
           write(unit,*)eig_values(i)

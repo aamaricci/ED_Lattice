@@ -112,17 +112,17 @@ MODULE ED_VARS_GLOBAL
 
   !-------------------------- ED  VARIABLES --------------------------!
 
-  !SIZE OF THE PROBLEM
+  !SIZE OF THE PROBLEM |..Ns..|..iNs..>_up*|..Ns..|..iNs..>_dw
   !=========================================================
-  integer,save                                     :: Ns       !Number of levels per spin
-  integer,save                                     :: Ns_tot   !Number of electrons and impurity levels (Ns+NimpSites) per spin
-  integer,save                                     :: Ns_imp   !Number of electrons and actual impurity present (Ns+Nimp)
-  !kept for simplicity here:
-  integer,save                                     :: Ns_orb
-  integer,save                                     :: Ns_ud
-  !other
+  integer,save                                     :: Ns       !Number of electron levels per spin
+  integer,save                                     :: iNs      !Number of impurity levels per spin
+  integer,save                                     :: Ns_imp   !Number of electrons and actual impurity occupation (Ns+Nimp)
+  integer,save                                     :: Nbit     !Number of bit to represent Fock states (Ns+iNs)
   integer,save                                     :: Nsectors !Number of sectors
-  integer,save                                     :: DimImp   !Number of Imp states
+  !kept for simplicity here: to be removed. 
+  ! integer,save                                     :: Ns_orb
+  integer,save                                     :: Ns_ud
+
 
 
   !Some maps between sectors and full Hilbert space (pointers)
@@ -152,13 +152,11 @@ MODULE ED_VARS_GLOBAL
 
 
   !Variables for DIAGONALIZATION
-  !PRIVATE
   !=========================================================  
   integer,allocatable,dimension(:)                 :: neigen_sector
   logical                                          :: trim_state_list=.false.
 
   !Partition function
-  !PRIVATE
   !=========================================================
   real(8)                                          :: zeta_function
   real(8)                                          :: gs_energy
@@ -179,8 +177,7 @@ MODULE ED_VARS_GLOBAL
   type(GFmatrix),allocatable,dimension(:,:)        :: SpinChiMatrix
 
 
-
-  !PRIVATE (now public but accessible thru routines)
+  !Observables & co 
   !=========================================================
   real(8),dimension(:),allocatable                 :: ed_dens
   real(8),dimension(:),allocatable                 :: ed_dens_up,ed_dens_dw

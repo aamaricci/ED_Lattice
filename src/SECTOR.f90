@@ -116,7 +116,7 @@ contains
        do iud=1,Ns_Ud
           !UP    
           dim=0
-          do iup=0,2**Ns_Orb-1
+          do iup=0,2**Ns-1
              nup_ = popcnt(iup)
              if(nup_ /= self%Nups(iud))cycle
              dim  = dim+1
@@ -124,7 +124,7 @@ contains
           enddo
           !DW
           dim=0
-          do idw=0,2**Ns_Orb-1
+          do idw=0,2**Ns-1
              ndw_= popcnt(idw)
              if(ndw_ /= self%Ndws(iud))cycle
              dim = dim+1
@@ -222,7 +222,7 @@ contains
     integer                     :: i_el,ii,iorb
     integer,dimension(2*Ns_Ud)  :: Indices
     integer,dimension(2*Ns_Ud)  :: Jndices
-    integer,dimension(Ns_Orb)   :: Nud
+    integer,dimension(Ns)   :: Nud
     integer                     :: Iud
     integer,dimension(2*Ns_imp) :: ib
     !
@@ -240,7 +240,7 @@ contains
        ibeta  = ialfa + (ispin-1)*Ns_Ud
        call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
        iud = sectorI%H(ibeta)%map(Indices(ibeta))
-       nud = Bdecomp(iud,Ns_Orb)
+       nud = Bdecomp(iud,Ns)
        if(nud(ipos)/=1)return
        call c(ipos,iud,r,sgn)
        Jndices        = Indices
@@ -260,7 +260,7 @@ contains
     integer                     :: i_el,ii,iorb
     integer,dimension(2*Ns_Ud)  :: Indices
     integer,dimension(2*Ns_Ud)  :: Jndices
-    integer,dimension(Ns_Orb)   :: Nud
+    integer,dimension(Ns)   :: Nud
     integer                     :: Iud
     integer,dimension(2*Ns_imp) :: ib
     !
@@ -278,7 +278,7 @@ contains
        ibeta  = ialfa + (ispin-1)*Ns_Ud
        call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
        iud = sectorI%H(ibeta)%map(Indices(ibeta))
-       nud = Bdecomp(iud,Ns_Orb)
+       nud = Bdecomp(iud,Ns)
        if(nud(ipos)/=0)return
        call cdg(ipos,iud,r,sgn)
        Jndices        = Indices
@@ -295,7 +295,7 @@ contains
     integer                     :: i_el,ii,iorb
     integer,dimension(2*Ns_Ud)  :: Indices
     integer,dimension(2*Ns_Ud)  :: Jndices
-    integer,dimension(2,Ns_Orb) :: Nud
+    integer,dimension(2,Ns) :: Nud
     integer,dimension(2)        :: Iud
     integer,dimension(2*Ns_imp) :: ib
     integer,dimension(Ns_imp)   :: Nup,Ndw  ![Ns]
@@ -313,8 +313,8 @@ contains
        call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
        iud(1)   = sectorI%H(ialfa)%map(Indices(ialfa))
        iud(2)   = sectorI%H(ialfa+Ns_Ud)%map(Indices(ialfa+Ns_Ud))
-       nud(1,:) = Bdecomp(iud(1),Ns_Orb)
-       nud(2,:) = Bdecomp(iud(2),Ns_Orb)
+       nud(1,:) = Bdecomp(iud(1),Ns)
+       nud(2,:) = Bdecomp(iud(2),Ns)
        sgn = dble(nud(1,ipos))-dble(nud(2,ipos))
        sgn = sgn/2d0
     endif
@@ -329,7 +329,7 @@ contains
     integer                     :: i_el,ii,iorb
     integer,dimension(2*Ns_Ud)  :: Indices
     integer,dimension(2*Ns_Ud)  :: Jndices
-    integer,dimension(2,Ns_Orb) :: Nud !Nbits(Ns_Orb)
+    integer,dimension(2,Ns) :: Nud !Nbits(Ns)
     integer,dimension(2)        :: Iud
     integer,dimension(2*Ns_imp) :: ib
     integer,dimension(Ns_imp)   :: Nup,Ndw  ![Ns]
@@ -346,8 +346,8 @@ contains
        call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
        iud(1)   = sectorI%H(ialfa)%map(Indices(ialfa))
        iud(2)   = sectorI%H(ialfa+Ns_Ud)%map(Indices(ialfa+Ns_Ud))
-       nud(1,:) = Bdecomp(iud(1),Ns_Orb)
-       nud(2,:) = Bdecomp(iud(2),Ns_Orb)
+       nud(1,:) = Bdecomp(iud(1),Ns)
+       nud(2,:) = Bdecomp(iud(2),Ns)
        sgn = dble(nud(1,ipos))+dble(nud(2,ipos))
     endif
   end subroutine apply_op_N
@@ -360,7 +360,7 @@ contains
     integer,dimension(Ns_imp)       :: Nup,Ndw  ![Ns]
     integer                         :: i_el,ii,iorb
     integer,dimension(2*Ns_Ud)      :: Indices
-    integer,dimension(Ns_Ud,Ns_Orb) :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
+    integer,dimension(Ns_Ud,Ns) :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
     integer,dimension(2)            :: Iud
     integer,dimension(2*Ns_imp)     :: ib
     !
@@ -374,8 +374,8 @@ contains
        do ii=1,Ns_Ud
           iud(1) = sectorI%H(ii)%map(Indices(ii))
           iud(2) = sectorI%H(ii+Ns_Ud)%map(Indices(ii+Ns_ud))
-          Nups(ii,:) = Bdecomp(iud(1),Ns_Orb)
-          Ndws(ii,:) = Bdecomp(iud(2),Ns_Orb)
+          Nups(ii,:) = Bdecomp(iud(1),Ns)
+          Ndws(ii,:) = Bdecomp(iud(2),Ns)
        enddo
        Nup = Nups(1,:)!Breorder(Nups)
        Ndw = Ndws(1,:)!Breorder(Ndws)
@@ -446,8 +446,8 @@ contains
     else
        count=isector-1
        do i=1,2*Ns_Ud
-          indices_(i) = mod(count,Ns_Orb+1)
-          count      = count/(Ns_Orb+1)
+          indices_(i) = mod(count,Ns+1)
+          count      = count/(Ns+1)
        enddo
        Nup = indices_(2*Ns_Ud:Ns_Ud+1:-1)
     endif
@@ -463,8 +463,8 @@ contains
     else
        count=isector-1
        do i=1,2*Ns_Ud
-          indices_(i) = mod(count,Ns_Orb+1)
-          count      = count/(Ns_Orb+1)
+          indices_(i) = mod(count,Ns+1)
+          count      = count/(Ns+1)
        enddo
        Ndw = indices_(Ns_Ud:1:-1)
     endif
@@ -476,7 +476,7 @@ contains
     integer                :: Nups(Ns_Ud),iud
     call get_Nup(isector,Nups)
     do iud=1,Ns_Ud
-       DimUps(iud) = binomial(Ns_Orb,Nups(iud))
+       DimUps(iud) = binomial(Ns,Nups(iud))
     enddo
   end subroutine get_DimUp
 
@@ -486,7 +486,7 @@ contains
     integer                :: Ndws(Ns_Ud),iud
     call get_Ndw(isector,Ndws)
     do iud=1,Ns_Ud
-       DimDws(iud) = binomial(Ns_Orb,Ndws(iud))
+       DimDws(iud) = binomial(Ns,Ndws(iud))
     enddo
   end subroutine get_DimDw
 
@@ -599,7 +599,7 @@ contains
     !
     jups = istate(Ns_Ud+1:2*Ns_Ud)
     jdws = istate(1:Ns_Ud)
-    dims = 2**Ns_Orb
+    dims = 2**Ns
     call indices2state([jups,jdws],Dims,j)
     !
   end function flip_state
@@ -616,7 +616,7 @@ contains
     integer,dimension(Ns_Ud) :: Iups,Idws
     call get_Nup(isector,iups)
     call get_Ndw(isector,idws)
-    call get_Sector([idws,iups],Ns_Orb,jsector)
+    call get_Sector([idws,iups],Ns,jsector)
   end function get_twin_sector
 
 

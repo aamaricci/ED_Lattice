@@ -38,27 +38,31 @@ contains
     KondoFlag=.FALSE.
     if(Nimp>0)KondoFlag=.TRUE.
     !
-    call ed_checks_global
     !
     !>Setup Dimensions of the problem
-    Ns = sum(Nsites(1:Norb))
+    Ns  = sum(Nsites(1:Norb))
+    iNs = 0 ; if(KondoFlag)iNs = Nsites(Norb+1)
     !
-    Ns_Orb = Ns
     Ns_Ud  = 1
-    Ns_Imp = Ns+Nimp
+    Ns_Imp = Ns + Nimp
+    Nbit   = Ns + iNs           ! Total number of bit per spin
     !
-    Nsectors = ((Ns_Orb+1)*(Ns_Orb+1))**Ns_Ud
-    if(KondoFlag)Nsectors = (Ns_imp+1)*(Ns_Imp+1)-2
+    call ed_checks_global
+    !
+    Nsectors = ((Ns+1)*(Ns+1))**Ns_Ud
+    if(KondoFlag)Nsectors = (Ns_imp+1)*(Ns_imp+1)-Nimp*(Nimp+1)
     !
     !
     if(MpiMaster)then
        write(LOGfile,"(A)")"Summary:"
        write(LOGfile,"(A)")"--------------------------------------------"
-       write(LOGfile,"(A,I15)")'# of levels           = ',Ns_Imp
-       write(LOGfile,"(A,I15)")'# of spins            = ',2*(Ns_Imp)
+       write(LOGfile,"(A,I15)")'# of electronic levels= ',Ns
+       write(LOGfile,"(A,I15)")'# of impurity levels  = ',iNs
        write(LOGfile,"(A,I15)")'# of orbitals         = ',Norb
        write(LOGfile,"(A,I15)")'# of impurities       = ',Nimp
-       write(LOGfile,"(A,5I4)")'# Nsites              = ',Nsites
+       write(LOGfile,"(A,I15)")'# of bits per spin    = ',Nbit
+       write(LOGfile,"(A,I15)")'# of particles        = ',Ns_Imp
+       write(LOGfile,"(A,6I4)")'# Nsites              = ',Nsites
        write(LOGfile,"(A,I15)")'# of  sectors         = ',Nsectors
     endif
     !
@@ -94,7 +98,7 @@ contains
     allocate(getCDGsector(Ns_Ud,2,Nsectors));getCDGsector=0
     allocate(getDim(Nsectors));getDim=0
     allocate(getNup(Nsectors),getNdw(Nsectors));getNup=0;getNdw=0
-    allocate(getSector(0:Ns+Nimp,0:Ns+Nimp));getSector=0
+    allocate(getSector(0:Ns_imp,0:Ns_imp));getSector=0
     allocate(twin_mask(Nsectors))
     allocate(sectors_mask(Nsectors))
     allocate(neigen_sector(Nsectors))
@@ -203,6 +207,7 @@ contains
   subroutine ed_checks_global
     if(Nspin>2)stop "ED ERROR: Nspin > 2 is currently not supported"
     if(Norb>5)stop "ED ERROR: Norb > 5 is currently not supported"
+    if(iNs<Nimp)stop "ED ERROR: iNs<Nimp"
     !
     if(KondoFlag.AND.ed_twin)then
        write(LOGfile,"(A)")"WARNING: can not yet use twin_sector with KondoFlag. Set to false."
@@ -251,8 +256,7 @@ contains
        isector=0
        do Nup=0,Ns_Imp
           do Ndw=0,Ns_Imp
-             if(Nup==0.AND.Ndw==0)cycle
-             if(Nup==Ns_Imp.AND.Ndw==Ns_Imp)cycle
+             if( (Nup+Ndw < Nimp) .OR. ( Nup+Ndw > 2*Ns+Nimp) )cycle
              isector=isector+1
              getSector(Nup,Ndw)=isector
              getNup(isector)=Nup
@@ -299,16 +303,16 @@ contains
           Jups(iud)=Jups(iud)-1;
           if(Jups(iud) < 0)cycle
           if(KondoFlag.AND.(Jups(iud) <= 0) .AND. (Jdws(iud)<=0) )cycle
-          call get_Sector([Jups,Jdws],Ns_Orb,jsector)
+          call get_Sector([Jups,Jdws],Ns,jsector)
           getCsector(iud,1,isector)=jsector
        enddo
        do iud=1,Ns_Ud
           Jups=Nups
           Jdws=Ndws
           Jups(iud)=Jups(iud)+1;
-          if(Jups(iud) > Ns_Orb)cycle
-          if( KondoFlag .AND. (Jups(iud) >=Ns_Orb) .AND. (Jdws(iud) >=Ns_Orb) )cycle
-          call get_Sector([Jups,Jdws],Ns_Orb,jsector)
+          if(Jups(iud) > Ns)cycle
+          if( KondoFlag .AND. (Jups(iud) >=Ns) .AND. (Jdws(iud) >=Ns) )cycle
+          call get_Sector([Jups,Jdws],Ns,jsector)
           getCDGsector(iud,1,isector)=jsector
        enddo
        !
@@ -318,16 +322,16 @@ contains
           Jdws(iud)=Jdws(iud)-1
           if(Jdws(iud) < 0)cycle
           if( KondoFlag .AND. (Jups(iud) <= 0) .AND. (Jdws(iud)<=0) )cycle
-          call get_Sector([Jups,Jdws],Ns_Orb,jsector)
+          call get_Sector([Jups,Jdws],Ns,jsector)
           getCsector(iud,2,isector)=jsector
        enddo
        do iud=1,Ns_Ud
           Jups=Nups
           Jdws=Ndws 
           Jdws(iud)=Jdws(iud)+1;
-          if(KondoFlag .AND. (Jups(iud) >=Ns_Orb) .AND. (Jdws(iud) >=Ns_Orb) )cycle
-          if(Jdws(iud) > Ns_Orb)cycle
-          call get_Sector([Jups,Jdws],Ns_Orb,jsector)
+          if(KondoFlag .AND. (Jups(iud) >=Ns) .AND. (Jdws(iud) >=Ns) )cycle
+          if(Jdws(iud) > Ns)cycle
+          call get_Sector([Jups,Jdws],Ns,jsector)
           getCDGsector(iud,2,isector)=jsector
        enddo
     enddo
