@@ -112,14 +112,13 @@ MODULE ED_VARS_GLOBAL
 
   !-------------------------- ED  VARIABLES --------------------------!
 
-  !SIZE OF THE PROBLEM |..Ns..|..iNs..>_up*|..Ns..|..iNs..>_dw
+  !SIZE OF THE PROBLEM |..Ns..>_up*|..Ns..>_dw*|..iNs..>_up*|..iNs..>_dw
   !=========================================================
   integer,save                                     :: Ns       !Number of electron levels per spin
   integer,save                                     :: iNs      !Number of impurity levels per spin
-  integer,save                                     :: Ns_imp   !Number of electrons and actual impurity occupation (Ns+Nimp)
-  integer,save                                     :: Nbit     !Number of bit to represent Fock states (Ns+iNs)
+  integer,save                                     :: Ns_imp   !Number of levels total (Ns+iNs)
   integer,save                                     :: Nsectors !Number of sectors
-  !kept for simplicity here: to be removed. 
+  !kept for simplicity here: to be removed.
   ! integer,save                                     :: Ns_orb
   integer,save                                     :: Ns_ud
 

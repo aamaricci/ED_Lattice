@@ -5,15 +5,15 @@
         !
         Nup = ib(1:Ns)
         Ndw = ib(Ns+1:2*Ns)
-        NpUp= ib(2*Ns+1:2*Ns+Nimp)
-        NpDw= ib(2*Ns+Nimp+1:2*Ns+2*Nimp)
+        NpUp= ib(2*Ns+1:2*Ns+iNs)
+        NpDw= ib(2*Ns+iNs+1:2*Ns+2*iNs)
         Sz  = 0.5d0*(Nup-Ndw)
         Szp = 0.5d0*(NpUp-NpDw)
         !
         htmp = zero
         !
         ! KONDO COUPLING
-        do iimp=1,Nimp
+        do iimp=1,iNs
            do iorb=1,Norb
               do isite=1,Nsites(iorb)
                  if(isite/=Jkindx(iimp))cycle
@@ -29,7 +29,7 @@
            call sp_insert_element(spH0d,htmp,i,i)
         end select
         !
-        do iimp=1,Nimp
+        do iimp=1,iNs
            do iorb=1,Norb
               do isite=1,Nsites(iorb)
                  if(isite/=Jkindx(iimp))cycle
@@ -37,7 +37,7 @@
                  io_up = io
                  io_dw = io + Ns
                  imp_up= 2*Ns + iimp
-                 imp_dw= 2*Ns + iimp + Nimp
+                 imp_dw= 2*Ns + iimp + iNs
                  !c^+_up d^+_dw c_dw  d_up
                  Jcondition=(&
                       (ndw(io)   ==1).AND.&
@@ -89,7 +89,7 @@
         !Kondo exchange. Using Ust as Vdir*=Vdir-Jk/4 (user provided)
         if(Ust/=0d0)then
            htmp=zero
-           do iimp=1,Nimp
+           do iimp=1,iNs
               do iorb=1,Norb
                  do isite=1,Nsites(iorb)
                     if(isite/=Jkindx(iimp))cycle

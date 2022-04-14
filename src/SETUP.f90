@@ -44,31 +44,29 @@ contains
     iNs = 0 ; if(KondoFlag)iNs = Nsites(Norb+1)
     !
     Ns_Ud  = 1
-    Ns_Imp = Ns + Nimp
-    Nbit   = Ns + iNs           ! Total number of bit per spin
+    Ns_Imp = Ns + iNs           !also total number of bit per spin
     !
     call ed_checks_global
     !
-    Nsectors = ((Ns+1)*(Ns+1))**Ns_Ud
-    if(KondoFlag)Nsectors = (Ns_imp+1)*(Ns_imp+1)-Nimp*(Nimp+1)
+    Nsectors = (Ns+1)*(Ns+1)
+    if(KondoFlag)Nsectors = (Ns+Nimp+1)*(Ns+Nimp+1)-Nimp*(Nimp+1)
     !
     !
     if(MpiMaster)then
        write(LOGfile,"(A)")"Summary:"
        write(LOGfile,"(A)")"--------------------------------------------"
+       write(LOGfile,"(A,215)")'# of levels per spin  = ',Ns_imp
        write(LOGfile,"(A,I15)")'# of electronic levels= ',Ns
        write(LOGfile,"(A,I15)")'# of impurity levels  = ',iNs
        write(LOGfile,"(A,I15)")'# of orbitals         = ',Norb
        write(LOGfile,"(A,I15)")'# of impurities       = ',Nimp
-       write(LOGfile,"(A,I15)")'# of bits per spin    = ',Nbit
-       write(LOGfile,"(A,I15)")'# of particles        = ',Ns_Imp
        write(LOGfile,"(A,6I4)")'# Nsites              = ',Nsites
        write(LOGfile,"(A,I15)")'# of  sectors         = ',Nsectors
     endif
     !
 
-    Nup = (Ns_Imp)/2
-    Ndw = (Ns_Imp)-Nup
+    Nup = (Ns+Nimp)/2
+    Ndw = (Ns+Nimp)-Nup
     if(KondoFlag)then
        Dim = get_sector_dimension(Nup,Ndw)
        if(MpiMaster)then
@@ -98,7 +96,7 @@ contains
     allocate(getCDGsector(Ns_Ud,2,Nsectors));getCDGsector=0
     allocate(getDim(Nsectors));getDim=0
     allocate(getNup(Nsectors),getNdw(Nsectors));getNup=0;getNdw=0
-    allocate(getSector(0:Ns_imp,0:Ns_imp));getSector=0
+    allocate(getSector(0:Ns+Nimp,0:Ns+Nimp));getSector=0
     allocate(twin_mask(Nsectors))
     allocate(sectors_mask(Nsectors))
     allocate(neigen_sector(Nsectors))
@@ -254,8 +252,8 @@ contains
     !Store full dimension of the sectors:
     if(KondoFlag)then
        isector=0
-       do Nup=0,Ns_Imp
-          do Ndw=0,Ns_Imp
+       do Nup=0,Ns+Nimp
+          do Ndw=0,Ns+Nimp
              if( (Nup+Ndw < Nimp) .OR. ( Nup+Ndw > 2*Ns+Nimp) )cycle
              isector=isector+1
              getSector(Nup,Ndw)=isector
@@ -353,7 +351,7 @@ contains
        dim = 0
        do i=0,Nimp
           ip = Nimp-i
-          dim = dim + binomial(Nimp,i)*binomial(Ns,Nup-i)*binomial(Ns,Ndw-ip)
+          dim = dim +  binomial(iNs,i)*binomial(iNs,ip)*binomial(Ns,Nup-i)*binomial(Ns,Ndw-ip)
        enddo
     else
        dim = binomial(Ns,Nup)

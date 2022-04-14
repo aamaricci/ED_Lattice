@@ -49,7 +49,7 @@ contains
        !Impurity GF
        if(KondoFlag.AND.gf_flag(Ns+1))then
           do ispin=1,Nspin
-             do iimp=1,Nimp
+             do iimp=1,iNs
                 if(MPIMASTER)call start_timer
                 if(MPIMASTER)write(LOGfile,"(A)")"Build G:"//" imp "//str(iimp)//&
                      " spin"//str(ispin)
@@ -120,7 +120,7 @@ contains
     !
     if(KondoFlag)then
        do ispin=1,Nspin
-          do iimp=1,Nimp
+          do iimp=1,iNs
              if(MPIMASTER)write(LOGfile,"(A)")"Eval G:"//" imp"//str(iimp)//&
                   " spin"//str(ispin)
              if(MPIMASTER)call start_timer
@@ -158,7 +158,9 @@ contains
     if(offdiag_gf_flag)then     
        do ispin=1,Nspin
           do iorb=1,Norb
+             if(.not.gf_flag(iorb))cycle
              do jorb=1,Norb
+                if(.not.gf_flag(jorb))cycle
                 do isite=1,Nsites(iorb)
                    do jsite=1,Nsites(jorb)
                       io  = pack_indices(isite,iorb)
@@ -188,13 +190,19 @@ contains
        select case(ed_method)
        case default
           do ispin=1,Nspin
-             do io=1,Ns
-                do jo=1,Ns
-                   if(io==jo)cycle
-                   impGmats(ispin,io,jo,:) = 0.5d0*(impGmats(ispin,io,jo,:) - &
-                        impGmats(ispin,io,io,:) - impGmats(ispin,jo,jo,:))
-                   impGreal(ispin,io,jo,:) = 0.5d0*(impGreal(ispin,io,jo,:) - &
-                        impGreal(ispin,io,io,:) - impGreal(ispin,jo,jo,:))
+             do iorb=1,Norb
+                if(.not.gf_flag(iorb))cycle
+                do jorb=1,Norb
+                   if(.not.gf_flag(jorb))cycle
+                   do isite=1,Nsites(iorb)
+                      do jsite=1,Nsites(jorb)
+                         io  = pack_indices(isite,iorb)
+                         jo  = pack_indices(jsite,jorb)
+                         if(io==jo)cycle
+                         impGmats(ispin,io,jo,:) = 0.5d0*(impGmats(ispin,io,jo,:) - impGmats(ispin,io,io,:) - impGmats(ispin,jo,jo,:))
+                         impGreal(ispin,io,jo,:) = 0.5d0*(impGreal(ispin,io,jo,:) - impGreal(ispin,io,io,:) - impGreal(ispin,jo,jo,:))
+                      enddo
+                   enddo
                 enddo
              enddo
           enddo
@@ -326,7 +334,7 @@ contains
     !
     ialfa = 1
     io    = Ns + iimp
-    ipos  = 2*Ns + iimp + (ispin-1)*Nimp
+    ipos  = 2*Ns + iimp + (ispin-1)*iNs
     !
     !
     do istate=1,state_list%size
@@ -781,7 +789,7 @@ contains
     !
     ialfa = 1
     io    = Ns+iimp
-    ipos  = 2*Ns + iimp + (ispin-1)*Nimp
+    ipos  = 2*Ns + iimp + (ispin-1)*iNs
     !
     do isector=1,Nsectors
        call get_Nup(isector,nups)

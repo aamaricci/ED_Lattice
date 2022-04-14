@@ -21,6 +21,9 @@ MODULE ED_INPUT_VARS
   real(8)              :: Jk_xy               !J_Kondo: Kondo coupling, in-plane component
   integer,allocatable  :: Jkindx(:)           !tags the position of the impurity sites with respect to the electron band, dim(Jkflags)=Nimp
   !
+  real(8)              :: t_imp               !impurity hopping amplitude (if any)
+  real(8)              :: e_imp(2)            !impurity local energy 
+  !
   real(8)              :: xmu                 !chemical potential
   real(8)              :: temp                !temperature
   !
@@ -125,6 +128,9 @@ contains
     dim=1;if(Nimp>0)dim=Nsites(Norb+1)
     allocate(Jkindx(dim))
     call parse_input_variable(Jkindx,"JKINDX",INPUTunit,default=(/( 1,i=1,size(Jkindx) )/),comment="labels of the Norb sites corresponding to the impurity sites, dim(Jkflags)=Nsites(Norb+1)")
+    !
+    call parse_input_variable(t_imp,"t_mip",INPUTunit,default=0.d0,comment="Impurity hopping amplitude")
+    call parse_input_variable(e_imp,"e_imp",INPUTunit,default=[0d0,0d0],comment="Impurity local energy")
     !
     call parse_input_variable(temp,"TEMP",INPUTunit,default=0.001d0,comment="temperature, at T=0 is used as a IR cut-off.")
     call parse_input_variable(ed_finite_temp,"ED_FINITE_TEMP",INPUTunit,default=.false.,comment="flag to select finite temperature method. note that if T then lanc_nstates_total must be > 1")

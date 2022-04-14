@@ -74,8 +74,8 @@ contains
     integer,dimension(2*Ns_imp)         :: ib
     integer,dimension(Ns)               :: Nup,Ndw
     real(8),dimension(Ns)               :: Sz
-    integer,dimension(Nimp)             :: NpUp,NpDw
-    real(8),dimension(Nimp)             :: Szp
+    integer,dimension(iNs)              :: NpUp,NpDw
+    real(8),dimension(iNs)              :: Szp
     integer                             :: i,j,io_up,io_dw,imp_up,imp_dw
     !
     if(.not.Hsector%status)stop "directMatVec_cc ERROR: Hsector NOT allocated"
@@ -98,8 +98,8 @@ contains
        ib  = bdecomp(m,2*Ns_imp)
        Nup = ib(1:Ns)
        Ndw = ib(Ns+1:2*Ns)
-       NpUp= ib(2*Ns+1:2*Ns+Nimp)
-       NpDw= ib(2*Ns+Nimp+1:2*Ns+2*Nimp)
+       NpUp= ib(2*Ns+1:2*Ns+iNs)
+       NpDw= ib(2*Ns+iNs+1:2*Ns+2*iNs)
        Sz  = 0.5d0*(Nup-Ndw)
        Szp = 0.5d0*(NpUp-NpDw)
 
@@ -204,8 +204,8 @@ contains
     integer,dimension(2*Ns_imp)         :: ib
     integer,dimension(Ns)               :: Nup,Ndw
     real(8),dimension(Ns)               :: Sz
-    integer,dimension(Nimp)             :: NpUp,NpDw
-    real(8),dimension(Nimp)             :: Szp
+    integer,dimension(iNs)              :: NpUp,NpDw
+    real(8),dimension(iNs)              :: Szp
     integer                             :: io_up,io_dw,imp_up,imp_dw
     complex(8),dimension(Nspin,Ns,Ns)   :: Hij,Hloc
     real(8),dimension(Nspin,Ns)         :: Hdiag
@@ -239,8 +239,8 @@ contains
        ib  = bdecomp(m,2*Ns_imp)
        Nup = ib(1:Ns)
        Ndw = ib(Ns+1:2*Ns)
-       NpUp= ib(2*Ns+1:2*Ns+Nimp)
-       NpDw= ib(2*Ns+Nimp+1:2*Ns+2*Nimp)
+       NpUp= ib(2*Ns+1:2*Ns+iNs)
+       NpDw= ib(2*Ns+iNs+1:2*Ns+2*iNs)
        Sz  = 0.5d0*(Nup-Ndw)
        Szp = 0.5d0*(NpUp-NpDw)
 

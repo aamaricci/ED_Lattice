@@ -3,6 +3,9 @@
   do io=1,Ns
      htmp = htmp + Hdiag(1,io)*Nup(io) + Hdiag(Nspin,io)*Ndw(io)
   enddo
+  do iimp=1,iNs
+     htmp = htmp + e_imp(1)*Npup(iimp) + eimp(Nspin)*Npdw(iimp)
+  enddo
   !
   !> H_Int: Kanamori interaction part. 
   ! = \sum_\a U_\a*(n_{\a,up}*n_{\a,dw})
@@ -50,6 +53,10 @@
      do io=1,Ns
         htmp = htmp - xmu*( Nup(io)+Ndw(io) )
      enddo
+     do iimp=1,iNs
+        htmp = htmp - xmu*( Npup(iimp)+Npdw(iimp) )
+     enddo
+     !
      if(hfmode)then
         if(any(Uloc/=0d0))then
            do iorb=1,Norb

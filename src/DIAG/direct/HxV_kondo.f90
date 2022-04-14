@@ -3,7 +3,7 @@
      !
      htmp = zero
      !
-     do iimp=1,Nimp
+     do iimp=1,iNs
         do iorb=1,Norb
            do isite=1,Nsites(iorb)
               if(isite/=Jkindx(iimp))cycle
@@ -16,7 +16,7 @@
      hv(i-MpiIshift) = hv(i-MpiIshift) + htmp*vin(i)
      !
      !
-     do iimp=1,Nimp
+     do iimp=1,iNs
         do iorb=1,Norb
            do isite=1,Nsites(iorb)
               if(isite/=Jkindx(iimp))cycle
@@ -25,15 +25,17 @@
               io_dw = io + Ns
               imp_up= 2*Ns + iimp
               imp_dw= 2*Ns + iimp + Nimp
-              ![c^+.d]_up [d^+.c]_dw
+              !c^+_up d^+_dw c_dw  d_up
               Jcondition=(&
-                   (ndw(io)==1).AND.(npdw(iimp)==0).AND.&
-                   (npup(iimp)==1).AND.(nup(io)==0) )
+                   (ndw(io)   ==1).AND.&
+                   (npdw(iimp)==0).AND.&
+                   (npup(iimp)==1).AND.&
+                   (nup(io)   ==0) )
               if(Jcondition)then
-                 call c(io_dw,m,k1,sg1)     !c_dw
-                 call cdg(imp_dw,k1,k2,sg2) !d^+_dw
-                 call c(imp_up,k2,k3,sg3)   !d_up
-                 call cdg(io_up,k3,k4,sg4)  !c^+_up
+                 call c(imp_up,  m, k1,sg3)  !d_up
+                 call c(io_dw,   k1,k2,sg1)  !c_dw
+                 call cdg(imp_dw,k2,k3,sg2)  !d^+_dw
+                 call cdg(io_up, k3,k4,sg4)  !c^+_up
                  i=binary_search(Hsector%H(1)%map,k4)
                  htmp = one*Jk_xy*sg1*sg2*sg3*sg4
                  !
@@ -41,20 +43,17 @@
                  !
               endif
               !
-              ![d^+.c]_up [c^+.d]_dw 
-              io    = pack_indices(isite,iorb)
-              io_up = io
-              io_dw = io + Ns
-              imp_up= 2*Ns + iimp
-              imp_dw= 2*Ns + iimp + Nimp
+              ! c^+_dw d^+_up c_up  d_dw                 
               Jcondition=(&
-                   (npdw(iimp)==1).AND.(ndw(io)==0).AND.&
-                   (nup(io)==1).AND.(npup(io)==0) )
+                   (npdw(iimp)==1).AND.&
+                   (ndw(io)   ==0).AND.&
+                   (nup(io)   ==1).AND.&
+                   (npup(iimp)==0) )
               if(Jcondition)then
                  call c(imp_dw,m,k1,sg1)    !d_dw
-                 call cdg(io_dw,k1,k2,sg2)  !c^+_dw
-                 call c(io_up,k2,k3,sg3)    !c_up
-                 call cdg(imp_up,k3,k4,sg4) !d^+_up
+                 call c(io_up,k1,k2,sg2)    !c_up
+                 call cdg(imp_up,k2,k3,sg3) !d^+_up
+                 call cdg(io_dw,k3,k4,sg4)  !c^+_dw
                  i=binary_search(Hsector%H(1)%map,k4)
                  htmp = one*Jk_xy*sg1*sg2*sg3*sg4
                  !
@@ -69,7 +68,7 @@
      !Kondo exchange (U'-Jk/4): use Jk_z as Jk here
      if(Ust/=0d0)then
         htmp=zero
-        do iimp=1,Nimp
+        do iimp=1,iNs
            do iorb=1,Norb
               do isite=1,Nsites(iorb)
                  if(isite/=Jkindx(iimp))cycle

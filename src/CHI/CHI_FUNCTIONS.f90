@@ -57,14 +57,12 @@ contains
        call ed_print_impChi()
        chiT= 0d0
        beta= 1d0/temp
-       if(KondoFlag)then
-          do iimp=1,Nimp
-             if(.not.chispin_flag(Norb+iimp))cycle
-             io = Ns+iimp
-             chiT(io) = trapz(spinChi_tau(io,io,0:),0d0,beta)
+       if(KondoFlag.AND.chispin_flag(Norb+1))then
+          do iimp=1,iNs
+             chiT(io) = trapz(spinChi_tau(Ns+iimp,Ns+iimp,0:),0d0,beta)
           enddo
           unit = fopen("chiT_imp.ed",append=.true.)
-          write(unit,*)temp,(chiT(Ns+io),io=1,Nimp)
+          write(unit,*)temp,(chiT(Ns+iimp),iimp=1,iNs)
           close(unit)
        endif
        if(any([chispin_flag(1:Norb)]))then

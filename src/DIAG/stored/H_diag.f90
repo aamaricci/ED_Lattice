@@ -4,14 +4,17 @@
      !
      Nup = ib(1:Ns)
      Ndw = ib(Ns+1:2*Ns)
-     NpUp= ib(2*Ns+1:2*Ns+Nimp)
-     NpDw= ib(2*Ns+Nimp+1:2*Ns+2*Nimp)
+     NpUp= ib(2*Ns+1:2*Ns+iNs)
+     NpDw= ib(2*Ns+iNs+1:2*Ns+2*iNs)
      !
      htmp = zero
      !
      !> H_Imp: Diagonal Elements, i.e. local part
      do io=1,Ns
         htmp = htmp + Hdiag(1,io)*Nup(io) + Hdiag(Nspin,io)*Ndw(io)
+     enddo
+     do iimp=1,iNs
+        htmp = htmp + e_imp(1)*Npup(iimp) + eimp(Nspin)*Npdw(iimp)
      enddo
      !
      !> H_Int: Kanamori interaction part. 
@@ -60,15 +63,16 @@
         do io=1,Ns
            htmp = htmp - xmu*( Nup(io)+Ndw(io) )
         enddo
-        do iimp=1,Nimp
-           htmp = htmp - xmu*( Nup(iimp)+Ndw(iimp) )
+        do iimp=1,iNs
+           htmp = htmp - xmu*( Npup(iimp)+Npdw(iimp) )
         enddo
+        !
         if(hfmode)then
            if(any(Uloc/=0d0))then
               do iorb=1,Norb
                  do isite=1,Nsites(iorb) 
                     io = pack_indices(isite,iorb)
-                    htmp = htmp - 0.5d0*Uloc(iorb)*(Nup(io)+Ndw(io)) !+ 0.25d0*Uloc(iorb)
+                    htmp = htmp - 0.5d0*Uloc(iorb)*(Nup(io)+Ndw(io))
                  enddo
               enddo
            endif

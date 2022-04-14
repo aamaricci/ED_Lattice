@@ -135,8 +135,8 @@ contains
     integer,dimension(2*Ns_imp)        :: ib
     integer,dimension(Ns)              :: Nup,Ndw
     real(8),dimension(Ns)              :: Sz
-    integer,dimension(Nimp)            :: NpUp,NpDw
-    real(8),dimension(Nimp)            :: Szp
+    integer,dimension(iNs)             :: NpUp,NpDw
+    real(8),dimension(iNs)             :: Szp
     complex(8),dimension(Nspin,Ns,Ns)  :: Hij,Hloc
     real(8),dimension(Nspin,Ns)        :: Hdiag
     integer                            :: io_up,io_dw,imp_up,imp_dw

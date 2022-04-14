@@ -222,7 +222,7 @@ contains
     integer                     :: i_el,ii,iorb
     integer,dimension(2*Ns_Ud)  :: Indices
     integer,dimension(2*Ns_Ud)  :: Jndices
-    integer,dimension(Ns)   :: Nud
+    integer,dimension(Ns)       :: Nud
     integer                     :: Iud
     integer,dimension(2*Ns_imp) :: ib
     !
@@ -260,7 +260,7 @@ contains
     integer                     :: i_el,ii,iorb
     integer,dimension(2*Ns_Ud)  :: Indices
     integer,dimension(2*Ns_Ud)  :: Jndices
-    integer,dimension(Ns)   :: Nud
+    integer,dimension(Ns)       :: Nud
     integer                     :: Iud
     integer,dimension(2*Ns_imp) :: ib
     !
@@ -295,29 +295,32 @@ contains
     integer                     :: i_el,ii,iorb
     integer,dimension(2*Ns_Ud)  :: Indices
     integer,dimension(2*Ns_Ud)  :: Jndices
-    integer,dimension(2,Ns) :: Nud
+    integer,dimension(2,Ns_imp) :: Nud
     integer,dimension(2)        :: Iud
     integer,dimension(2*Ns_imp) :: ib
-    integer,dimension(Ns_imp)   :: Nup,Ndw  ![Ns]
+    integer,dimension(Ns)       :: Nup,Ndw
+    integer,dimension(iNs)      :: Npup,Npdw
     !
     sgn=0d0
     !
     if(KondoFlag)then
        i_el = sectorI%H(1)%map(i)
        ib   = bdecomp(i_el,2*Ns_imp)
-       Nup  = [ib(1:Ns),ib(2*Ns+1:2*Ns+Nimp)]
-       Ndw  = [ib(Ns+1:2*Ns),ib(2*Ns+Nimp+1:2*Ns+2*Nimp)]
-       sgn  = dble(nup(ipos))-dble(ndw(ipos))
-       sgn  = sgn/2d0
+       nup  = ib(1:Ns)
+       ndw  = ib(Ns+1:2*Ns)
+       npup = ib(2*Ns+1:2*Ns+iNs)
+       npdw = ib(2*Ns+iNs+1:2*Ns+2*iNs)
+       nud(1,:)  = [Nup,Npup]
+       nud(2,:)  = [Ndw,Npdw]
     else
        call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
        iud(1)   = sectorI%H(ialfa)%map(Indices(ialfa))
        iud(2)   = sectorI%H(ialfa+Ns_Ud)%map(Indices(ialfa+Ns_Ud))
        nud(1,:) = Bdecomp(iud(1),Ns)
-       nud(2,:) = Bdecomp(iud(2),Ns)
-       sgn = dble(nud(1,ipos))-dble(nud(2,ipos))
-       sgn = sgn/2d0
+       nud(2,:) = Bdecomp(iud(2),Ns)       
     endif
+    sgn = nud(1,ipos)-nud(2,ipos)
+    sgn = sgn/2d0
   end subroutine apply_op_Sz
 
 
@@ -329,27 +332,31 @@ contains
     integer                     :: i_el,ii,iorb
     integer,dimension(2*Ns_Ud)  :: Indices
     integer,dimension(2*Ns_Ud)  :: Jndices
-    integer,dimension(2,Ns) :: Nud !Nbits(Ns)
+    integer,dimension(2,Ns_imp) :: Nud
     integer,dimension(2)        :: Iud
     integer,dimension(2*Ns_imp) :: ib
-    integer,dimension(Ns_imp)   :: Nup,Ndw  ![Ns]
+    integer,dimension(Ns)       :: Nup,Ndw
+    integer,dimension(iNs)      :: Npup,Npdw
     !
     sgn=0d0
     !
     if(KondoFlag)then
        i_el = sectorI%H(1)%map(i)
        ib   = bdecomp(i_el,2*Ns_imp)
-       Nup  = [ib(1:Ns),ib(2*Ns+1:2*Ns+Nimp)]
-       Ndw  = [ib(Ns+1:2*Ns),ib(2*Ns+Nimp+1:2*Ns+2*Nimp)]
-       sgn  = dble(nup(ipos))+dble(ndw(ipos))
+       nup  = ib(1:Ns)
+       ndw  = ib(Ns+1:2*Ns)
+       npup = ib(2*Ns+1:2*Ns+iNs)
+       npdw = ib(2*Ns+iNs+1:2*Ns+2*iNs)
+       nud(1,:)  = [Nup,Npup]
+       nud(2,:)  = [Ndw,Npdw]
     else
        call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
        iud(1)   = sectorI%H(ialfa)%map(Indices(ialfa))
        iud(2)   = sectorI%H(ialfa+Ns_Ud)%map(Indices(ialfa+Ns_Ud))
        nud(1,:) = Bdecomp(iud(1),Ns)
        nud(2,:) = Bdecomp(iud(2),Ns)
-       sgn = dble(nud(1,ipos))+dble(nud(2,ipos))
     endif
+    sgn     = dble(nud(1,ipos))+dble(nud(2,ipos))
   end subroutine apply_op_N
 
 
@@ -360,15 +367,21 @@ contains
     integer,dimension(Ns_imp)       :: Nup,Ndw  ![Ns]
     integer                         :: i_el,ii,iorb
     integer,dimension(2*Ns_Ud)      :: Indices
-    integer,dimension(Ns_Ud,Ns) :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
     integer,dimension(2)            :: Iud
     integer,dimension(2*Ns_imp)     :: ib
+    integer,dimension(Ns)           :: Neup,Nedw
+    integer,dimension(iNs)          :: Npup,Npdw
+    integer,dimension(Ns_Ud,Ns_imp) :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
     !
     if(KondoFlag)then
        i_el = sectorI%H(1)%map(i)
        ib   = bdecomp(i_el,2*Ns_imp)
-       Nup  = [ib(1:Ns),ib(2*Ns+1:2*Ns+Nimp)]
-       Ndw  = [ib(Ns+1:2*Ns),ib(2*Ns+Nimp+1:2*Ns+2*Nimp)]
+       nup  = ib(1:Ns)
+       ndw  = ib(Ns+1:2*Ns)
+       npup = ib(2*Ns+1:2*Ns+iNs)
+       npdw = ib(2*Ns+iNs+1:2*Ns+2*iNs)
+       Nup  = [Nup,Npup]
+       Ndw  = [Ndw,Npdw]
     else
        call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
        do ii=1,Ns_Ud
@@ -404,15 +417,15 @@ contains
           print*,Nup,Ndw
           stop "get_Sector ERROR: KondoFlag, looking for inexistent sector (0,0), (N+Nimp,N+Nimp)"
        endif
-       else
-          Nind = size(QN)
-          Factor = N+1
-          isector = 1
-          do i=Nind,1,-1
-             isector = isector + QN(i)*(Factor)**(Nind-i)
-          enddo
-       endif
-     end subroutine get_Sector
+    else
+       Nind = size(QN)
+       Factor = N+1
+       isector = 1
+       do i=Nind,1,-1
+          isector = isector + QN(i)*(Factor)**(Nind-i)
+       enddo
+    endif
+  end subroutine get_Sector
 
 
   subroutine get_QuantumNumbers(isector,N,QN)

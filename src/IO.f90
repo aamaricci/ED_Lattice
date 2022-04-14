@@ -38,13 +38,13 @@ contains
   !+--------------------------------------------------------------------------+!
   !NORMAL, MATSUBARA GREEN'S FUNCTIONS
   subroutine ed_get_gimp_matsubara(Func) 
-    complex(8),dimension(Nspin,Ns,Ns,Lmats),intent(inout) :: Func
+    complex(8),dimension(Nspin,Ns_imp,Ns_imp,Lmats),intent(inout) :: Func
     Func = impGmats
   end subroutine ed_get_gimp_matsubara
 
   !NORMAL, REAL GF
   subroutine ed_get_gimp_realaxis(Func) 
-    complex(8),dimension(Nspin,Ns,Ns,Lmats),intent(inout) :: Func
+    complex(8),dimension(Nspin,Ns_imp,Ns_imp,Lreal),intent(inout) :: Func
     Func = impGreal
   end subroutine ed_get_gimp_realaxis
 
@@ -54,17 +54,17 @@ contains
   ! PURPOSE: Retrieve measured values of the local observables
   !+--------------------------------------------------------------------------+!
   subroutine ed_get_dens(dens)
-    real(8),dimension(Ns) :: dens
+    real(8),dimension(Ns_imp) :: dens
     dens = ed_dens
   end subroutine ed_get_dens
 
   subroutine ed_get_mag(mag) 
-    real(8),dimension(Ns) :: mag
+    real(8),dimension(Ns_imp) :: mag
     mag = (ed_dens_up-ed_dens_dw)
   end subroutine ed_get_mag
 
   subroutine ed_get_docc(docc) 
-    real(8),dimension(Ns) :: docc
+    real(8),dimension(Ns_imp) :: docc
     docc = ed_docc
   end subroutine ed_get_docc
 
@@ -103,9 +103,6 @@ contains
 
   subroutine ed_print_impChi
     if(any(chispin_flag))call print_chi_spin
-    ! if(chidens_flag)call print_chi_dens
-    ! if(chipair_flag)call print_chi_pair
-    ! if(chiexct_flag)call print_chi_exct
   end subroutine ed_print_impChi
 
 
@@ -116,8 +113,8 @@ contains
     integer :: iorb,jorb,ilat,jlat,io,jo,iimp
     call allocate_grids()
     if(KondoFlag)then
-       do iimp=1,Nimp
-          if(.not.chispin_flag(Norb+iimp))cycle
+       if(.not.chispin_flag(Norb+1))return
+       do iimp=1,iNs
           io = Ns+iimp
           suffix="spinChi_i"//str(iimp)
           call splot(reg(suffix)//"_tau"//reg(ed_file_suffix)//".ed",tau,spinChi_tau(io,io,0:))
@@ -178,7 +175,7 @@ contains
     !
     integer                                  :: iprint_
     integer                                  :: Lfreq,Nfunc   
-    integer                                  :: io,jo,ilat,jlat,iorb,jorb,ispin,jspin
+    integer                                  :: io,jo,ilat,jlat,iorb,jorb,ispin,jspin,iimp,jimp
     !
     iprint_=1;if(present(iprint))iprint_=iprint
     !
@@ -191,14 +188,53 @@ contains
     !
     Lfreq = size(zeta)
     Nfunc = size(Func,2)
-    if(Nfunc /= Ns)stop "Ed_write_func ERROR: size(func,1) /= sum(Nsites)==Ns"
-    call assert_shape(Func,[Nspin,Ns,Ns,Lfreq],"Ed_write_func","Func")
+    if(Nfunc /= Ns_imp)stop "Ed_write_func ERROR: size(func,1) /= sum(Nsites)==Ns_imp"
+    call assert_shape(Func,[Nspin,Ns_imp,Ns_imp,Lfreq],"Ed_write_func","Func")
     !
     !
-    !1: diagonal lattice-spin-orbital
-    !2: all sites, diagonal spin-orbital
-    !3: all sites, all orb, same spins
-    !4: all sites, all orb, all spins
+    if(KondoFlag)then
+       if(MpiMaster)then
+          select case(iprint_)
+          case default
+             write(*,"(A,1x,A)")reg(fname),"ed_write_func: not written on file."
+             !
+             !
+          case(1)
+             write(*,"(A,1x,A)") reg(fname),"ed_write_func: diagonal lattice-spin-orbital."
+             do ispin=1,Nspin
+                if(.not.gf_flag(Norb+1))cycle
+                do iimp=1,Nsites(Norb+1)
+                   io = Ns+iimp
+                   suffix=reg(fname)//&
+                        "_Iimp"//str(iimp,site_indx_padding)//&
+                        str(w_suffix)//reg(ed_file_suffix)//str(gf_suffix)
+                   call splot(reg(suffix),zeta,Func(ispin,io,io,:))
+                enddo
+             enddo
+             !
+             !
+          case(2,3)
+             write(*,"(A,1x,A)") reg(fname),"ed_write_func:  all sites, diagonal spin-orbital."
+             do ispin=1,Nspin
+                if(.not.gf_flag(Norb+1))cycle
+                do iimp=1,Nsites(Norb+1)
+                   do jimp=1,Nsites(Norb+1)
+                      io = Ns+iimp
+                      jo = Ns+jimp
+                      !
+                      suffix=reg(fname)//&
+                           "_Iimp"//str(iimp,site_indx_padding)//"Jimp"//str(jimp,site_indx_padding)//&
+                           str(w_suffix)//reg(ed_file_suffix)//str(gf_suffix)
+                      call splot(reg(suffix),zeta,Func(ispin,io,jo,:))
+                   enddo
+                enddo
+             enddo
+             !
+             !
+          end select
+       endif
+    endif
+    !
     if(MpiMaster)then
        select case(iprint_)
        case default
@@ -273,8 +309,8 @@ contains
           !
        end select
     endif
+    !
   end subroutine ed_write_func
-
 
 END MODULE ED_IO
 

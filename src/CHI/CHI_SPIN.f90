@@ -55,9 +55,8 @@ contains
        return
     case default
        !Impurity GF
-       if(KondoFlag)then
-          do iimp=1,Nimp
-             if(.not.chispin_flag(Norb+iimp))cycle
+       if(KondoFlag .AND. chispin_flag(Norb+1))then
+          do iimp=1,iNs
              if(MPIMASTER)call start_timer
              if(MPIMASTER)write(LOGfile,"(A)")"Build spinChi:"//" imp "//str(iimp)
              call allocate_GFmatrix(SpinChiMatrix(Ns+iimp,Ns+iimp),Nstate=state_list%size)
@@ -114,9 +113,8 @@ contains
     integer :: isite,jsite
     integer :: io,jo
     !
-    if(KondoFlag)then
-       do iimp=1,Nimp
-          if(.not.chispin_flag(Norb+iimp))cycle
+    if(KondoFlag .AND. chispin_flag(Norb+1))then
+       do iimp=1,iNs
           if(MPIMASTER)write(LOGfile,"(A)")"Eval spinChi:"//" imp"//str(iimp)
           if(MPIMASTER)call start_timer
           select case(ed_method)
@@ -175,16 +173,23 @@ contains
        !
        select case(ed_method)
        case default
-          do io=1,Ns
-             do jo=1,Ns
-                if(io==jo)cycle
-                spinChi_w(io,jo,:)   = 0.5d0*(spinChi_w(io,jo,:) - spinChi_w(io,io,:) - spinChi_w(jo,jo,:))
-                spinChi_tau(io,jo,:) = 0.5d0*(spinChi_tau(io,jo,:) - spinChi_tau(io,io,:) - spinChi_tau(jo,jo,:))
-                spinChi_iv(io,jo,:)  = 0.5d0*(spinChi_iv(io,jo,:) - spinChi_iv(io,io,:) - spinChi_iv(jo,jo,:))
-                !
-                spinChi_w(jo,io,:)   = spinChi_w(io,jo,:)
-                spinChi_tau(jo,io,:) = spinChi_tau(io,jo,:)
-                spinChi_iv(jo,io,:)  = spinChi_iv(io,jo,:)
+          do iorb=1,Norb
+             do jorb=1,Norb
+                if(.not.chispin_flag(iorb).AND..not.chispin_flag(jorb))cycle
+                do isite=1,Nsites(iorb)
+                   do jsite=1,Nsites(jorb)
+                      io  = pack_indices(isite,iorb)
+                      jo  = pack_indices(jsite,jorb)
+                      if(io==jo)cycle
+                      spinChi_w(io,jo,:)   = 0.5d0*(spinChi_w(io,jo,:) - spinChi_w(io,io,:) - spinChi_w(jo,jo,:))
+                      spinChi_tau(io,jo,:) = 0.5d0*(spinChi_tau(io,jo,:) - spinChi_tau(io,io,:) - spinChi_tau(jo,jo,:))
+                      spinChi_iv(io,jo,:)  = 0.5d0*(spinChi_iv(io,jo,:) - spinChi_iv(io,io,:) - spinChi_iv(jo,jo,:))
+                      !
+                      spinChi_w(jo,io,:)   = spinChi_w(io,jo,:)
+                      spinChi_tau(jo,io,:) = spinChi_tau(io,jo,:)
+                      spinChi_iv(jo,io,:)  = spinChi_iv(io,jo,:)
+                   enddo
+                enddo
              enddo
           enddo
        case ('lapack','full')
@@ -399,9 +404,6 @@ contains
     Nlanc = size(alanc)
     !
     pesoF  = vnorm2
-    ! beta   = 1d0/temp
-    ! pesoBZ = 1d0/zeta_function
-    ! if(finiteT)pesoBZ = exp(-(Ei-Egs)*beta)/zeta_function
     !
 #ifdef _MPI
     if(MpiStatus)then
@@ -419,7 +421,7 @@ contains
        Ej     = diag(j)
        dE     = Ej-Ei
        pesoAB = Z(1,j)*Z(1,j)
-       peso   = pesoF*pesoAB!*pesoBZ
+       peso   = pesoF*pesoAB
        !
        SpinChiMatrix(io,jo)%state(istate)%channel(ichan)%weight(j) = peso
        SpinChiMatrix(io,jo)%state(istate)%channel(ichan)%poles(j)  = de

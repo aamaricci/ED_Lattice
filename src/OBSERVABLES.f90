@@ -174,7 +174,7 @@ contains
              s2tot = s2tot  + (sum(sz))**2*state_weight*boltzman_weight
 
              if(any([Jk_z,Jk_xy]/=0d0))then
-                do iimp=1,Nimp
+                do iimp=1,iNs
                    if(nup(Ns+iimp)==1)then
                       do is=1,Ns
                          dens_ImpUp(1,is)  = dens_ImpUp(1,is)   +  nup(is)*state_weight*boltzman_weight
@@ -648,8 +648,8 @@ contains
     integer,dimension(2*Ns_imp)         :: ib
     integer,dimension(Ns)               :: Nup,Ndw
     real(8),dimension(Ns)               :: Sz
-    integer,dimension(Nimp)             :: NpUp,NpDw
-    real(8),dimension(Nimp)             :: Szp
+    integer,dimension(iNs)              :: NpUp,NpDw
+    real(8),dimension(iNs)              :: Szp
     complex(8),dimension(Nspin,Ns,Ns)   :: Hij,Hloc
     complex(8),dimension(Nspin,Ns)      :: Hdiag
     complex(8),dimension(:),allocatable :: state_cvec
@@ -702,8 +702,8 @@ contains
              m  = sectorI%H(1)%map(i)
              Nup = dble(IbUp(1:Ns))
              Ndw = dble(IbDw(1:Ns))
-             NpUp= dble(IbUp(Ns+1:Ns+Nimp))
-             NpDw= dble(IbDw(Ns+1:Ns+Nimp))
+             NpUp= dble(IbUp(Ns+1:Ns+iNs))
+             NpDw= dble(IbDw(Ns+1:Ns+iNs))
              Sz  = 0.5d0*(Nup-Ndw)
              Szp = 0.5d0*(NpUp-NpDw)
              !
@@ -714,14 +714,16 @@ contains
                 ed_Eknot = ed_Eknot + Hdiag(1,io)*Nup(io)*state_weight*boltzman_weight
                 ed_Eknot = ed_Eknot + Hdiag(Nspin,io)*Ndw(io)*state_weight*boltzman_weight
              enddo
+             do iimp=1,iNs
+                ed_Eknot = ed_Eknot + e_imp(1)*Npup(iimp)*state_weight*boltzman_weight
+                ed_Eknot = ed_Eknot + eimp(Nspin)*Npdw(iimp)*state_weight*boltzman_weight
+             enddo
              !
              !> H_imp: Off-diagonal elements, i.e. non-local part.
-             !UP electrons
              do io=1,Ns
                 do jo=1,Ns
-                   Jcondition = &
-                        (Hij(1,io,jo)/=zero) .AND. &
-                        (nup(jo)==1) .AND. (nup(io)==0)
+                   !UP electrons
+                   Jcondition = (Hij(1,io,jo)/=zero) .AND. (nup(jo)==1) .AND. (nup(io)==0)
                    if (Jcondition) then
                       call c(jo,m,k1,sg1)
                       call cdg(io,k1,k2,sg2)
@@ -729,14 +731,8 @@ contains
                       ed_Ekin = ed_Ekin + &
                            Hij(1,io,jo)*sg1*sg2*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
                    endif
-                enddo
-             enddo
-             !DW electrons
-             do io=1,Ns
-                do jo=1,Ns
-                   Jcondition = &
-                        (Hij(Nspin,io,jo)/=zero) .AND. &
-                        (ndw(jo)==1) .AND. (ndw(io)==0)
+                   !DW electrons
+                   Jcondition = (Hij(Nspin,io,jo)/=zero) .AND. (ndw(jo)==1) .AND. (ndw(io)==0)
                    if (Jcondition) then
                       call c(jo+Ns,m,k1,sg1)
                       call cdg(io+Ns,k1,k2,sg2)
@@ -748,6 +744,28 @@ contains
              enddo
              !
              !
+             do io=1,iNs
+                do jo=1,iNs
+                   !UP impurity
+                   Jcondition =  (t_imp/=0d0) .AND. (npup(jo)==1) .AND. (npup(io)==0)
+                   if (Jcondition) then
+                      call c(2*Ns + jo,m,k1,sg1)
+                      call cdg(2*Ns + io,k1,k2,sg2)
+                      j    = binary_search(Hsector%H(1)%map,k2)
+                      ed_Ekin = ed_Ekin + t_imp*sg1*sg2
+                   endif
+                   !DW impurity
+                   Jcondition = (t_imp/=0d0) .AND. (npdw(jo)==1) .AND. (npdw(io)==0)
+                   if (Jcondition) then
+                      call c(2*Ns + iNs + jo,m,k1,sg1)
+                      call cdg(2*Ns + iNs + io,k1,k2,sg2)
+                      j    = binary_search(Hsector%H(1)%map,k2)
+                      ed_Ekin = ed_Ekin + t_imp*sg1*sg2
+                   endif
+                enddo
+             enddo
+
+
              !Euloc=\sum=i U_i*(n_u*n_d)_i
              do iorb=1,Norb
                 do isite=1,Nsites(iorb)          
@@ -868,7 +886,7 @@ contains
              endif
              !
              !
-             do iimp=1,Nimp
+             do iimp=1,iNs
                 do iorb=1,Norb
                    do isite=1,Nsites(iorb)
                       if(isite/=Jkindx(iimp))cycle
@@ -879,7 +897,7 @@ contains
                 enddo
              enddo
              !
-             do iimp=1,Nimp
+             do iimp=1,iNs
                 do iorb=1,Norb
                    do isite=1,Nsites(iorb)
                       if(isite/=Jkindx(iimp))cycle
@@ -887,35 +905,34 @@ contains
                       io_up = io
                       io_dw = io + Ns
                       imp_up= 2*Ns + iimp
-                      imp_dw= 2*Ns + iimp + Nimp
-                      ![c^+.d]_up [d^+.c]_dw
+                      imp_dw= 2*Ns + iimp + iNs
+                      !c^+_up d^+_dw c_dw  d_up
                       Jcondition=(&
-                           (ndw(io)==1).AND.(npdw(iimp)==0).AND.&
-                           (npup(iimp)==1).AND.(nup(io)==0) )
+                           (ndw(io)   ==1).AND.&
+                           (npdw(iimp)==0).AND.&
+                           (npup(iimp)==1).AND.&
+                           (nup(io)   ==0) )
                       if(Jcondition)then
-                         call c(io_dw,m,k1,sg1)     !c_dw
-                         call cdg(imp_dw,k1,k2,sg2) !d^+_dw
-                         call c(imp_up,k2,k3,sg3)   !d_up
+                         call c(imp_up,m,k1,sg1)    !d_up
+                         call c(io_dw,k1,k2,sg2)    !c_dw
+                         call cdg(imp_dw,k2,k3,sg3) !d^+_dw
                          call cdg(io_up,k3,k4,sg4)  !c^+_up
                          j=binary_search(sectorI%H(1)%map,k4)
                          ed_Epot = ed_Epot + Jk_xy*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
                          ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
                       endif
                       !
-                      ![d^+.c]_up [c^+.d]_dw 
-                      io    = pack_indices(isite,iorb)
-                      io_up = io
-                      io_dw = io + Ns
-                      imp_up= 2*Ns + iimp
-                      imp_dw= 2*Ns + iimp + Nimp
+                      ! c^+_dw d^+_up c_up  d_dw                 
                       Jcondition=(&
-                           (npdw(iimp)==1).AND.(ndw(io)==0).AND.&
-                           (nup(io)==1).AND.(npup(iimp)==0) )
+                           (npdw(iimp)==1).AND.&
+                           (ndw(io)   ==0).AND.&
+                           (nup(io)   ==1).AND.&
+                           (npup(iimp)==0) )
                       if(Jcondition)then
                          call c(imp_dw,m,k1,sg1)    !d_dw
-                         call cdg(io_dw,k1,k2,sg2)  !c^+_dw
-                         call c(io_up,k2,k3,sg3)    !c_up
-                         call cdg(imp_up,k3,k4,sg4) !d^+_up
+                         call c(io_up,k1,k2,sg2)    !c_up
+                         call cdg(imp_up,k2,k3,sg3) !d^+_up
+                         call cdg(io_dw,k3,k4,sg4)  !c^+_dw
                          j=binary_search(sectorI%H(1)%map,k4)
                          ed_Epot = ed_Epot + Jk_xy*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
                          ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
@@ -927,6 +944,20 @@ contains
              !
              !
              !
+             !Kondo exchange. Using Ust as Vdir*=Vdir-Jk/4 (user provided)
+             if(Ust/=0d0)then
+                htmp=zero
+                do iimp=1,iNs
+                   do iorb=1,Norb
+                      do isite=1,Nsites(iorb)
+                         if(isite/=Jkindx(iimp))cycle
+                         io = pack_indices(isite,iorb)
+                         ed_Epot = ed_Epot + Ust*(Nup(io)*NpUp(iimp) + Nup(io)*NpDw(iimp) + Ndw(io)*NpUp(iimp) + Ndw(io)*NpDw(iimp))
+                      enddo
+                   enddo
+                enddo
+             endif
+
           enddo
           call delete_sector(sectorI)         
        endif
@@ -1260,8 +1291,8 @@ contains
     integer,dimension(2*Ns_imp)       :: ib
     integer,dimension(Ns)             :: Nup,Ndw
     real(8),dimension(Ns)             :: Sz
-    integer,dimension(Nimp)           :: NpUp,NpDw
-    real(8),dimension(Nimp)           :: Szp
+    integer,dimension(iNs)           :: NpUp,NpDw
+    real(8),dimension(iNs)           :: Szp
     complex(8),dimension(Nspin,Ns,Ns) :: Hij,Hloc
     complex(8),dimension(Nspin,Ns)    :: Hdiag
     integer                           :: Iups(Ns_Ud)
@@ -1308,8 +1339,8 @@ contains
              m  = sectorI%H(1)%map(i)
              Nup = dble(IbUp(1:Ns))
              Ndw = dble(IbDw(1:Ns))
-             NpUp= dble(IbUp(Ns+1:Ns+Nimp))
-             NpDw= dble(IbDw(Ns+1:Ns+Nimp))
+             NpUp= dble(IbUp(Ns+1:Ns+iNs))
+             NpDw= dble(IbDw(Ns+1:Ns+iNs))
              Sz  = 0.5d0*(Nup-Ndw)
              Szp = 0.5d0*(NpUp-NpDw)
              !
@@ -1464,7 +1495,7 @@ contains
              enddo
              !
              !KONDO COUPLING:
-             do iimp=1,Nimp
+             do iimp=1,iNs
                 do iorb=1,Norb
                    do isite=1,Nsites(iorb)
                       if(isite/=Jkindx(iimp))cycle
@@ -1474,7 +1505,7 @@ contains
                    enddo
                 enddo
              enddo
-             do iimp=1,Nimp
+             do iimp=1,iNs
                 do iorb=1,Norb
                    do isite=1,Nsites(iorb)
                       if(isite/=Jkindx(iimp))cycle
@@ -1482,7 +1513,7 @@ contains
                       io_up = io
                       io_dw = io + Ns
                       imp_up= 2*Ns + iimp
-                      imp_dw= 2*Ns + iimp + Nimp
+                      imp_dw= 2*Ns + iimp + iNs
                       ![c^+.d]_up [d^+.c]_dw
                       Jcondition=(&
                            (ndw(io)==1).AND.(npdw(iimp)==0).AND.&
@@ -1502,7 +1533,7 @@ contains
                       io_up = io
                       io_dw = io + Ns
                       imp_up= 2*Ns + iimp
-                      imp_dw= 2*Ns + iimp + Nimp
+                      imp_dw= 2*Ns + iimp + iNs
                       Jcondition=(&
                            (npdw(iimp)==1).AND.(ndw(io)==0).AND.&
                            (nup(io)==1).AND.(npup(iimp)==0) )
