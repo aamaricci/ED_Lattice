@@ -18,7 +18,6 @@ MODULE ED_OBSERVABLES
   public :: energy_lattice
 
 
-
   real(8),dimension(:),allocatable   :: dens,dens_up,dens_dw
   real(8),dimension(:),allocatable   :: docc
   real(8),dimension(:),allocatable   :: magz
@@ -716,7 +715,7 @@ contains
              enddo
              do iimp=1,iNs
                 ed_Eknot = ed_Eknot + e_imp(1)*Npup(iimp)*state_weight*boltzman_weight
-                ed_Eknot = ed_Eknot + eimp(Nspin)*Npdw(iimp)*state_weight*boltzman_weight
+                ed_Eknot = ed_Eknot + e_imp(Nspin)*Npdw(iimp)*state_weight*boltzman_weight
              enddo
              !
              !> H_imp: Off-diagonal elements, i.e. non-local part.
@@ -751,7 +750,7 @@ contains
                    if (Jcondition) then
                       call c(2*Ns + jo,m,k1,sg1)
                       call cdg(2*Ns + io,k1,k2,sg2)
-                      j    = binary_search(Hsector%H(1)%map,k2)
+                      j    = binary_search(sectorI%H(1)%map,k2)
                       ed_Ekin = ed_Ekin + t_imp*sg1*sg2
                    endif
                    !DW impurity
@@ -759,7 +758,7 @@ contains
                    if (Jcondition) then
                       call c(2*Ns + iNs + jo,m,k1,sg1)
                       call cdg(2*Ns + iNs + io,k1,k2,sg2)
-                      j    = binary_search(Hsector%H(1)%map,k2)
+                      j    = binary_search(sectorI%H(1)%map,k2)
                       ed_Ekin = ed_Ekin + t_imp*sg1*sg2
                    endif
                 enddo
@@ -946,7 +945,6 @@ contains
              !
              !Kondo exchange. Using Ust as Vdir*=Vdir-Jk/4 (user provided)
              if(Ust/=0d0)then
-                htmp=zero
                 do iimp=1,iNs
                    do iorb=1,Norb
                       do isite=1,Nsites(iorb)

@@ -14,7 +14,7 @@
         htmp = htmp + Hdiag(1,io)*Nup(io) + Hdiag(Nspin,io)*Ndw(io)
      enddo
      do iimp=1,iNs
-        htmp = htmp + e_imp(1)*Npup(iimp) + eimp(Nspin)*Npdw(iimp)
+        htmp = htmp + e_imp(1)*Npup(iimp) + e_imp(Nspin)*Npdw(iimp)
      enddo
      !
      !> H_Int: Kanamori interaction part. 

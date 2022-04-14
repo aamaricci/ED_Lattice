@@ -55,7 +55,7 @@ contains
     if(MpiMaster)then
        write(LOGfile,"(A)")"Summary:"
        write(LOGfile,"(A)")"--------------------------------------------"
-       write(LOGfile,"(A,215)")'# of levels per spin  = ',Ns_imp
+       write(LOGfile,"(A,I15)")'# of levels per spin  = ',Ns_imp
        write(LOGfile,"(A,I15)")'# of electronic levels= ',Ns
        write(LOGfile,"(A,I15)")'# of impurity levels  = ',iNs
        write(LOGfile,"(A,I15)")'# of orbitals         = ',Norb
