@@ -1,16 +1,16 @@
   do i=MpiIstart,MpiIend
      m  = Hsector%H(1)%map(i)
-     ib  = bdecomp(m,2*Ns_imp)
+     ib  = bdecomp(m,2*Ns)
      !
-     Nup = ib(1:Ns)
-     Ndw = ib(Ns+1:2*Ns)
-     NpUp= ib(2*Ns+1:2*Ns+iNs)
-     NpDw= ib(2*Ns+iNs+1:2*Ns+2*iNs)
+     Nup = ib(1:eNs)
+     Ndw = ib(eNs+1:2*eNs)
+     NpUp= ib(2*eNs+1:2*eNs+iNs)
+     NpDw= ib(2*eNs+iNs+1:2*eNs+2*iNs)
      !
      htmp = zero
      !
      !> H_Imp: Diagonal Elements, i.e. local part
-     do io=1,Ns
+     do io=1,eNs
         htmp = htmp + Hdiag(1,io)*Nup(io) + Hdiag(Nspin,io)*Ndw(io)
      enddo
      do iimp=1,iNs
@@ -60,7 +60,7 @@
      !
      !
      if(ed_filling==0)then
-        do io=1,Ns
+        do io=1,eNs
            htmp = htmp - xmu*( Nup(io)+Ndw(io) )
         enddo
         do iimp=1,iNs

@@ -134,8 +134,8 @@ contains
     call build_sector(isector,Hsector)
     !
     !This is not really needed but it eases the writing:
-    allocate(DimUps(Ns_Ud))
-    allocate(DimDws(Ns_Ud))
+    allocate(DimUps(1))
+    allocate(DimDws(1))
     Dim    = Hsector%Dim
     DimUp  = Hsector%DimUp
     DimDw  = Hsector%DimDw
@@ -238,7 +238,7 @@ contains
 
 
   subroutine delete_Hv_sector_main()
-    integer :: iud,ierr,i
+    integer :: ierr,i
     call delete_sector(Hsector)
     if(allocated(DimUps))deallocate(DimUps)
     if(allocated(DimDws))deallocate(DimDws)
@@ -259,10 +259,8 @@ contains
     call sp_delete_matrix(spH0d)
     if(Jhflag)call sp_delete_matrix(spH0nd)
 #endif
-    do iud=1,Ns_Ud
-       call sp_delete_matrix(spH0ups(iud))
-       call sp_delete_matrix(spH0dws(iud))
-    enddo
+    call sp_delete_matrix(spH0ups(1))
+    call sp_delete_matrix(spH0dws(1))
     !
     spHtimesV_p => null()
     !
@@ -292,8 +290,8 @@ contains
     integer :: isector
     integer :: vecDim
     integer :: mpiQdw
-    integer :: DimUps(Ns_Ud),DimUp
-    integer :: DimDws(Ns_Ud),DimDw
+    integer :: DimUps(1),DimUp
+    integer :: DimDws(1),DimDw
     !
     call get_DimUp(isector,DimUps) ; DimUp = product(DimUps)
     call get_DimDw(isector,DimDws) ; DimDw = product(DimDws)

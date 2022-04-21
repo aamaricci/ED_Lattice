@@ -1,6 +1,7 @@
-  !> H_Imp: Diagonal Elements, i.e. local part
   htmp = zero
-  do io=1,Ns
+  !
+  !> H_Imp: Diagonal Elements, i.e. local part
+  do io=1,eNs
      htmp = htmp + Hdiag(1,io)*Nup(io) + Hdiag(Nspin,io)*Ndw(io)
   enddo
   do iimp=1,iNs

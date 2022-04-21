@@ -40,7 +40,7 @@ contains
     call deallocate_GFmatrix(OcMatrix)
     !
     if(allocated(Hij))deallocate(Hij)
-    allocate(Hij(Nspin,Ns,Ns))
+    allocate(Hij(Nspin,eNs,eNs))
     call Hij_get(Hij)
     !
     select case(ed_method)
@@ -67,7 +67,7 @@ contains
     integer :: iorb
     !
     if(allocated(Hij))deallocate(Hij)
-    allocate(Hij(Nspin,Ns,Ns))
+    allocate(Hij(Nspin,eNs,eNs))
     call Hij_get(Hij)
     !
     do iorb=1,Norb
@@ -107,7 +107,7 @@ contains
     integer                             :: io,jo
     integer                             :: k1,k2
     real(8)                             :: sg1,sg2
-    integer                             :: nup(Ns),ndw(Ns),ib(2*Ns_imp)
+    integer                             :: nup(eNs),ndw(eNs),ib(2*Ns)
     integer                             :: isite,jsite
     type(sector)                        :: sectorI
     complex(8),dimension(:),allocatable :: state_cvec
@@ -139,10 +139,10 @@ contains
              !
              do i=1,sectorI%Dim
                 m = sectorI%H(1)%map(i)
-                ib  = bdecomp(m,2*Ns_imp)
+                ib  = bdecomp(m,2*Ns)
                 !
-                Nup = ib(1:Ns)
-                Ndw = ib(Ns+1:2*Ns)
+                Nup = ib(1:eNs)
+                Ndw = ib(eNs+1:2*eNs)
                 !
                 !Apply J_{iorb} =  -xi*\sum_sigma \sum_i
                 !                  H(sigma,iorb,i,i+1) Cdg_{sigma,iorb,i}C_{sigma,iorb,i+1} -
@@ -201,8 +201,8 @@ contains
                 mup = sectorI%H(1)%map(iup)
                 mdw = sectorI%H(2)%map(idw)
                 !
-                nup = bdecomp(mup,Ns)
-                ndw = bdecomp(mdw,Ns)
+                nup = bdecomp(mup,eNs)
+                ndw = bdecomp(mdw,eNs)
                 !
                 !Apply J_{iorb} =  -xi*\sum_sigma \sum_i
                 !                  H(sigma,iorb,i,i+1) Cdg_{sigma,iorb,i}C_{sigma,iorb,i+1} -
@@ -350,7 +350,6 @@ contains
     !
     !this is the total number of available states  == state_list%size
     Nstates = size(OcMatrix(iorb)%state) 
-    !Get trimmed state for the actual value of temp == state_list%trimd_size
     call es_trim_size(state_list,temp,cutoff) 
     do istate=1,state_list%trimd_size     !Nstates
        if(.not.allocated(OcMatrix(iorb)%state(istate)%channel))cycle
@@ -369,9 +368,9 @@ contains
              if(abs(dE)<cutoff)cycle
              if(abs(peso/dE)<cutoff)cycle
              Drude_weight(iorb) = Drude_weight(iorb) + peso/dE
-             ! do i=1,Lreal
-             !    OptCond_w(iorb,i)=OptCond_w(iorb,i) + peso/dE*eps/( (vr(i)-dE)**2 + eps**2 )
-             ! enddo
+             do i=1,Lreal
+                OptCond_w(iorb,i)=OptCond_w(iorb,i) + peso/dE*eps/( (vr(i)-dE)**2 + eps**2 )
+             enddo
           enddo
        enddo
     enddo
@@ -394,11 +393,11 @@ contains
     type(sector) :: sectorI,sectorJ
     real(8)      :: sg1,sg2
     complex(8)   :: Chio
-    integer      :: Nups(Ns_Ud),ib(2*Ns_imp)
-    integer      :: Ndws(Ns_Ud)
+    integer      :: Nups(1),ib(2*Ns)
+    integer      :: Ndws(1)
 
     integer      :: i,j,ll,m,isector,k1,k2,li,rj
-    integer      :: idim,ia,nup(Ns),ndw(Ns)
+    integer      :: idim,ia,nup(eNs),ndw(eNs)
     real(8)      :: Ei,Ej,cc,peso,pesotot
     real(8)      :: expterm,de,w0,it
     complex(8)   :: iw 
@@ -422,7 +421,7 @@ contains
                 !
                 do li=1,sectorI%Dim
                    m = sectorI%H(1)%map(li)
-                   ib  = bdecomp(m,2*Ns_imp)
+                   ib  = bdecomp(m,2*Ns)
                    Nup = ib(1:Ns)
                    Ndw = ib(Ns+1:2*Ns)
                    !
@@ -551,10 +550,10 @@ contains
              if(abs(dE)<1d-12)cycle
              Drude_weight(iorb) = Drude_weight(iorb) + peso/de
              !Real-frequency: Retarded = Commutator = response function
-             ! do m=1,Lreal
-             !    iw=vr(m)-dE
-             !    OptCond_w(iorb,m)=OptCond_w(iorb,m)+peso/dE*eps/(iw**2+eps**2)
-             ! enddo
+             do m=1,Lreal
+                iw=vr(m)-dE
+                OptCond_w(iorb,m)=OptCond_w(iorb,m)+peso/dE*eps/(iw**2+eps**2)
+             enddo
              !
           enddo
        enddo

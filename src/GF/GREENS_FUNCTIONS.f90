@@ -11,7 +11,8 @@ MODULE ED_GREENS_FUNCTIONS
   USE ED_HAMILTONIAN
   USE ED_AUX_FUNX
   !
-  USE ED_GF_ELECTRON
+  USE ED_GF_ELECTRONS
+  USE ED_GF_IMPURITIES
   !
   implicit none
   private 
@@ -29,7 +30,8 @@ contains
   subroutine build_gf_lattice()
     !
     write(LOGfile,"(A)")"Build lattice Greens functions:"
-    call build_gf()
+    if(any([gf_flag(1:Norb)]))call build_gf_electrons()
+    if(KondoFlag)call build_gf_impurities()
     if(MPIMASTER)&
          call write_GFmatrix(impGmatrix,"gfmatrix"//str(ed_file_suffix)//".restart")
   end subroutine build_gf_lattice
@@ -44,7 +46,8 @@ contains
     impGreal=zero
     !
     write(LOGfile,"(A)")"Eval lattice Greens functions:"
-    call eval_gf()
+    if(any([gf_flag(1:Norb)]))call eval_gf_electrons()
+    if(KondoFlag)call eval_gf_impurities()
     if(MPIMASTER.AND.ed_print_G) call ed_print_impG()
     !
     call deallocate_grids

@@ -38,13 +38,13 @@ contains
   !+--------------------------------------------------------------------------+!
   !NORMAL, MATSUBARA GREEN'S FUNCTIONS
   subroutine ed_get_gimp_matsubara(Func) 
-    complex(8),dimension(Nspin,Ns_imp,Ns_imp,Lmats),intent(inout) :: Func
+    complex(8),dimension(Nspin,ns,ns,Lmats),intent(inout) :: Func
     Func = impGmats
   end subroutine ed_get_gimp_matsubara
 
   !NORMAL, REAL GF
   subroutine ed_get_gimp_realaxis(Func) 
-    complex(8),dimension(Nspin,Ns_imp,Ns_imp,Lreal),intent(inout) :: Func
+    complex(8),dimension(Nspin,ns,ns,Lreal),intent(inout) :: Func
     Func = impGreal
   end subroutine ed_get_gimp_realaxis
 
@@ -54,17 +54,17 @@ contains
   ! PURPOSE: Retrieve measured values of the local observables
   !+--------------------------------------------------------------------------+!
   subroutine ed_get_dens(dens)
-    real(8),dimension(Ns_imp) :: dens
+    real(8),dimension(ns) :: dens
     dens = ed_dens
   end subroutine ed_get_dens
 
   subroutine ed_get_mag(mag) 
-    real(8),dimension(Ns_imp) :: mag
+    real(8),dimension(ns) :: mag
     mag = (ed_dens_up-ed_dens_dw)
   end subroutine ed_get_mag
 
   subroutine ed_get_docc(docc) 
-    real(8),dimension(Ns_imp) :: docc
+    real(8),dimension(ns) :: docc
     docc = ed_docc
   end subroutine ed_get_docc
 
@@ -119,6 +119,11 @@ contains
           suffix="spinChi_i"//str(iimp)
           call splot(reg(suffix)//"_tau"//reg(ed_file_suffix)//".ed",tau,spinChi_tau(io,io,0:))
           call splot(reg(suffix)//"_realw"//reg(ed_file_suffix)//".ed",vr,spinChi_w(io,io,:))
+          ! call splot(reg(suffix)//"_iv"//reg(ed_file_suffix)//".ed",vm,spinChi_iv(io,io,:))
+          !
+          suffix="spinChi_i"//str(iimp)//"_bath"
+          call splot(reg(suffix)//"_tau"//reg(ed_file_suffix)//".ed",tau,spinChi_tau(io,1,0:))
+          call splot(reg(suffix)//"_realw"//reg(ed_file_suffix)//".ed",vr,spinChi_w(io,1,:))
           ! call splot(reg(suffix)//"_iv"//reg(ed_file_suffix)//".ed",vm,spinChi_iv(io,io,:))
        enddo
     endif
@@ -188,8 +193,8 @@ contains
     !
     Lfreq = size(zeta)
     Nfunc = size(Func,2)
-    if(Nfunc /= Ns_imp)stop "Ed_write_func ERROR: size(func,1) /= sum(Nsites)==Ns_imp"
-    call assert_shape(Func,[Nspin,Ns_imp,Ns_imp,Lfreq],"Ed_write_func","Func")
+    if(Nfunc /= ns)stop "Ed_write_func ERROR: size(func,1) /= sum(Nsites)==ns"
+    call assert_shape(Func,[Nspin,ns,ns,Lfreq],"Ed_write_func","Func")
     !
     !
     if(KondoFlag)then
@@ -203,7 +208,7 @@ contains
              write(*,"(A,1x,A)") reg(fname),"ed_write_func: diagonal lattice-spin-orbital."
              do ispin=1,Nspin
                 if(.not.gf_flag(Norb+1))cycle
-                do iimp=1,Nsites(Norb+1)
+                do iimp=1,iNs
                    io = Ns+iimp
                    suffix=reg(fname)//&
                         "_Iimp"//str(iimp,site_indx_padding)//&
@@ -217,8 +222,8 @@ contains
              write(*,"(A,1x,A)") reg(fname),"ed_write_func:  all sites, diagonal spin-orbital."
              do ispin=1,Nspin
                 if(.not.gf_flag(Norb+1))cycle
-                do iimp=1,Nsites(Norb+1)
-                   do jimp=1,Nsites(Norb+1)
+                do iimp=1,iNs
+                   do jimp=1,iNs
                       io = Ns+iimp
                       jo = Ns+jimp
                       !

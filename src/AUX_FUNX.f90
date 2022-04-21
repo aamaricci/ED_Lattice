@@ -11,6 +11,9 @@ MODULE ED_AUX_FUNX
 
   !PACK lattice-orbital-spin INDICES into a single one
   public :: pack_indices
+  !KET INDICES:
+  public :: ket_site_index
+  public :: ket_imp_index
   !FERMIONIC OPERATORS IN BITWISE OPERATIONS
   public :: c,cdg
   public :: Splus,Sminus
@@ -34,6 +37,8 @@ MODULE ED_AUX_FUNX
 contains
 
 
+
+
   function pack_indices(siteI,orbI,spinI) result(Indx)
     integer,intent(in)          :: siteI,orbI
     integer,intent(in),optional :: spinI
@@ -47,6 +52,22 @@ contains
     if(present(spinI))Indx = Indx  + (spinI-1)*Ns
   end function pack_indices
 
+
+
+  function ket_site_index(io,ispin) result(ipos)
+    integer :: io,ispin
+    integer :: ipos
+    if(ispin/=1.OR.ispin/=2)stop "ket_site_index error: ispin!=1,2"
+    ipos = io + (ispin-1)*eNs
+  end function ket_site_index
+
+
+  function ket_imp_index(iimp,ispin) result(ipos)
+    integer :: iimp,ispin
+    integer :: ipos
+    if(ispin/=1.OR.ispin/=2)stop "ket_iimp_index error: ispin!=1,2"
+    ipos = iimp + (ispin-1)*iNs + 2*eNs
+  end function ket_imp_index
 
 
   !##################################################################

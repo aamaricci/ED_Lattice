@@ -14,7 +14,8 @@ MODULE ED_CHI_FUNCTIONS
   USE ED_HAMILTONIAN
   USE ED_AUX_FUNX
   !
-  USE ED_CHI_SPIN
+  USE ED_CHI_SPIN_ELECTRONS
+  USE ED_CHI_SPIN_IMPURITIES
   !
   implicit none
   private 
@@ -30,7 +31,10 @@ contains
   !+------------------------------------------------------------------+
   subroutine build_chi_lattice()
     !
-    call build_chi_spin()
+    call deallocate_GFmatrix(SpinChiMatrix)
+    !        
+    if(any([chispin_flag(1:Norb)]))call build_chi_spin_electrons()
+    if(KondoFlag)call build_chi_spin_impurities()
     if(MPIMASTER)&
          call write_GFmatrix(SpinChiMatrix,"ChiSpinMatrix"//str(ed_file_suffix)//".restart")
     !
@@ -40,29 +44,25 @@ contains
 
 
   subroutine eval_chi_lattice()
-    integer                      :: iorb,iimp,unit,io,isite
-    real(8),dimension(Ns_imp)    :: ChiT
-    real(8) :: beta
+    integer               :: iorb,iimp,unit,io,isite
+    real(8),dimension(Ns) :: ChiT
+    real(8)               :: beta
     !
     call allocate_grids
     !
-    if(allocated(spinChi_tau))deallocate(spinChi_tau)
-    allocate(spinChi_tau(Ns_Imp,Ns_Imp,0:Ltau))
-    spinChi_tau=zero
-    spinChi_w=zero
-    spinChi_iv=zero
+    if(any([chispin_flag(1:Norb)]))call eval_chi_spin_electrons()
+    if(KondoFlag)call eval_chi_spin_impurities()
     !
-    call eval_chi_spin()
     if(MPIMASTER)then
        call ed_print_impChi()
        chiT= 0d0
        beta= 1d0/temp
        if(KondoFlag.AND.chispin_flag(Norb+1))then
           do iimp=1,iNs
-             chiT(io) = trapz(spinChi_tau(Ns+iimp,Ns+iimp,0:),0d0,beta)
+             chiT(io) = trapz(spinChi_tau(eNs+iimp,eNs+iimp,0:),0d0,beta)
           enddo
           unit = fopen("chiT_imp.ed",append=.true.)
-          write(unit,*)temp,(chiT(Ns+iimp),iimp=1,iNs)
+          write(unit,*)temp,(chiT(eNs+iimp),iimp=1,iNs)
           close(unit)
        endif
        if(any([chispin_flag(1:Norb)]))then
@@ -74,7 +74,7 @@ contains
              enddo
           enddo
           unit = fopen("chiT.ed",append=.true.)
-          write(unit,*)temp,(chiT(io),io=1,Ns_imp)
+          write(unit,*)temp,(chiT(io),io=1,eNs)
           close(unit)
        endif
     endif

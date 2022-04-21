@@ -23,8 +23,7 @@ contains
     complex(8),dimension(Nloc)          :: vin
     complex(8),dimension(Nloc)          :: Hv
     complex(8),dimension(:),allocatable :: vt,Hvt
-    integer,dimension(2*Ns_Ud)          :: Indices,Jndices ![2-2*Norb]
-    integer,dimension(Ns_Ud,Ns)     :: Nups,Ndws       ![1,Ns]-[Norb,1+Nbath]
+    integer,dimension(2)                :: Indices,Jndices ![2-2*Norb]
     integer,dimension(Ns)               :: Nup,Ndw
     real(8),dimension(Ns)               :: Sz 
     complex(8),dimension(Nspin,Ns,Ns)   :: Hij,Hloc
@@ -56,7 +55,6 @@ contains
     !DW HAMILTONIAN TERMS
     include "direct/HxV_dw.f90"
     !
-
     !-----------------------------------------------!
     !
     return
@@ -69,11 +67,11 @@ contains
     complex(8),dimension(Nloc)          :: vin
     complex(8),dimension(Nloc)          :: Hv
     complex(8),dimension(:),allocatable :: vt,Hvt
-    complex(8),dimension(Nspin,Ns,Ns)   :: Hij,Hloc
-    real(8),dimension(Nspin,Ns)         :: Hdiag
-    integer,dimension(2*Ns_imp)         :: ib
-    integer,dimension(Ns)               :: Nup,Ndw
-    real(8),dimension(Ns)               :: Sz
+    complex(8),dimension(Nspin,eNs,eNs) :: Hij,Hloc
+    real(8),dimension(Nspin,eNs)        :: Hdiag
+    integer,dimension(2*Ns)             :: ib
+    integer,dimension(eNs)              :: Nup,Ndw
+    real(8),dimension(eNs)              :: Sz
     integer,dimension(iNs)              :: NpUp,NpDw
     real(8),dimension(iNs)              :: Szp
     integer                             :: i,j,io_up,io_dw,imp_up,imp_dw
@@ -95,14 +93,14 @@ contains
     !
     do j=MpiIstart,MpiIend
        m   = Hsector%H(1)%map(j)
-       ib  = bdecomp(m,2*Ns_imp)
-       Nup = ib(1:Ns)
-       Ndw = ib(Ns+1:2*Ns)
-       NpUp= ib(2*Ns+1:2*Ns+iNs)
-       NpDw= ib(2*Ns+iNs+1:2*Ns+2*iNs)
+       ib  = bdecomp(m,2*Ns)
+       Nup = ib(1:eNs)
+       Ndw = ib(eNs+1:2*eNs)
+       NpUp= ib(2*eNs+1:2*eNs+iNs)
+       NpDw= ib(2*eNs+iNs+1:2*eNs+2*iNs)
        Sz  = 0.5d0*(Nup-Ndw)
        Szp = 0.5d0*(NpUp-NpDw)
-
+       !
        !LOCAL HAMILTONIAN TERMS
        include "direct/HxV_diag.f90"
        !
@@ -126,17 +124,15 @@ contains
 
 #ifdef _MPI
   subroutine directMatVec_MPI_main(Nloc,vin,Hv)
-    integer                           :: Nloc,N
-    complex(8),dimension(Nloc)           :: Vin
-    complex(8),dimension(Nloc)           :: Hv
-    complex(8),dimension(:),allocatable  :: vt,Hvt
-    !
-    integer,dimension(2*Ns_Ud)        :: Indices,Jndices ![2-2*Norb]
-    integer,dimension(Ns_Ud,Ns)   :: Nups,Ndws       ![1,Ns]-[Norb,1+Nbath]
-    integer,dimension(Ns)             :: Nup,Ndw
-    real(8),dimension(Ns)             :: Sz 
-    complex(8),dimension(Nspin,Ns,Ns) :: Hij,Hloc
-    real(8),dimension(Nspin,Ns)       :: Hdiag
+    integer                             :: Nloc,N
+    complex(8),dimension(Nloc)          :: Vin
+    complex(8),dimension(Nloc)          :: Hv
+    complex(8),dimension(:),allocatable :: vt,Hvt
+    integer,dimension(2)                :: Indices,Jndices ![2-2*Norb]
+    integer,dimension(Ns)               :: Nup,Ndw
+    real(8),dimension(Ns)               :: Sz 
+    complex(8),dimension(Nspin,Ns,Ns)   :: Hij,Hloc
+    real(8),dimension(Nspin,Ns)         :: Hdiag
     !
     if(.not.Hsector%status)stop "directMatVec_cc ERROR: Hsector NOT allocated"
     isector=Hsector%index    
@@ -200,15 +196,14 @@ contains
     complex(8),dimension(Nloc)          :: v
     complex(8),dimension(Nloc)          :: Hv
     complex(8),dimension(:),allocatable :: vin
-    !
-    integer,dimension(2*Ns_imp)         :: ib
-    integer,dimension(Ns)               :: Nup,Ndw
-    real(8),dimension(Ns)               :: Sz
+    integer,dimension(2*Ns)             :: ib
+    integer,dimension(eNs)              :: Nup,Ndw
+    real(8),dimension(eNs)              :: Sz
     integer,dimension(iNs)              :: NpUp,NpDw
     real(8),dimension(iNs)              :: Szp
     integer                             :: io_up,io_dw,imp_up,imp_dw
-    complex(8),dimension(Nspin,Ns,Ns)   :: Hij,Hloc
-    real(8),dimension(Nspin,Ns)         :: Hdiag
+    complex(8),dimension(Nspin,eNs,eNs) :: Hij,Hloc
+    real(8),dimension(Nspin,eNs)        :: Hdiag
     !
     if(.not.Hsector%status)stop "directMatVec_cc ERROR: Hsector NOT allocated"
     isector=Hsector%index    
@@ -236,11 +231,11 @@ contains
     !
     states: do j=MpiIstart,MpiIend
        m   = Hsector%H(1)%map(j)
-       ib  = bdecomp(m,2*Ns_imp)
-       Nup = ib(1:Ns)
-       Ndw = ib(Ns+1:2*Ns)
-       NpUp= ib(2*Ns+1:2*Ns+iNs)
-       NpDw= ib(2*Ns+iNs+1:2*Ns+2*iNs)
+       ib  = bdecomp(m,2*Ns)
+       Nup = ib(1:eNs)
+       Ndw = ib(eNs+1:2*eNs)
+       NpUp= ib(2*eNs+1:2*eNs+iNs)
+       NpDw= ib(2*eNs+iNs+1:2*eNs+2*iNs)
        Sz  = 0.5d0*(Nup-Ndw)
        Szp = 0.5d0*(NpUp-NpDw)
 

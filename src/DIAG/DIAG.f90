@@ -53,8 +53,8 @@ contains
     integer :: i,istate,isector
     integer :: Dim
     real(8) :: Egs,Ei
-    integer :: Nups(Ns_Ud)
-    integer :: Ndws(Ns_Ud)
+    integer :: Nups(1)
+    integer :: Ndws(1)
     !
     zeta_function=0d0
     !
@@ -102,10 +102,10 @@ contains
   !+------------------------------------------------------------------+
   subroutine ed_diag_d
     integer                :: isector,Dim,istate
-    integer                :: DimUps(Ns_Ud),DimUp
-    integer                :: DimDws(Ns_Ud),DimDw
-    integer                :: Nups(Ns_Ud)
-    integer                :: Ndws(Ns_Ud)
+    integer                :: DimUps(1),DimUp
+    integer                :: DimDws(1),DimDw
+    integer                :: Nups(1)
+    integer                :: Ndws(1)
     integer                :: i,j,iter,unit,vecDim,PvecDim
     integer                :: Nitermax,Neigen,Nblock
     real(8)                :: oldzero,enemin,Ei,Egs
@@ -156,7 +156,7 @@ contains
        !
        if(MPIMASTER)then
           if(ed_verbose>2)then
-             write(LOGfile,"(1X,I9,A,I9,A6,"//str(Ns_Ud)//"I3,A6,"//str(Ns_Ud)//"I3,A7,I20,1X)",advance='no')&
+             write(LOGfile,"(1X,I9,A,I9,A6,1I3,A6,1I3,A7,I20,1X)",advance='no')&
                   iter,"-Solving sector:",isector,", nup:",nups,", ndw:",ndws,", dim=",getdim(isector)
              if(lanc_solve)write(LOGfile,"(A12,3I6,1X)",advance='no')"Lanc Info:",Neigen,Nitermax,Nblock
           else
@@ -304,7 +304,7 @@ contains
           Egs     = es_return_energy(state_list,istate)
           call get_Nup(isector,Nups)
           call get_Ndw(isector,Ndws)
-          write(LOGfile,"(A,F20.12,"//str(Ns_Ud)//"I4,"//str(Ns_Ud)//"I4)")'Egs =',Egs,nups,ndws
+          write(LOGfile,"(A,F20.12,1I4,1I4)")'Egs =',Egs,nups,ndws
        enddo
     endif
     !
@@ -345,15 +345,15 @@ contains
   !+------------------------------------------------------------------+
   subroutine ed_full_d
     integer                     :: isector,Dim,istate
-    integer                     :: DimUps(Ns_Ud),DimUp
-    integer                     :: DimDws(Ns_Ud),DimDw
-    integer                     :: Nups(Ns_Ud)
-    integer                     :: Ndws(Ns_Ud)
+    integer                     :: DimUps(1),DimUp
+    integer                     :: DimDws(1),DimDw
+    integer                     :: Nups(1)
+    integer                     :: Ndws(1)
     integer                     :: i,j,iter,unit,vecDim,PvecDim,Nprint
     integer                     :: Nitermax,Neigen,Nblock
     real(8)                     :: oldzero,enemin,Ei,egs
     real(8),dimension(Nsectors) :: e0
-    logical                     :: lanc_solve,bool
+    logical                     :: bool
     !
     if(state_list%status)call es_delete_espace(state_list)
     state_list=es_init_espace()
@@ -373,24 +373,14 @@ contains
        Dim      = getdim(isector)
        !
        !
-       lanc_solve  = .true.
-       if(Neigen==dim)lanc_solve=.false.
-       if(dim<=max(lanc_dim_threshold,MPISIZE))lanc_solve=.false.
-       !
        if(MPIMASTER)then
           if(ed_verbose>2)then
-             write(LOGfile,"(1X,I9,A,I9,A6,"//str(Ns_Ud)//"I3,A6,"//str(Ns_Ud)//"I3,A7,I20",advance='no')&
+             write(LOGfile,"(1X,I9,A,I9,A6,1I3,A6,1I3,A7,I20,1X)",advance='no')&
                   iter,"-Solving sector:",isector,", nup:",nups,", ndw:",ndws,", dim=",getdim(isector)
-             if(lanc_solve)write(LOGfile,"(A12,3I6)")", Lanc Info:",Neigen,Nitermax,Nblock
-          elseif(ed_verbose<=2)then
+          else
              call eta(iter,count(twin_mask),LOGfile)
           endif
        endif
-       if(MPIMASTER)then
-          if(ed_verbose>1)write(LOGfile,"(1X,I9,A,I9,A6,"//str(Ns_Ud)//"I3,A6,"//str(Ns_Ud)//"I3,A7,I20",advance='yes')&
-               iter,"-Solving sector:",isector,", nup:",nups,", ndw:",ndws,", dim=",getdim(isector)
-       endif
-       !
        !
        if(ed_verbose>=3.AND.MPIMASTER)call start_timer()
        call build_Hv_sector(isector,espace(isector)%M)
@@ -453,8 +443,8 @@ contains
        Ei      = es_return_energy(state_list,istate)
        call get_Nup(isector,Nups)
        call get_Ndw(isector,Ndws)
-       write(LOGfile,"(A,F20.12,"//str(Ns_Ud)//"I4,"//str(Ns_Ud)//"I4)")'Egs =',Ei,nups,ndws
-       write(unit,"(A,F20.12,"//str(Ns_Ud)//"I4,"//str(Ns_Ud)//"I4)")'Egs =',Ei,nups,ndws
+       write(LOGfile,"(A,F20.12,2I4)")'Egs =',Ei,nups,ndws
+       write(unit,"(A,F20.12,2I4)")'Egs =',Ei,nups,ndws
     enddo
     close(unit)
 
@@ -479,7 +469,7 @@ contains
   !
   !###################################################################################################
   subroutine save_state_list()
-    integer :: indices(2*Ns_Ud),isector
+    integer :: indices(2),isector
     integer :: istate
     integer :: unit
     if(MPIMASTER)then
@@ -487,7 +477,7 @@ contains
        do istate=1,state_list%size
           isector = es_return_sector(state_list,istate)
           call get_QuantumNumbers(isector,Ns,Indices)
-          write(unit,"(i8,i12,"//str(2*Ns_Ud)//"i8)")istate,isector,Indices
+          write(unit,"(i8,i12,2i8)")istate,isector,Indices
        enddo
        close(unit)
     endif
@@ -495,7 +485,7 @@ contains
 
 
   subroutine print_state_list(unit)
-    integer :: indices(2*Ns_Ud),isector
+    integer :: indices(2),isector
     integer :: istate
     integer :: unit
     real(8) :: Estate
@@ -507,7 +497,7 @@ contains
           write(unit,"(i6,f18.12,2x,ES19.12,1x,2I10)",advance='no')&
                istate,Estate,exp(-(Estate-state_list%emin)/temp),isector,getdim(isector)
           call get_QuantumNumbers(isector,Ns,Indices)
-          write(unit,"("//str(2*Ns_Ud)//"I4)")Indices
+          write(unit,"(2I4)")Indices
        enddo
     endif
   end subroutine print_state_list
@@ -517,7 +507,7 @@ contains
   subroutine print_eigenvalues_list(isector,eig_values,unit,lanc,allt)
     integer              :: isector
     real(8),dimension(:) :: eig_values
-    integer              :: unit,i,indices(2*Ns_Ud)
+    integer              :: unit,i,indices(2)
     logical              :: lanc,allt
     if(MPIMASTER)then
        if(lanc)then
@@ -530,7 +520,7 @@ contains
           write(unit,"(A10,A15)")" #X Sector","Indices"
        endif
        call get_QuantumNumbers(isector,Ns,Indices)
-       write(unit,"(I9,"//str(2*Ns_Ud)//"I6)")isector,Indices
+       write(unit,"(I9,2I6)")isector,Indices
        do i=1,size(eig_values)
           write(unit,*)eig_values(i)
        enddo

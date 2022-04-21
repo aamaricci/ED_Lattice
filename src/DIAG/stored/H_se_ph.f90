@@ -4,9 +4,9 @@
      !A better MPI handling might be necessary here...
      do i=MpiIstart,MpiIend
         m  = Hsector%H(1)%map(i)
-        ib  = bdecomp(m,2*Ns_imp)
-        Nup = ib(1:Ns)
-        Ndw = ib(Ns+1:2*Ns)
+        ib  = bdecomp(m,2*Ns)
+        Nup = ib(1:eNs)
+        Ndw = ib(eNs+1:2*eNs)
         !
         htmp = zero
         !

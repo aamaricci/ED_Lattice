@@ -25,8 +25,8 @@ contains
     complex(8),dimension(:,:),optional    :: Hmat
     integer                               :: isector,ispin,i,j
     complex(8),dimension(:,:),allocatable :: Htmp_up,Htmp_dw,Hrdx,Hmat_tmp
-    integer,dimension(2*Ns_Ud)            :: Indices    ![2-2*Norb]
-    integer,dimension(Ns_Ud,Ns)       :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
+    integer,dimension(2)                  :: Indices    ![2-2*Norb]
+    integer,dimension(1,Ns)               :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
     integer,dimension(Ns)                 :: Nup,Ndw
     real(8),dimension(Ns)                 :: Sz 
     complex(8),dimension(Nspin,Ns,Ns)     :: Hij,Hloc
@@ -130,16 +130,16 @@ contains
 
 
   subroutine ed_buildH_kondo(Hmat)
-    complex(8),dimension(:,:),optional :: Hmat
-    integer                            :: isector,ispin,i,j
-    integer,dimension(2*Ns_imp)        :: ib
-    integer,dimension(Ns)              :: Nup,Ndw
-    real(8),dimension(Ns)              :: Sz
-    integer,dimension(iNs)             :: NpUp,NpDw
-    real(8),dimension(iNs)             :: Szp
-    complex(8),dimension(Nspin,Ns,Ns)  :: Hij,Hloc
-    real(8),dimension(Nspin,Ns)        :: Hdiag
-    integer                            :: io_up,io_dw,imp_up,imp_dw
+    complex(8),dimension(:,:),optional  :: Hmat
+    integer                             :: isector,ispin,i,j
+    integer,dimension(2*Ns)             :: ib
+    integer,dimension(eNs)              :: Nup,Ndw
+    real(8),dimension(eNs)              :: Sz
+    integer,dimension(iNs)              :: NpUp,NpDw
+    real(8),dimension(iNs)              :: Szp
+    complex(8),dimension(Nspin,eNs,eNs) :: Hij,Hloc
+    real(8),dimension(Nspin,eNs)        :: Hdiag
+    integer                             :: io_up,io_dw,imp_up,imp_dw
     !
 #ifdef _MPI
     if(Mpistatus .AND. MpiComm == MPI_COMM_NULL)return
