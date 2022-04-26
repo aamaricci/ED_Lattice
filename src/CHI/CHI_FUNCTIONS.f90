@@ -59,7 +59,8 @@ contains
        beta= 1d0/temp
        if(KondoFlag.AND.chispin_flag(Norb+1))then
           do iimp=1,iNs
-             chiT(io) = trapz(spinChi_tau(eNs+iimp,eNs+iimp,0:),0d0,beta)
+             io = eNs + iimp
+             chiT(io) = trapz(spinChi_tau(io,io,0:),0d0,beta)
           enddo
           unit = fopen("chiT_imp.ed",append=.true.)
           write(unit,*)temp,(chiT(eNs+iimp),iimp=1,iNs)

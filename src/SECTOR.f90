@@ -16,6 +16,7 @@ MODULE ED_SECTOR
 
   public :: build_sector
   public :: delete_sector
+  public :: show_sector
   !
   public :: apply_op_C
   public :: apply_op_CDG
@@ -44,7 +45,7 @@ MODULE ED_SECTOR
      module procedure :: apply_op_Sz_single
      module procedure :: apply_op_Sz_range
   end interface apply_op_Sz
-  
+
   interface map_allocate
      module procedure :: map_allocate_scalar
      module procedure :: map_allocate_vector
@@ -91,14 +92,14 @@ contains
        do ipdw=0,2**iNs-1
           do ipup=0,2**iNs-1
              if(popcnt(ipup)+popcnt(ipdw) /= Nimp)cycle
-             do idw=0,2**Ns-1
+             do idw=0,2**eNs-1
                 if(popcnt(idw) + popcnt(ipdw) /= self%Ndw) cycle
-                do iup=0,2**Ns-1
+                do iup=0,2**eNs-1
                    if(popcnt(iup) + popcnt(ipup) /= self%Nup) cycle
                    dim        = dim+1
-                   iel        = iup + idw*2**Ns
+                   iel        = iup + idw*2**eNs
                    iimp       = ipup+ipdw*2**iNs
-                   self%H(1)%map(dim) =  iel + iimp*2**(2*Ns)
+                   self%H(1)%map(dim) =  iel + iimp*2**(2*eNs)
                 enddo
              enddo
           enddo
@@ -164,6 +165,65 @@ contains
     self%status=.false.
   end subroutine delete_sector
 
+
+
+  subroutine show_sector(isector)
+    integer,intent(in)                  :: isector
+    integer                             :: i,iup,idw,ipup,ipdw
+    integer                             :: nup_,ndw_,Nups(1),Ndws(1),Nup,Ndw
+    integer                             :: dim,iel,iimp,DimEl,DimUps(1),DimDws(1),DimUp,DimDw
+    !
+    if(KondoFlag)then
+       !
+       call get_Nup(isector,Nups);Nup=Nups(1)
+       call get_Ndw(isector,Ndws);Ndw=Ndws(1)
+       DimEl=getDim(isector)
+       !
+       dim = 0
+       do ipdw=0,2**iNs-1
+          do ipup=0,2**iNs-1
+             if(popcnt(ipup)+popcnt(ipdw) /= Nimp)cycle
+             do idw=0,2**eNs-1
+                if(popcnt(idw) + popcnt(ipdw) /= Ndw) cycle
+                do iup=0,2**eNs-1
+                   if(popcnt(iup) + popcnt(ipup) /= Nup) cycle
+                   dim        = dim+1
+                   iel        = iup + idw*2**eNs
+                   iimp       = ipup+ipdw*2**iNs
+                   write(*,"(4I6,A1,2I12,A1,I12)",advance='no')&
+                        iup,idw,ipup,ipdw,"-",&
+                        iup + idw*2**eNs,ipup+ipdw*2**iNs,"-",iel + iimp*2**(2*eNs)
+                   call print_conf(iup,eNs,.false.)
+                   call print_conf(idw,eNs,.false.)
+                   call print_conf(ipup,iNs,.false.)
+                   call print_conf(ipdw,iNs,.true.)
+                enddo
+             enddo
+          enddo
+       enddo
+       !
+    else
+       !
+       call get_Nup(isector,Nups);Nup=sum(Nups)
+       call get_Ndw(isector,Ndws);Ndw=sum(Ndws)
+       call get_DimUp(isector,DimUps);DimUp=product(DimUps)
+       call get_DimDw(isector,DimDws);DimDw=product(DimDws)
+       DimEl=DimUp*DimDw
+       !
+       !UP
+       do idw=0,2**Ns-1
+          if(popcnt(idw) /= ndw) cycle
+          do iup=0,2**Ns-1
+             if(popcnt(iup) /= nup) cycle
+             write(*,"(2I6,A1,I12)",advance='no')&
+                  iup,idw,"-",iup + idw*2**Ns
+             call print_conf(iup,Ns,.false.)
+             call print_conf(idw,Ns,.true.)
+          enddo
+       enddo
+    endif
+    !
+  end subroutine show_sector
 
 
 
@@ -763,5 +823,24 @@ contains
     enddo
     nchoos = int(xh + 0.5d0)
   end function binomial
+
+
+
+  subroutine print_conf(i,Ntot,advance)
+    integer :: dim,i,j,Ntot
+    logical :: advance
+    integer :: ivec(Ntot)
+    ivec = bdecomp(i,Ntot)
+    write(LOGfile,"(A1)",advance="no")"|"
+    write(LOGfile,"(10I1)",advance="no")(ivec(j),j=1,Ntot)
+    if(advance)then
+       write(LOGfile,"(A1)",advance="yes")">"
+    else
+       write(LOGfile,"(A1)",advance="no")">"
+    endif
+  end subroutine print_conf
+
+
+
 
 end MODULE ED_SECTOR

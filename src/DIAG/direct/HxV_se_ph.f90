@@ -18,8 +18,8 @@
                       (nup(io)==0))
                  if(Jcondition)then
                     call c(jo,m,k1,sg1)
-                    call c(io+Ns,k1,k2,sg2)
-                    call cdg(jo+Ns,k2,k3,sg3)
+                    call c(io+eNs,k1,k2,sg2)
+                    call cdg(jo+eNs,k2,k3,sg3)
                     call cdg(io,k3,k4,sg4)
                     i=binary_search(Hsector%H(1)%map,k4)
                     htmp = one*Jx*sg1*sg2*sg3*sg4
@@ -50,8 +50,8 @@
                       (nup(io)==0))
                  if(Jcondition)then
                     call c(jo,m,k1,sg1)
-                    call c(jo+Ns,k1,k2,sg2)
-                    call cdg(io+Ns,k2,k3,sg3)
+                    call c(jo+eNs,k1,k2,sg2)
+                    call cdg(io+eNs,k2,k3,sg3)
                     call cdg(io,k3,k4,sg4)
                     i=binary_search(Hsector%H(1)%map,k4)
                     htmp = one*Jp*sg1*sg2*sg3*sg4

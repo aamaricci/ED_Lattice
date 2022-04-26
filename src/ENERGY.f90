@@ -569,8 +569,8 @@ contains
                                  (nup(io)==0))
                             if(Jcondition)then
                                call c(jo,m,k1,sg1)
-                               call c(io+Ns,k1,k2,sg2)
-                               call cdg(jo+Ns,k2,k3,sg3)
+                               call c(io+eNs,k1,k2,sg2)
+                               call cdg(jo+eNs,k2,k3,sg3)
                                call cdg(io,k3,k4,sg4)
                                j=binary_search(sectorI%H(1)%map,k4)
                                ed_Epot = ed_Epot + Jx*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
@@ -598,8 +598,8 @@ contains
                                  (nup(io)==0))
                             if(Jcondition)then
                                call c(jo,m,k1,sg1)
-                               call c(jo+Ns,k1,k2,sg2)
-                               call cdg(io+Ns,k2,k3,sg3)
+                               call c(jo+eNs,k1,k2,sg2)
+                               call cdg(io+eNs,k2,k3,sg3)
                                call cdg(io,k3,k4,sg4)
                                j=binary_search(sectorI%H(1)%map,k4)
                                ed_Epot = ed_Epot + Jp*sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
@@ -628,15 +628,15 @@ contains
                    do isite=1,Nsites(iorb)
                       if(isite/=Jkindx(iimp))cycle
                       io    = pack_indices(isite,iorb)
-                      io_up = io
-                      io_dw = io + Ns
-                      imp_up= 2*Ns + iimp
-                      imp_dw= 2*Ns + iimp + iNs
+                      io_up  = ket_site_index(io,1)
+                      io_dw  = ket_site_index(io,2)
+                      imp_up = ket_imp_index(iimp,1)
+                      imp_dw = ket_imp_index(iimp,2)
                       !c^+_up d^+_dw c_dw  d_up
                       Jcondition=(&
+                           (npup(iimp)==1).AND.&
                            (ndw(io)   ==1).AND.&
                            (npdw(iimp)==0).AND.&
-                           (npup(iimp)==1).AND.&
                            (nup(io)   ==0) )
                       if(Jcondition)then
                          call c(imp_up,m,k1,sg1)    !d_up
@@ -648,11 +648,10 @@ contains
                          ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
                       endif
                       !
-                      ! c^+_dw d^+_up c_up  d_dw                 
                       Jcondition=(&
                            (npdw(iimp)==1).AND.&
-                           (ndw(io)   ==0).AND.&
                            (nup(io)   ==1).AND.&
+                           (ndw(io)   ==0).AND.&
                            (npup(iimp)==0) )
                       if(Jcondition)then
                          call c(imp_dw,m,k1,sg1)    !d_dw
@@ -1094,8 +1093,8 @@ contains
                         (Hij(Nspin,io,jo)/=zero) .AND. &
                         (Ndw(jo)==1) .AND. (Ndw(io)==0)
                    if (Jcondition) then
-                      call c(jo+Ns,m,k1,sg1)
-                      call cdg(io+Ns,k1,k2,sg2)
+                      call c(jo+eNs,m,k1,sg1)
+                      call cdg(io+eNs,k1,k2,sg2)
                       j    = binary_search(sectorI%H(1)%map,k2)
                       ed_Ekin = ed_Ekin + &
                            Hij(Nspin,io,jo)*sg1*sg2*evec(i)*conjg(evec(j))*boltzman_weight
@@ -1175,8 +1174,8 @@ contains
                               (nup(io)==0))
                          if(Jcondition)then
                             call c(jo,m,k1,sg1)
-                            call c(io+Ns,k1,k2,sg2)
-                            call cdg(jo+Ns,k2,k3,sg3)
+                            call c(io+eNs,k1,k2,sg2)
+                            call cdg(jo+eNs,k2,k3,sg3)
                             call cdg(io,k3,k4,sg4)
                             j=binary_search(sectorI%H(1)%map,k4)
                             ed_Epot = ed_Epot + Jx*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
@@ -1202,8 +1201,8 @@ contains
                               (nup(io)==0))
                          if(Jcondition)then
                             call c(jo,m,k1,sg1)
-                            call c(jo+Ns,k1,k2,sg2)
-                            call cdg(io+Ns,k2,k3,sg3)
+                            call c(jo+eNs,k1,k2,sg2)
+                            call cdg(io+eNs,k2,k3,sg3)
                             call cdg(io,k3,k4,sg4)
                             j=binary_search(sectorI%H(1)%map,k4)
                             ed_Epot = ed_Epot + Jp*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
@@ -1230,18 +1229,20 @@ contains
                    do isite=1,Nsites(iorb)
                       if(isite/=Jkindx(iimp))cycle
                       io    = pack_indices(isite,iorb)
-                      io_up = io
-                      io_dw = io + eNs
-                      imp_up= 2*eNs + iimp
-                      imp_dw= 2*eNs + iimp + iNs
+                      io_up  = ket_site_index(io,1)
+                      io_dw  = ket_site_index(io,2)
+                      imp_up = ket_imp_index(iimp,1)
+                      imp_dw = ket_imp_index(iimp,2)
                       ![c^+.d]_up [d^+.c]_dw
                       Jcondition=(&
-                           (ndw(io)==1).AND.(npdw(iimp)==0).AND.&
-                           (npup(iimp)==1).AND.(nup(io)==0) )
+                           (npup(iimp)==1).AND.&
+                           (ndw(io)   ==1).AND.&
+                           (npdw(iimp)==0).AND.&
+                           (nup(io)   ==0) )
                       if(Jcondition)then
-                         call c(io_dw,m,k1,sg1)     !c_dw
-                         call cdg(imp_dw,k1,k2,sg2) !d^+_dw
-                         call c(imp_up,k2,k3,sg3)   !d_up
+                         call c(imp_up,m,k1,sg1)    !d_up
+                         call c(io_dw,k1,k2,sg2)    !c_dw
+                         call cdg(imp_dw,k2,k3,sg3) !d^+_dw
                          call cdg(io_up,k3,k4,sg4)  !c^+_up
                          j=binary_search(sectorI%H(1)%map,k4)
                          ed_Epot = ed_Epot + Jk_xy*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
@@ -1250,18 +1251,20 @@ contains
                       !
                       ![d^+.c]_up [c^+.d]_dw 
                       io    = pack_indices(isite,iorb)
-                      io_up = io
-                      io_dw = io + eNs
-                      imp_up= 2*eNs + iimp
-                      imp_dw= 2*eNs + iimp + iNs
+                      io_up  = ket_site_index(io,1)
+                      io_dw  = ket_site_index(io,2)
+                      imp_up = ket_imp_index(iimp,1)
+                      imp_dw = ket_imp_index(iimp,2)
                       Jcondition=(&
-                           (npdw(iimp)==1).AND.(ndw(io)==0).AND.&
-                           (nup(io)==1).AND.(npup(iimp)==0) )
+                           (npdw(iimp)==1).AND.&
+                           (nup(io)   ==1).AND.&
+                           (ndw(io)   ==0).AND.&
+                           (npup(iimp)==0) )
                       if(Jcondition)then
                          call c(imp_dw,m,k1,sg1)    !d_dw
-                         call cdg(io_dw,k1,k2,sg2)  !c^+_dw
-                         call c(io_up,k2,k3,sg3)    !c_up
-                         call cdg(imp_up,k3,k4,sg4) !d^+_up
+                         call c(io_up,k1,k2,sg2)    !c_up
+                         call cdg(imp_up,k2,k3,sg3) !d^+_up
+                         call cdg(io_dw,k3,k4,sg4)  !c^+_dw
                          j=binary_search(sectorI%H(1)%map,k4)
                          ed_Epot = ed_Epot + Jk_xy*sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight
                          ed_Dkxy = ed_Dkxy + sg1*sg2*sg3*sg4*evec(i)*conjg(evec(j))*boltzman_weight

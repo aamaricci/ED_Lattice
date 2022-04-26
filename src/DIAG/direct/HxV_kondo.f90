@@ -25,10 +25,6 @@
               io_dw  = ket_site_index(io,2)
               imp_up = ket_imp_index(iimp,1)
               imp_dw = ket_imp_index(iimp,2)
-              ! io_up = io
-              ! io_dw = io + eNs
-              ! imp_up= 2*Ns + iimp
-              ! imp_dw= 2*Ns + iimp + iNs
               !c^+_up d^+_dw c_dw  d_up
               Jcondition=(&
                    (npup(iimp)==1).AND.&

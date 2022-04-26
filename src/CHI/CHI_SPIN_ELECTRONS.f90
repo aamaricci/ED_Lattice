@@ -48,6 +48,7 @@ contains
     integer :: isite,jsite
     integer :: io,jo
     !
+    print*,"in build chi_spin_ele"
     select case(ed_method)
     case ('lapack','full')
        return

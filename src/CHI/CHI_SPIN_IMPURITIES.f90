@@ -55,6 +55,8 @@ contains
        do iimp=1,iNs
           if(MPIMASTER)write(LOGfile,"(A)")"Build spinChi:"//" imp "//str(iimp)
           if(MPIMASTER)call start_timer
+          call allocate_GFmatrix(SpinChiMatrix(1,1),Nstate=state_list%size)
+          call allocate_GFmatrix(SpinChiMatrix(eNs+iimp,1),Nstate=state_list%size)
           call allocate_GFmatrix(SpinChiMatrix(eNs+iimp,eNs+iimp),Nstate=state_list%size)
           call lanc_build_spinChi_imp(iimp)
           if(MPIMASTER)call stop_timer(unit=LOGfile)
@@ -118,6 +120,7 @@ contains
        !
        call allocate_GFmatrix(SpinChiMatrix(io,io),istate,Nchan=1)
        call allocate_GFmatrix(SpinChiMatrix(io,1),istate,Nchan=1)
+       call allocate_GFmatrix(SpinChiMatrix(1,1),istate,Nchan=1)
        !
        isector    =  es_return_sector(state_list,istate)
        state_e    =  es_return_energy(state_list,istate)
@@ -154,7 +157,7 @@ contains
        !EVALUATE Sz_all|gs> 
        if(MpiMaster)then
           call build_sector(isector,sectorI)
-          if(ed_verbose>=3)write(LOGfile,"(A,I6,2I4)")'Apply (Sz_imp + Sz_all):',isector,sectorI%Nups,sectorI%Ndws
+          if(ed_verbose>=3)write(LOGfile,"(A,I6,2I4)")'Apply Sz_all:',isector,sectorI%Nups,sectorI%Ndws
           allocate(vvinit(sectorI%Dim)) ; vvinit=zero
           do i=1,sectorI%Dim
              call apply_op_Sz(i,sgn,[1,eNs],sectorI)

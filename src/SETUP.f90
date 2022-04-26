@@ -72,7 +72,7 @@ contains
     if(KondoFlag)then
        Dim = get_sector_dimension(Nup,Ndw)
        if(MpiMaster)then
-          write(LOGfile,"(A,I20)")'Largest Sector(s)     = ',Dim
+          write(LOGfile,"(A,2I20,I20)")'Largest Sector(s)     = ',Nup,Ndw,Dim
           write(LOGfile,"(A)")"--------------------------------------------"
        endif
     else
@@ -247,7 +247,7 @@ contains
     integer                          :: Jups(1),Jdws(1)
     integer                          :: i,iud,iorb,Nup,Ndw
     integer                          :: isector,jsector,gsector,ksector,lsector
-    integer                          :: unit,status,istate,ishift,isign
+    integer                          :: unit,status,istate,ishift,isign,dim
     logical                          :: IOfile
     integer                          :: list_len
     integer,dimension(:),allocatable :: list_sector
@@ -260,19 +260,29 @@ contains
           do Ndw=0,eNs+Nimp
              if( (Nup+Ndw < Nimp) .OR. ( Nup+Ndw > 2*eNs+Nimp) )cycle
              isector=isector+1
+             if(ed_verbose>3.AND.MpiMaster)write(*,"(A,I6,A3,I2,A1,I2,A)")"--- sector",isector,"  (",Nup,",",Ndw,")---- "
              getSector(Nup,Ndw)=isector
              getNup(isector)=Nup
              getNdw(isector)=Ndw
              getDim(isector)=get_sector_dimension(nup,ndw)
+             if(ed_verbose>3.AND.MpiMaster)call show_sector(isector)
+             if(ed_verbose>3.AND.MpiMaster)write(*,"(A,2I6)")"--- DIM:",getDim(isector)
+             if(ed_verbose>3.AND.MpiMaster)write(*,*)""
           enddo
        enddo
     else
        do isector=1,Nsectors
+          call get_Nup(isector,Nups)
+          call get_Ndw(isector,Ndws)
+          if(ed_verbose>3.AND.MpiMaster)write(*,"(A,I6,A3,I2,A1,I2,A)")"--- sector",isector,"  (",Nups,",",Ndws,")---- "
           call get_DimUp(isector,DimUps)
           call get_DimDw(isector,DimDws)
           DimUp = product(DimUps)
           DimDw = product(DimDws)  
           getDim(isector)  = DimUp*DimDw
+          if(ed_verbose>3.AND.MpiMaster)call show_sector(isector)
+          if(ed_verbose>3.AND.MpiMaster)write(*,"(A,2I6)")"--- DIM:",getDim(isector)
+          if(ed_verbose>3.AND.MpiMaster)write(*,*)""
        enddo
     endif
     !
@@ -361,7 +371,7 @@ contains
        dim = 0
        do i=0,Nimp
           ip = Nimp-i
-          dim = dim +  binomial(iNs,i)*binomial(iNs,ip)*binomial(Ns,Nup-i)*binomial(Ns,Ndw-ip)
+          dim = dim +  binomial(iNs,i)*binomial(iNs,ip)*binomial(eNs,Nup-i)*binomial(eNs,Ndw-ip)
        enddo
     else
        dim = binomial(Ns,Nup)

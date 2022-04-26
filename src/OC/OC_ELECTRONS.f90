@@ -163,8 +163,8 @@ contains
                    endif
                    ! DW
                    if((ndw(jo)==1) .AND. (ndw(io)==0).AND. (Hij(Nspin,io,jo)/=zero))then
-                      call c(jo+Ns,m,k1,sg1)
-                      call cdg(io+Ns,k1,k2,sg2)
+                      call c(jo+eNs,m,k1,sg1)
+                      call cdg(io+eNs,k1,k2,sg2)
                       j = binary_search(sectorI%H(1)%map,k2)
                       vvinit(j) = vvinit(j) + Hij(Nspin,io,jo)*sg1*sg2*state_cvec(i)
                    endif
@@ -184,8 +184,8 @@ contains
                    endif
                    ! DW
                    if((ndw(jo)==1) .AND. (ndw(io)==0).AND. (Hij(Nspin,io,jo)/=zero))then
-                      call c(jo+Ns,m,k1,sg1)
-                      call cdg(io+Ns,k1,k2,sg2)
+                      call c(jo+eNs,m,k1,sg1)
+                      call cdg(io+eNs,k1,k2,sg2)
                       j  = binary_search(sectorI%H(1)%map,k2)
                       vvinit(j) = vvinit(j) - conjg(Hij(Nspin,io,jo))*sg1*sg2*state_cvec(i)
                    endif
@@ -444,8 +444,8 @@ contains
                       endif
                       ! DW
                       if((ndw(jo)==1) .AND. (ndw(io)==0).AND. (Hij(Nspin,io,jo)/=zero))then
-                         call c(jo+Ns,mdw,k1,sg1)
-                         call cdg(io+Ns,k1,k2,sg2)
+                         call c(jo+eNs,mdw,k1,sg1)
+                         call cdg(io+eNs,k1,k2,sg2)
                          rj = binary_search(sectorI%H(1)%map,k2)
                          Chio= Chio + conjg(espace(isector)%M(rj,j))*Hij(Nspin,io,jo)*sg1*sg2*espace(isector)%M(li,i)
                       endif
@@ -465,8 +465,8 @@ contains
                       endif
                       ! DW
                       if((ndw(jo)==1) .AND. (ndw(io)==0).AND. (hij(Nspin,io,jo)/=zero))then
-                         call c(jo+Ns,mdw,k1,sg1)
-                         call cdg(io+Ns,k1,k2,sg2)
+                         call c(jo+eNs,mdw,k1,sg1)
+                         call cdg(io+eNs,k1,k2,sg2)
                          rj = binary_search(sectorI%H(1)%map,k2)
                          Chio= Chio - conjg(espace(isector)%M(rj,j))*hij(Nspin,io,jo)*sg1*sg2*espace(isector)%M(li,i)
                       endif
