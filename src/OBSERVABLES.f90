@@ -180,8 +180,20 @@ contains
     !
     if(MPIMASTER)then
        call write_observables()
-       write(LOGfile,"(A,100f18.12,f18.12)")&
-            "dens=",(dens(is),is=1,Ns),sum(dens)
+       if(KondoFlag)then
+          if(iNs==eNs)then
+             write(LOGfile,"(A,"//str(iNs)//"f15.8)")&
+                  "dens=",(dens(eNs+is),is=1,iNs)
+          else
+             write(LOGfile,"(A,"//str(max(1,Jkindx(1)-1))//"A15,"//str(iNs)//"f15.8)")&
+                  "dens=",("",is=1,max(1,Jkindx(1)-1)),(dens(eNs+is),is=1,iNs)
+          endif
+          write(LOGfile,"(A,100f15.8,f15.8)")&
+               "dens=",(dens(is),is=1,eNs),sum(dens)
+       else
+          write(LOGfile,"(A,100f15.8,f15.8)")&
+               "dens=",(dens(is),is=1,Ns),sum(dens)
+       endif
        if(Nspin==2)then
           write(LOGfile,"(A,10f18.12,A)")&
                "magZ=",(magz(is),is=1,Ns)
@@ -341,15 +353,7 @@ contains
 
     unit = fopen("dens.ed",.true.)
     write(unit,"(90(F20.12,1X))")(dens(io),io=1,Ns)
-    close(unit)         
-
-    unit = fopen("dens_up.ed",.true.)
-    write(unit,"(90(F20.12,1X))")(dens_up(io),io=1,Ns)
-    close(unit)         
-
-    unit = fopen("dens_dw.ed",.true.)
-    write(unit,"(90(F20.12,1X))")(dens_dw(io),io=1,Ns)
-    close(unit)         
+    close(unit)
 
     unit = fopen("docc.ed",.true.)
     write(unit,"(90(F20.12,1X))")(docc(io),io=1,Ns)

@@ -53,11 +53,12 @@ contains
     case default
        !Impurity GF
        do iimp=1,iNs
+          io = eNs+iimp
           if(MPIMASTER)write(LOGfile,"(A)")"Build spinChi:"//" imp "//str(iimp)
           if(MPIMASTER)call start_timer
+          call allocate_GFmatrix(SpinChiMatrix(io,io),Nstate=state_list%size)
+          call allocate_GFmatrix(SpinChiMatrix(io,1),Nstate=state_list%size)
           call allocate_GFmatrix(SpinChiMatrix(1,1),Nstate=state_list%size)
-          call allocate_GFmatrix(SpinChiMatrix(eNs+iimp,1),Nstate=state_list%size)
-          call allocate_GFmatrix(SpinChiMatrix(eNs+iimp,eNs+iimp),Nstate=state_list%size)
           call lanc_build_spinChi_imp(iimp)
           if(MPIMASTER)call stop_timer(unit=LOGfile)
        enddo
@@ -77,9 +78,14 @@ contains
        if(MPIMASTER)call start_timer
        select case(ed_method)
        case default
-          call lanc_eval_spinChi_impurity(iimp)
+          io = eNs+iimp
+          call lanc_eval_spinChi_impurity(io,io)
+          call lanc_eval_spinChi_impurity(io,1)
+          call lanc_eval_spinChi_impurity(1,1)
        case ('lapack','full')
-          call full_eval_spinChi_impurity(iimp)
+          call full_eval_spinChi_impurity(io,io)
+          call full_eval_spinChi_impurity(io,1)
+          call full_eval_spinChi_impurity(1,1)
        end select
        if(MPIMASTER)call stop_timer(unit=LOGfile)
     enddo
@@ -161,7 +167,7 @@ contains
           allocate(vvinit(sectorI%Dim)) ; vvinit=zero
           do i=1,sectorI%Dim
              call apply_op_Sz(i,sgn,[1,eNs],sectorI)
-             vvinit(i) = sgn*state_cvec(i)
+             vvinit(i) = sgn/eNs*state_cvec(i)
           enddo
           call delete_sector(sectorI)
        else
@@ -182,7 +188,7 @@ contains
           do i=1,sectorI%Dim
              call apply_op_Sz(i,Siorb,io,sectorI)
              call apply_op_Sz(i,Sjorb,[1,eNs],sectorI)
-             sgn       = Siorb + Sjorb
+             sgn       = Siorb + Sjorb/eNs
              vvinit(i) = sgn*state_cvec(i)
           enddo
           call delete_sector(sectorI)
@@ -269,20 +275,19 @@ contains
 
 
 
-  subroutine lanc_eval_spinChi_impurity(iimp)
-    integer,intent(in)                  :: iimp
+  subroutine lanc_eval_spinChi_impurity(io,jo)
+    integer,intent(in)                  :: io,jo
     integer                             :: Nstates,istate
     integer                             :: Nchannels,ichan
-    integer                             :: Nexcs,iexc,io,jo,ii
+    integer                             :: Nexcs,iexc,ii
     real(8)                             :: peso,de,pesoBZ,beta,Ei,Egs
     real(8),dimension(Ns,Ns,0:Ltau)     :: spinChi_tau_tmp
     complex(8),dimension(Ns,Ns,Lreal)   :: spinChi_w_tmp
     complex(8),dimension(Ns,Ns,0:Lmats) :: spinChi_iv_tmp
     !
     !
-    io  = eNs+iimp
-    !    
-    if(.not.allocated(SpinChiMatrix(io,io)%state)) then
+
+    if(.not.allocated(SpinChiMatrix(io,jo)%state)) then
        print*, "CHI_SPIN WARNING: SpinChiMatrix%state not allocated. Nothing to do"
        return
     endif
@@ -291,15 +296,11 @@ contains
     Egs = state_list%emin
     pesoBZ = 1d0/zeta_function
     !
-    spinChi_tau_tmp=0d0
-    spinChi_w_tmp=zero
-    spinChi_iv_tmp=zero
     !
     !this is the total number of available states  == state_list%size
-    jo=io
     Nstates = size(SpinChiMatrix(io,jo)%state) 
     call es_trim_size(state_list,temp,cutoff) 
-    do istate=1+MpiRank,state_list%trimd_size,MpiSize
+    do istate=1,state_list%trimd_size
        if(.not.allocated(SpinChiMatrix(io,jo)%state(istate)%channel))cycle
        Ei =  es_return_energy(state_list,istate)
        if(finiteT)pesoBZ = exp(-beta*(Ei-Egs))/zeta_function
@@ -312,76 +313,27 @@ contains
              dE    = SpinChiMatrix(io,jo)%state(istate)%channel(ichan)%poles(iexc)
              if(beta*dE > 1d-3)spinChi_iv(io,jo,0)=spinChi_iv(io,jo,0) + 2*peso*(1d0-exp(-beta*dE))/dE
              do i=1,Lmats
-                spinChi_iv_tmp(io,jo,i)=spinChi_iv_tmp(io,jo,i) + peso*(1d0-exp(-beta*dE))*2d0*dE/(vm(i)**2+dE**2)
+                spinChi_iv(io,jo,i)=spinChi_iv(io,jo,i) + peso*(1d0-exp(-beta*dE))*2d0*dE/(vm(i)**2+dE**2)
              enddo
+             !
              !Symmetrize for low-T /large-beta, mostly occurring for zero T calculations
              do i=0,Ltau/2-1
-                spinChi_tau_tmp(io,jo,i)=spinChi_tau_tmp(io,jo,i) + peso*exp(-tau(i)*dE)
+                spinChi_tau(io,jo,i)=spinChi_tau(io,jo,i) + peso*exp(-tau(i)*dE)
              enddo
-             spinChi_tau_tmp(io,jo,Ltau/2)=spinChi_tau_tmp(io,jo,Ltau/2) + peso*0.5d0*(exp(-tau(Ltau/2)*dE)+exp(-(beta-tau(Ltau/2))*dE))
+             spinChi_tau(io,jo,Ltau/2)=spinChi_tau(io,jo,Ltau/2) +&
+                  peso*0.5d0*(exp(-tau(Ltau/2)*dE)+exp(-(beta-tau(Ltau/2))*dE))
              do i=Ltau/2+1,Ltau
-                spinChi_tau_tmp(io,jo,i)=spinChi_tau_tmp(io,jo,i) + peso*exp(-(beta-tau(i))*dE)
+                spinChi_tau(io,jo,i)=spinChi_tau(io,jo,i) + peso*exp(-(beta-tau(i))*dE)
              enddo
              !
              do i=1,Lreal
-                spinChi_w_tmp(io,jo,i)=spinChi_w_tmp(io,jo,i) - peso*(1d0-exp(-beta*dE))*(1d0/(dcmplx(vr(i),eps) - dE) - 1d0/(dcmplx(vr(i),eps) + dE))
+                spinChi_w(io,jo,i)=spinChi_w(io,jo,i) - &
+                     peso*(1d0-exp(-beta*dE))*( 1d0/(dcmplx(vr(i),eps) - dE) - 1d0/(dcmplx(vr(i),eps) + dE) )
              enddo
           enddo
        enddo
     enddo
     !
-    jo=1
-    Nstates = size(SpinChiMatrix(io,jo)%state) 
-    call es_trim_size(state_list,temp,cutoff) 
-    do istate=1+MpiRank,state_list%trimd_size,MpiSize
-       if(.not.allocated(SpinChiMatrix(io,jo)%state(istate)%channel))cycle
-       Ei =  es_return_energy(state_list,istate)
-       if(finiteT)pesoBZ = exp(-beta*(Ei-Egs))/zeta_function
-       Nchannels = size(SpinChiMatrix(io,jo)%state(istate)%channel)
-       do ichan=1,Nchannels
-          Nexcs  = size(SpinChiMatrix(io,jo)%state(istate)%channel(ichan)%poles)
-          if(Nexcs==0)cycle
-          do iexc=1,Nexcs
-             peso  = SpinChiMatrix(io,jo)%state(istate)%channel(ichan)%weight(iexc)*pesoBZ
-             dE    = SpinChiMatrix(io,jo)%state(istate)%channel(ichan)%poles(iexc)
-             if(beta*dE > 1d-3)spinChi_iv(io,jo,0)=spinChi_iv(io,jo,0) + 2*peso*(1d0-exp(-beta*dE))/dE
-             do i=1,Lmats
-                spinChi_iv_tmp(io,jo,i)=spinChi_iv_tmp(io,jo,i) + peso*(1d0-exp(-beta*dE))*2d0*dE/(vm(i)**2+dE**2)
-             enddo
-             !Symmetrize for low-T /large-beta, mostly occurring for zero T calculations
-             do i=0,Ltau/2-1
-                spinChi_tau_tmp(io,jo,i)=spinChi_tau_tmp(io,jo,i) + peso*exp(-tau(i)*dE)
-             enddo
-             spinChi_tau_tmp(io,jo,Ltau/2)=spinChi_tau_tmp(io,jo,Ltau/2) + peso*0.5d0*(exp(-tau(Ltau/2)*dE)+exp(-(beta-tau(Ltau/2))*dE))
-             do i=Ltau/2+1,Ltau
-                spinChi_tau_tmp(io,jo,i)=spinChi_tau_tmp(io,jo,i) + peso*exp(-(beta-tau(i))*dE)
-             enddo
-             !
-             do i=1,Lreal
-                spinChi_w_tmp(io,jo,i)=spinChi_w_tmp(io,jo,i) - peso*(1d0-exp(-beta*dE))*(1d0/(dcmplx(vr(i),eps) - dE) - 1d0/(dcmplx(vr(i),eps) + dE))
-             enddo
-          enddo
-       enddo
-    enddo
-    !
-#ifdef _MPI
-    spinChi_tau=0d0
-    spinChi_w=zero
-    spinChi_iv=zero
-    if(MpiStatus)then
-       call AllReduce_Mpi(MpiComm,spinChi_tau_tmp,spinChi_tau)
-       call AllReduce_Mpi(MpiComm,spinChi_w_tmp,spinChi_w)
-       call AllReduce_Mpi(MpiComm,spinChi_iv_tmp,spinChi_iv) 
-    else
-       spinChi_tau=spinChi_tau_tmp
-       spinChi_w=spinChi_w_tmp
-       spinChi_iv=spinChi_iv_tmp
-    endif
-#else
-    spinChi_tau=spinChi_tau_tmp
-    spinChi_w=spinChi_w_tmp
-    spinChi_iv=spinChi_iv_tmp
-#endif
     return
   end subroutine lanc_eval_spinChi_impurity
 
@@ -399,13 +351,12 @@ contains
 
 
 
-  subroutine full_eval_spinChi_impurity(iimp)
-    integer      :: iimp
+  subroutine full_eval_spinChi_impurity(io,jo)
     integer      :: io,jo
     type(sector) :: sectorI,sectorJ
     integer      :: Nups(1)
     integer      :: Ndws(1)
-    real(8)      :: Chio,Chjo(2),Sio,Sjo,Sje
+    real(8)      :: Chio,Chjo,Sio,Sjo,Sje
     integer      :: i,j,ll,m,isector,ii
     integer      :: idim,ia
     real(8)      :: Ei,Ej,cc,peso,pesotot,beta
@@ -414,9 +365,6 @@ contains
     !
     !
     !Spin susceptibility \X(tau). |<i|S_z|j>|^2
-    !
-    io  = eNs+iimp
-    jo  = io
     !
     beta= 1d0/temp
     !
@@ -438,17 +386,13 @@ contains
                 call apply_op_Sz(i,Sio,io,sectorI)
                 Chio   = Chio + espace(isector)%M(ll,i)*Sio*conjg(espace(isector)%M(ll,j))
                 call apply_op_Sz(i,Sjo,jo,sectorI)
-                Chjo(1)= Chjo(1) + espace(isector)%M(ll,i)*Sjo*conjg(espace(isector)%M(ll,j))
-                call apply_op_Sz(i,Sje,[1,eNs],sectorI)
-                Chjo(2)= Chjo(2) + espace(isector)%M(ll,i)*Sje*conjg(espace(isector)%M(ll,j))
+                Chjo   = Chjo + espace(isector)%M(ll,i)*Sjo*conjg(espace(isector)%M(ll,j))
              enddo
              Ei=espace(isector)%e(i)
              Ej=espace(isector)%e(j)
              de=Ei-Ej
              do ii=1,2
-                peso = Chio*Chjo(ii)/zeta_function
-                jo = io
-                if(ii==2)jo=1
+                peso = Chio*Chjo/zeta_function
                 !Matsubara (bosonic) frequency
                 if(beta*dE > 1d-3)spinChi_iv(io,jo,0)=spinChi_iv(io,jo,0) + peso*2*exp(-beta*Ej)*(1d0-exp(-beta*dE))/dE
                 do m=1,Lmats

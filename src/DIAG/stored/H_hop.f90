@@ -46,39 +46,68 @@
      enddo
 
 
-     do io=1,iNs
-        do jo=1,iNs
-           !UP impurity
-           Jcondition =  (t_imp/=0d0) .AND. (npup(jo)==1) .AND. (npup(io)==0)
-           if (Jcondition) then
-              call c(ket_imp_index(jo,1),m,k1,sg1)
-              call cdg(ket_imp_index(io,1),k1,k2,sg2)
-              j    = binary_search(Hsector%H(1)%map,k2)
-              htmp = t_imp*sg1*sg2
-              !
-              select case(MpiStatus)
-              case (.true.)
-                 call sp_insert_element(MpiComm,spH0d,htmp,i,j)
-              case (.false.)
-                 call sp_insert_element(spH0d,htmp,i,j)
-              end select
-           endif
-           !DW impurity
-           Jcondition = (t_imp/=0d0) .AND. (npdw(jo)==1) .AND. (npdw(io)==0)
-           if (Jcondition) then
-              call c(ket_imp_index(jo,2),m,k1,sg1)
-              call cdg(ket_imp_index(io,2),k1,k2,sg2)
-              j    = binary_search(Hsector%H(1)%map,k2)
-              htmp = t_imp*sg1*sg2
-              !
-              select case(MpiStatus)
-              case (.true.)
-                 call sp_insert_element(MpiComm,spH0d,htmp,i,j)
-              case (.false.)
-                 call sp_insert_element(spH0d,htmp,i,j)
-              end select
-           endif
-        enddo
+     do io=1,iNs-1
+        !UP impurity: C^+_i C_(i+1) i-->i+1
+        Jcondition =  (t_imp/=0d0) .AND. (npup(io+1)==1) .AND. (npup(io)==0)
+        if (Jcondition) then
+           call c(ket_imp_index(io+1,1),m,k1,sg1)
+           call cdg(ket_imp_index(io,1),k1,k2,sg2)
+           j    = binary_search(Hsector%H(1)%map,k2)
+           htmp = t_imp*sg1*sg2
+           !
+           select case(MpiStatus)
+           case (.true.)
+              call sp_insert_element(MpiComm,spH0d,htmp,i,j)
+           case (.false.)
+              call sp_insert_element(spH0d,htmp,i,j)
+           end select
+        endif
+        !UP impurity: C^+_(i+1) C_i i<--i+1
+        Jcondition =  (t_imp/=0d0) .AND. (npup(io)==1) .AND. (npup(io+1)==0)
+        if (Jcondition) then
+           call c(ket_imp_index(io,1),m,k1,sg1)
+           call cdg(ket_imp_index(io+1,1),k1,k2,sg2)
+           j    = binary_search(Hsector%H(1)%map,k2)
+           htmp = t_imp*sg1*sg2
+           !
+           select case(MpiStatus)
+           case (.true.)
+              call sp_insert_element(MpiComm,spH0d,htmp,i,j)
+           case (.false.)
+              call sp_insert_element(spH0d,htmp,i,j)
+           end select
+        endif
+        !
+        !DW impurity C^+_i C_(i+1) i-->i+1
+        Jcondition = (t_imp/=0d0) .AND. (npdw(io+1)==1) .AND. (npdw(io)==0)
+        if (Jcondition) then
+           call c(ket_imp_index(io+1,2),m,k1,sg1)
+           call cdg(ket_imp_index(io,2),k1,k2,sg2)
+           j    = binary_search(Hsector%H(1)%map,k2)
+           htmp = t_imp*sg1*sg2
+           !
+           select case(MpiStatus)
+           case (.true.)
+              call sp_insert_element(MpiComm,spH0d,htmp,i,j)
+           case (.false.)
+              call sp_insert_element(spH0d,htmp,i,j)
+           end select
+        endif
+        !DW impurity C^+_(i+1) C_i i<--i+1
+        Jcondition = (t_imp/=0d0) .AND. (npdw(io)==1) .AND. (npdw(io+1)==0)
+        if (Jcondition) then
+           call c(ket_imp_index(io,2),m,k1,sg1)
+           call cdg(ket_imp_index(io+1,2),k1,k2,sg2)
+           j    = binary_search(Hsector%H(1)%map,k2)
+           htmp = t_imp*sg1*sg2
+           !
+           select case(MpiStatus)
+           case (.true.)
+              call sp_insert_element(MpiComm,spH0d,htmp,i,j)
+           case (.false.)
+              call sp_insert_element(spH0d,htmp,i,j)
+           end select
+        endif
      enddo
 
   enddo

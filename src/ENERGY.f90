@@ -470,28 +470,42 @@ contains
              enddo
              !
              !
-             do io=1,iNs
-                do jo=1,iNs
-                   !UP impurity
-                   Jcondition =  (t_imp/=0d0) .AND. (npup(jo)==1) .AND. (npup(io)==0)
-                   if (Jcondition) then
-                      call c(2*eNs + jo,m,k1,sg1)
-                      call cdg(2*eNs + io,k1,k2,sg2)
-                      j    = binary_search(sectorI%H(1)%map,k2)
-                      ed_Ekin = ed_Ekin + t_imp*sg1*sg2
-                   endif
-                   !DW impurity
-                   Jcondition = (t_imp/=0d0) .AND. (npdw(jo)==1) .AND. (npdw(io)==0)
-                   if (Jcondition) then
-                      call c(2*eNs + iNs + jo,m,k1,sg1)
-                      call cdg(2*eNs + iNs + io,k1,k2,sg2)
-                      j    = binary_search(sectorI%H(1)%map,k2)
-                      ed_Ekin = ed_Ekin + t_imp*sg1*sg2
-                   endif
-                enddo
+             do io=1,iNs-1
+                !UP impurity: C^+_i C_(i+1) i-->i+1
+                Jcondition =  (t_imp/=0d0) .AND. (npup(io+1)==1) .AND. (npup(io)==0)
+                if (Jcondition) then
+                   call c(ket_imp_index(io+1,1),m,k1,sg1)
+                   call cdg(ket_imp_index(io,1),k1,k2,sg2)
+                   j    = binary_search(sectorI%H(1)%map,k2)
+                   ed_Ekin = ed_Ekin + t_imp*sg1*sg2*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
+                endif
+                !UP impurity: C^+_(i+1) C_i i<--i+1
+                Jcondition =  (t_imp/=0d0) .AND. (npup(io)==1) .AND. (npup(io+1)==0)
+                if (Jcondition) then
+                   call c(ket_imp_index(io,1),m,k1,sg1)
+                   call cdg(ket_imp_index(io+1,1),k1,k2,sg2)
+                   j    = binary_search(sectorI%H(1)%map,k2)
+                   ed_Ekin = ed_Ekin + t_imp*sg1*sg2*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
+                endif
+                !
+                !DW impurity C^+_i C_(i+1) i-->i+1
+                Jcondition = (t_imp/=0d0) .AND. (npdw(io+1)==1) .AND. (npdw(io)==0)
+                if (Jcondition) then
+                   call c(ket_imp_index(io+1,2),m,k1,sg1)
+                   call cdg(ket_imp_index(io,2),k1,k2,sg2)
+                   j    = binary_search(sectorI%H(1)%map,k2)
+                   ed_Ekin = ed_Ekin + t_imp*sg1*sg2*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
+                endif
+                !DW impurity C^+_(i+1) C_i i<--i+1
+                Jcondition = (t_imp/=0d0) .AND. (npdw(io)==1) .AND. (npdw(io+1)==0)
+                if (Jcondition) then
+                   call c(ket_imp_index(io,2),m,k1,sg1)
+                   call cdg(ket_imp_index(io+1,2),k1,k2,sg2)
+                   j    = binary_search(sectorI%H(1)%map,k2)
+                   ed_Ekin = ed_Ekin + t_imp*sg1*sg2*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
+                endif
              enddo
-
-
+             !
              !Euloc=\sum=i U_i*(n_u*n_d)_i
              do iorb=1,Norb
                 do isite=1,Nsites(iorb)          

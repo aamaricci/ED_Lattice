@@ -32,9 +32,12 @@ contains
   subroutine build_chi_lattice()
     !
     call deallocate_GFmatrix(SpinChiMatrix)
-    !        
-    if(any([chispin_flag(1:Norb)]))call build_chi_spin_electrons()
-    if(KondoFlag)call build_chi_spin_impurities()
+    !
+    if(KondoFlag)then
+       call build_chi_spin_impurities()
+    else
+       if(any([chispin_flag(1:Norb)]))call build_chi_spin_electrons()
+    endif
     if(MPIMASTER)&
          call write_GFmatrix(SpinChiMatrix,"ChiSpinMatrix"//str(ed_file_suffix)//".restart")
     !
@@ -50,33 +53,39 @@ contains
     !
     call allocate_grids
     !
-    if(any([chispin_flag(1:Norb)]))call eval_chi_spin_electrons()
-    if(KondoFlag)call eval_chi_spin_impurities()
+    if(KondoFlag)then
+       call eval_chi_spin_impurities()
+    else       
+       if(any([chispin_flag(1:Norb)]))call eval_chi_spin_electrons()
+    endif
     !
     if(MPIMASTER)then
        call ed_print_impChi()
        chiT= 0d0
        beta= 1d0/temp
-       if(KondoFlag.AND.chispin_flag(Norb+1))then
-          do iimp=1,iNs
-             io = eNs + iimp
-             chiT(io) = trapz(spinChi_tau(io,io,0:),0d0,beta)
-          enddo
-          unit = fopen("chiT_imp.ed",append=.true.)
-          write(unit,*)temp,(chiT(eNs+iimp),iimp=1,iNs)
-          close(unit)
-       endif
-       if(any([chispin_flag(1:Norb)]))then
-          do iorb=1,Norb
-             if(.not.chispin_flag(iorb))cycle
-             do isite=1,Nsites(iorb)
-                io  = pack_indices(isite,iorb)
-                chiT(io) = trapz(spinChi_tau(io,io,:),0d0,beta)
+       if(KondoFlag)then
+          if(chispin_flag(Norb+1))then
+             do iimp=1,iNs
+                io = eNs + iimp
+                chiT(io) = trapz(spinChi_tau(io,io,0:),0d0,beta)
              enddo
-          enddo
-          unit = fopen("chiT.ed",append=.true.)
-          write(unit,*)temp,(chiT(io),io=1,eNs)
-          close(unit)
+             unit = fopen("chiT_imp.ed",append=.true.)
+             write(unit,*)temp,(chiT(eNs+iimp),iimp=1,iNs)
+             close(unit)
+          endif
+       else
+          if(any([chispin_flag(1:Norb)]))then
+             do iorb=1,Norb
+                if(.not.chispin_flag(iorb))cycle
+                do isite=1,Nsites(iorb)
+                   io  = pack_indices(isite,iorb)
+                   chiT(io) = trapz(spinChi_tau(io,io,:),0d0,beta)
+                enddo
+             enddo
+             unit = fopen("chiT.ed",append=.true.)
+             write(unit,*)temp,(chiT(io),io=1,eNs)
+             close(unit)
+          endif
        endif
     endif
     !

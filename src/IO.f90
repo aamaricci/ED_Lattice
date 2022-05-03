@@ -115,50 +115,50 @@ contains
     if(KondoFlag)then
        if(.not.chispin_flag(Norb+1))return
        do iimp=1,iNs
-          io = Ns+iimp
-          suffix="spinChi_i"//str(iimp)
+          io = eNs+iimp
+          suffix="spinChi_imp"//str(iimp)
           call splot(reg(suffix)//"_tau"//reg(ed_file_suffix)//".ed",tau,spinChi_tau(io,io,0:))
-          call splot(reg(suffix)//"_realw"//reg(ed_file_suffix)//".ed",vr,spinChi_w(io,io,:))
+          ! call splot(reg(suffix)//"_realw"//reg(ed_file_suffix)//".ed",vr,spinChi_w(io,io,:))
           ! call splot(reg(suffix)//"_iv"//reg(ed_file_suffix)//".ed",vm,spinChi_iv(io,io,:))
-          !
-          suffix="spinChi_i"//str(iimp)//"_bath"
+          suffix="spinChi_bath_imp"//str(iimp)
           call splot(reg(suffix)//"_tau"//reg(ed_file_suffix)//".ed",tau,spinChi_tau(io,1,0:))
-          call splot(reg(suffix)//"_realw"//reg(ed_file_suffix)//".ed",vr,spinChi_w(io,1,:))
-          ! call splot(reg(suffix)//"_iv"//reg(ed_file_suffix)//".ed",vm,spinChi_iv(io,io,:))
        enddo
-    endif
-    do iorb=1,Norb
-       if(.not.chispin_flag(iorb))cycle
-       do ilat=1,Nsites(iorb)
-          io = pack_indices(ilat,iorb)
-          suffix="spinChi"//&
-               "_i"//str(ilat,site_indx_padding)//&
-               "_l"//str(iorb)
-          call splot(reg(suffix)//"_tau"//reg(ed_file_suffix)//".ed",tau,spinChi_tau(io,io,0:))
-          call splot(reg(suffix)//"_realw"//reg(ed_file_suffix)//".ed",vr,spinChi_w(io,io,:))
-          ! call splot(reg(suffix)//"_iv"//reg(ed_file_suffix)//".ed",vm,spinChi_iv(io,io,:))
-       enddo
-    enddo
-    if(offdiag_chispin_flag.AND.Norb>1)then
+       suffix="spinChi_bath"
+       call splot(reg(suffix)//"_tau"//reg(ed_file_suffix)//".ed",tau,spinChi_tau(1,1,0:))
+    else
        do iorb=1,Norb
-          do jorb=1,Norb
-             if(.not.chispin_flag(iorb).AND..not.chispin_flag(jorb))cycle
-             do ilat=1,Nsites(iorb)
-                do jlat=1,Nsites(jorb)
-                   io  = pack_indices(ilat,iorb)
-                   jo  = pack_indices(jlat,jorb)
-                   if(io==jo)cycle
-                   !
-                   suffix="spinChi"//&
-                        "_i"//str(ilat,site_indx_padding)//"j"//str(jlat,site_indx_padding)//&
-                        "_l"//str(iorb)//"m"//str(jorb)
-                   call splot(reg(suffix)//"_tau"//reg(ed_file_suffix)//".ed",tau,spinChi_tau(io,jo,0:))
-                   call splot(reg(suffix)//"_realw"//reg(ed_file_suffix)//".ed",vr,spinChi_w(io,jo,:))
-                   ! call splot(reg(suffix)//"_iv"//reg(ed_file_suffix)//".ed",vm,spinChi_iv(io,jo,:))
+          if(.not.chispin_flag(iorb))cycle
+          do ilat=1,Nsites(iorb)
+             io = pack_indices(ilat,iorb)
+             suffix="spinChi"//&
+                  "_i"//str(ilat,site_indx_padding)//&
+                  "_l"//str(iorb)
+             call splot(reg(suffix)//"_tau"//reg(ed_file_suffix)//".ed",tau,spinChi_tau(io,io,0:))
+             ! call splot(reg(suffix)//"_realw"//reg(ed_file_suffix)//".ed",vr,spinChi_w(io,io,:))
+             ! call splot(reg(suffix)//"_iv"//reg(ed_file_suffix)//".ed",vm,spinChi_iv(io,io,:))
+          enddo
+       enddo
+       if(offdiag_chispin_flag.AND.Norb>1)then
+          do iorb=1,Norb
+             do jorb=1,Norb
+                if(.not.chispin_flag(iorb).AND..not.chispin_flag(jorb))cycle
+                do ilat=1,Nsites(iorb)
+                   do jlat=1,Nsites(jorb)
+                      io  = pack_indices(ilat,iorb)
+                      jo  = pack_indices(jlat,jorb)
+                      if(io==jo)cycle
+                      !
+                      suffix="spinChi"//&
+                           "_i"//str(ilat,site_indx_padding)//"j"//str(jlat,site_indx_padding)//&
+                           "_l"//str(iorb)//"m"//str(jorb)
+                      call splot(reg(suffix)//"_tau"//reg(ed_file_suffix)//".ed",tau,spinChi_tau(io,jo,0:))
+                      ! call splot(reg(suffix)//"_realw"//reg(ed_file_suffix)//".ed",vr,spinChi_w(io,jo,:))
+                      ! call splot(reg(suffix)//"_iv"//reg(ed_file_suffix)//".ed",vm,spinChi_iv(io,jo,:))
+                   enddo
                 enddo
              enddo
           enddo
-       enddo
+       endif
     endif
     call deallocate_grids()
   end subroutine print_chi_spin

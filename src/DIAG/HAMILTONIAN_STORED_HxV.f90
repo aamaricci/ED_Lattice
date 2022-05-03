@@ -177,10 +177,10 @@ contains
     !
     !NON-LOCAL INTERACTION HAMILTONIAN TERMS
     include "stored/H_se_ph.f90"
-    !
+    ! !
     !KONDO COUPLING HAMILTONIAN TERMS
     include "stored/H_kondo.f90"
-    !
+    ! !
     !HOPPING TERMS
     include "stored/H_hop.f90"
     !

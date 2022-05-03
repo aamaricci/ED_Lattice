@@ -19,7 +19,7 @@ ENDIF()
 # -mcmodel=large  this is to remove the 2Gb limit of virtual memory allocation
 if(CMAKE_Fortran_COMPILER_ID MATCHES GNU) # this is gfortran
   SET(CMAKE_Fortran_MODDIR_FLAG   "-J")
-  SET(CMAKE_Fortran_FLAGS         "-cpp -ffree-line-length-none -fPIC -w ")
+  SET(CMAKE_Fortran_FLAGS         "-cpp -ffree-line-length-none -fPIC -w ") #-fdefault-integer-8
   IF(CMAKE_Fortran_COMPILER_VERSION VERSION_LESS 10.0.0)
     SET(CMAKE_Fortran_FLAGS         "${CMAKE_Fortran_FLAGS} -Wno-argument-mismatch")
   ELSE()

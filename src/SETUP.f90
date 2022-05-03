@@ -317,14 +317,15 @@ contains
        getCsector(1,1,isector)=jsector
     enddo
 
+
     do isector=1,Nsectors
        call get_Nup(isector,Nups)
        call get_Ndw(isector,Ndws)
        Jups=Nups
        Jdws=Ndws
        Jups(1)=Jups(1)+1;
-       if(Jups(1) > Ns)cycle
-       if( KondoFlag .AND. (Jups(1) >=Ns) .AND. (Jdws(1) >=Ns) )cycle
+       if(Jups(1) > eNs+Nimp)cycle
+       if( KondoFlag .AND. (Jups(1) >=eNs+Nimp) .AND. (Jdws(1) >=eNs+Nimp) )cycle
        call get_Sector([Jups,Jdws],Ns,jsector)
        getCDGsector(1,1,isector)=jsector
     enddo
@@ -347,8 +348,8 @@ contains
        Jups=Nups
        Jdws=Ndws 
        Jdws(1)=Jdws(1)+1;
-       if(KondoFlag .AND. (Jups(1) >=Ns) .AND. (Jdws(1) >=Ns) )cycle
-       if(Jdws(1) > Ns)cycle
+       if(Jdws(1) > eNs+Nimp)cycle
+       if(KondoFlag .AND. (Jups(1) >=eNs+Nimp) .AND. (Jdws(1) >=eNs+Nimp) )cycle
        call get_Sector([Jups,Jdws],Ns,jsector)
        getCDGsector(1,2,isector)=jsector
     enddo
