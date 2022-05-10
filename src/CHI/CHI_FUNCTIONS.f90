@@ -51,7 +51,7 @@ contains
     real(8),dimension(Ns) :: ChiT
     real(8)               :: beta
     !
-    call allocate_grids
+    call setup_chif
     !
     if(KondoFlag)then
        call eval_chi_spin_impurities()
@@ -94,5 +94,20 @@ contains
   end subroutine eval_chi_lattice
 
 
+
+
+
+  subroutine setup_chif
+    call allocate_grids
+    if(allocated(spinChi_tau))deallocate(spinChi_tau)
+    if(allocated(spinChi_w))deallocate(spinChi_w)
+    if(allocated(spinChi_iv))deallocate(spinChi_iv)
+    allocate(spinChi_tau(Ns,Ns,0:Ltau))
+    allocate(spinChi_w(Ns,Ns,Lreal))
+    allocate(spinChi_iv(Ns,Ns,0:Lmats))
+    spinChi_tau=zero
+    spinChi_w=zero
+    spinChi_iv=zero
+  end subroutine setup_chif
 
 end MODULE ED_CHI_FUNCTIONS

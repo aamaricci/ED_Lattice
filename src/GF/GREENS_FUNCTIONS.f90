@@ -40,7 +40,7 @@ contains
 
   subroutine eval_gf_lattice()
     !
-    call allocate_grids
+    call setup_gf
     !
     impGmats=zero
     impGreal=zero
@@ -53,6 +53,22 @@ contains
     call deallocate_grids
     !
   end subroutine eval_gf_lattice
+
+
+
+
+
+
+  subroutine setup_gf
+    call allocate_grids
+    if(allocated(impGmats))deallocate(impGmats)
+    if(allocated(impGreal))deallocate(impGreal)
+    allocate(impGmats(Nspin,Ns,Ns,Lmats))
+    allocate(impGreal(Nspin,Ns,Ns,Lreal))
+    impGmats=zero
+    impGreal=zero
+  end subroutine setup_gf
+
 
 
 end MODULE ED_GREENS_FUNCTIONS
