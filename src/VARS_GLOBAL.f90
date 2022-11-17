@@ -192,6 +192,7 @@ MODULE ED_VARS_GLOBAL
   real(8),allocatable,dimension(:)                 :: Drude_weight
   real(8),allocatable,dimension(:,:)               :: OptCond_w
   type(GFmatrix),allocatable,dimension(:)          :: OcMatrix
+  complex(8),dimension(:,:),allocatable            :: ed_dm_lattice ![4**Ns,4**Ns]
   real(8),dimension(:),allocatable                 :: temperature_list
 
 
@@ -212,6 +213,7 @@ MODULE ED_VARS_GLOBAL
   logical                                          :: global_gf_flag
   logical                                          :: global_chi_flag
   logical                                          :: global_oc_flag
+  logical                                          :: global_dm_flag  !flag for density matrix evaluation (whole lattice)
   integer                                          :: lanc_nstates_total=1  !Max number of states hold in the finite T calculation
 
   !This is the internal Mpi Communicator and variables.

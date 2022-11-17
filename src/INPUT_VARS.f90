@@ -38,6 +38,7 @@ MODULE ED_INPUT_VARS
   logical,allocatable  :: gf_flag(:)           !evaluate Green's functions for Norb+1
   logical,allocatable  :: chispin_flag(:)      !evaluate spin susceptibility for Norb+1
   logical,allocatable  :: oc_flag(:)           !evaluate Optical Conductivity and Drude Weight for Norb
+  logical              :: dm_flag              !evaluate the density matrix for the whole lattice
   logical              :: offdiag_gf_flag      !flag to select the calculation of the off-diagonal GFs as selected by gf_flag.
   logical              :: offdiag_chispin_flag !flag to select the calculation of the off-diagonal spin Chi as selected by chispin_flag.
   !
@@ -152,6 +153,7 @@ contains
     call parse_input_variable(gf_flag,"GF_FLAG",INPUTunit,default=(/( .false.,i=1,size(gf_flag) )/),comment="Flag to activate Greens functions calculation")
     call parse_input_variable(chispin_flag,"CHISPIN_FLAG",INPUTunit,default=(/( .false.,i=1,size(chispin_flag) )/),comment="Flag to activate spin susceptibility calculation.")
     call parse_input_variable(oc_flag,"OC_FLAG",INPUTunit,default=(/( .false.,i=1,size(oc_flag) )/),comment="Flag to activate Optical Conductivity and Drude weight calculation")
+    call parse_input_variable(dm_flag,"DM_FLAG",INPUTunit,default=.false.,comment="Flag to request the many-body Density Matrix for the whole lattice")
     call parse_input_variable(offdiag_gf_flag,"OFFDIAG_GF_FLAG",INPUTunit,default=.false.,comment="Flag to activate off-diagonal GF calculation as selected by gf_flag") 
     call parse_input_variable(offdiag_chispin_flag,"OFFDIAG_CHISPIN_FLAG",INPUTunit,default=.false.,comment="Flag to activate off-diagonal spin Chi calculation as selected by chispin_flag") 
     !
