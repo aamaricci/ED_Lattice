@@ -185,8 +185,6 @@ contains
     !
     global_dm_flag = dm_flag
     !
-    !offdiag_gf_flag=offdiag_gf_flag.AND.Norb>1 ![WHY?]
-    !
     !allocate observables
     allocate(ed_dens(Ns))
     allocate(ed_docc(Ns))

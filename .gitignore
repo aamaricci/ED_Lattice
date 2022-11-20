@@ -6,6 +6,7 @@ Makefile
 *.mod
 *.o
 build*
+test*
 .archive/
 drivers
 src/VERSION.f90
