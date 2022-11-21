@@ -183,8 +183,7 @@ contains
     global_oc_flag=.false.
     if(any([oc_flag]))global_oc_flag=.true.
     !
-    offdiag_gf_flag=offdiag_gf_flag.AND.Norb>1
-    !
+    global_dm_flag = dm_flag
     !
     !allocate observables
     allocate(ed_dens(Ns))
@@ -202,6 +201,9 @@ contains
     allocate(OptCond_w(Norb,Lreal))
     Drude_weight = 0d0
     OptCond_w    = zero
+    !
+    !lattice density matrix
+    allocate(ed_dm_lattice(4**Ns,4**Ns))
     !
   end subroutine init_ed_structure
 

@@ -13,6 +13,7 @@ module ED_MAIN
   USE ED_OC_FUNCTIONS
   USE ED_OBSERVABLES
   USE ED_ENERGY
+  USE ED_DENSITY_MATRIX
   implicit none
   private
   !
@@ -86,9 +87,10 @@ contains
        call partition_function_lattice !-> get trimmed state_list
        call observables_lattice        !-> get static observables
        call energy_lattice             !-> get energies 
-       if(global_gf_flag)call eval_gf_lattice
+       if(global_gf_flag) call eval_gf_lattice
        if(global_chi_flag)call eval_chi_lattice
        if(global_oc_flag) call eval_oc_lattice
+       if(global_dm_flag) call eval_dm_lattice
        ed_file_suffix=""
     enddo
     !
