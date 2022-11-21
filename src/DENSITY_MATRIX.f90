@@ -323,23 +323,20 @@ contains
    !+-------------------------------------------------------------------+
    !PURPOSE  : write density matrices to file
    !+-------------------------------------------------------------------+
-   subroutine print_density_matrix(dm,N)
-      integer                  ,intent(in)            :: N
+   subroutine print_density_matrix(dm,Nrdm)
+      integer                  ,intent(in)            :: Nrdm
       complex(8),dimension(:,:),intent(in)            :: dm
-      integer                                         :: unit
+      integer                                         :: unit,Nsites
       character(len=64)                               :: suffix
       integer                                         :: io,jo
       !
-      if(size(dm,1)/=N.OR.size(dm,2)/=N)then
-         stop "ERROR: actual dm argument has incogruent size wrt explicitly passed N"
+      if(size(dm,1)/=Nrdm.OR.size(dm,2)/=Nrdm)then
+         stop "ERROR: actual dm argument has incogruent size wrt explicitly passed Nrdm"
       endif
       !
-      if(N<4**Ns)then
-         suffix = "reduced_density_matrix"//"_rank"//reg(str(N))//".dat"
-         ! TODO: better to write the number of sites, i.e. nint(log4(N))
-         !       probably something like str(nint(log4(N)))//"sites"
-         !       For now let's stay this way to be consistent with CDMFT
-         !       code current version, then we'll change both.
+      if(Nrdm<4**Ns)then
+         Nsites = nint( 1/Norb * log(real(Nrdm,kind=8)) / log(4d0) )
+         suffix = "reduced_density_matrix_"//reg(str(Nsites))//"sites.dat"
       else
          suffix = "lattice_density_matrix.dat"
       endif
@@ -347,14 +344,14 @@ contains
       unit = free_unit()
       open(unit,file=suffix,action="write",position="rewind",status='unknown')
       !
-      do io=1,N
-         write(unit,"(90(F15.9,1X))") (dreal(dm(io,jo)),jo=1,N)
+      do io=1,Nrdm
+         write(unit,"(*(F20.16,1X))") (dreal(dm(io,jo)),jo=1,Nrdm)
       enddo
       write(unit,*)
       !
       if(any(dimag(dm)/=0d0))then
-         do io=1,N
-            write(unit,"(90(F15.9,1X))") (dimag(dm(io,jo)),jo=1,N)
+         do io=1,Nrdm
+            write(unit,"(*(F20.16,1X))") (dimag(dm(io,jo)),jo=1,Nrdm)
          enddo
          write(unit,*)
       endif
