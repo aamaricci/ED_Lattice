@@ -1,8 +1,8 @@
 # EDlattice: A *parallel* Exact Diagonalization algorithm for interacting electrons on a lattice. 
 
-This is a beta version softwware.
+This is a beta version software.
 
-A Lanczos based solver for interacting electrons on a lattice exploiting distributed memory MPI parallelisation. This software focuses on the *normal* case (as opposed to superconducting or spin non-conserving cases) including long range magnetic ordering and arbitrary lattices. 
+A Lanczos based solver for interacting electrons on a lattice exploiting distributed memory MPI parallelization. This software focuses on the *normal* case (as opposed to superconducting or spin non-conserving cases) including long range magnetic ordering and arbitrary lattices. 
 
 ### Dependencies
 
@@ -15,7 +15,7 @@ The code is written around the SciFortran library. Dependencies are:
 
 
 ### Installation
-Installation is  available using CMake.    
+Installation is available using CMake.    
 
 Clone the repo:
 
@@ -63,7 +63,7 @@ adriano DOT amaricci @ gmail DOT com
 --
 
 ***COPYRIGHT & LICENSING***  
-Copyright  (c), Adriano Amaricci.  
+Copyright  (c), Adriano Amaricci, Gabriele Bellomia.  
 All rights reserved. 
 
 This program is free software: you can redistribute it and/or modify

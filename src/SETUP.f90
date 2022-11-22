@@ -214,8 +214,15 @@ contains
     if(iNs<Nimp)stop "ED ERROR: iNs<Nimp"
     !
     if(KondoFlag.AND.ed_twin)then
-       write(LOGfile,"(A)")"WARNING: can not yet use twin_sector with KondoFlag. Set to false."
+       write(LOGfile,"(A)")"WARNING: cannot yet use twin_sector with Kondo impurities. Forcefully setting ed_twin to false."
        ed_twin=.false.
+    endif
+    !
+    if(KondoFlag.AND.dm_flag)then
+       write(LOGfile,"(A)")"WARNING: cannot yet build density matrices with Kondo impurities. Forcefully setting dm_flag, rdm_flag and ed_print_dm to false."
+       dm_flag=.false.
+       rdm_flag=.false.
+       ed_print_dm=.false.
     endif
     !
     if(Nspin>1.AND.(ed_twin))then
