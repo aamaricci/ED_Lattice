@@ -32,7 +32,7 @@ FILE(WRITE  ${LIB_TMP_VER}  "${VERSION}\n")
 
 INSTALL(DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY}/ DESTINATION ${LIB_TARGET_INC})
 
-# INSTALL(CODE "execute_process(COMMAND \"${CMAKE_COMMAND}\" -E rm -f ${LIB_VERSION_FILE})")
+INSTALL(CODE "execute_process(COMMAND \"${CMAKE_COMMAND}\" -E rm -f ${LIB_VERSION_FILE})")
 
 INSTALL(TARGETS ${PROJECT_NAME} DESTINATION ${LIB_TARGET_LIB})
 
@@ -53,17 +53,18 @@ INSTALL(FILES ${LIB_TARGET_ETC}/${PROJECT_NAME}.pc DESTINATION $ENV{HOME}/.pkgco
 INSTALL(DIRECTORY ${LIB_TARGET_ETC}/modules/ DESTINATION $ENV{HOME}/.modules.d)
 
 
+get_filename_component(BARE_MAKE_PROGRAM ${CMAKE_MAKE_PROGRAM} NAME)
 MESSAGE( STATUS "${Red}Library version:${ColourReset} ${VERSION}")
 MESSAGE( STATUS "${Red}Library will be installed in:${ColourReset} ${CMAKE_INSTALL_PREFIX}")
 MESSAGE( STATUS "
 >> ${Red}TO CONCLUDE INSTALLATION${ColourReset} <<
 Compile with:
-$ make
+$ ${BARE_MAKE_PROGRAM}
 Install with:
-$ make install
+$ ${BARE_MAKE_PROGRAM} install
 
 Uninstall with:
-$ make uninstall
+$ ${BARE_MAKE_PROGRAM} uninstall
 ")
 
 INSTALL(CODE "MESSAGE(
