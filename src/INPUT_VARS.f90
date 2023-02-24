@@ -38,6 +38,8 @@ MODULE ED_INPUT_VARS
   logical,allocatable  :: gf_flag(:)           !evaluate Green's functions for Norb+1
   logical,allocatable  :: chispin_flag(:)      !evaluate spin susceptibility for Norb+1
   logical,allocatable  :: oc_flag(:)           !evaluate Optical Conductivity and Drude Weight for Norb
+  logical              :: dm_flag              !evaluate the density matrix for the whole lattice
+  logical              :: rdm_flag             !evaluate the density matrices for all subsystems
   logical              :: offdiag_gf_flag      !flag to select the calculation of the off-diagonal GFs as selected by gf_flag.
   logical              :: offdiag_chispin_flag !flag to select the calculation of the off-diagonal spin Chi as selected by chispin_flag.
   !
@@ -47,6 +49,7 @@ MODULE ED_INPUT_VARS
   logical              :: ed_sparse_H         !flag to select  storage of sparse matrix H (mem--, cpu++) if TRUE, or direct on-the-fly H*v product (mem++, cpu--
   character(len=12)    :: ed_method           !select the diagonalization method: lanczos (see lanc_method then) or lapack (full diagonalization)
 
+  logical              :: ed_print_dm         !flag to print density matrices
   logical              :: ed_print_Sigma      !flag to print impurity Self-energies
   logical              :: ed_print_G          !flag to print impurity Green`s functions
   logical              :: ed_print_G0         !flag to print impurity non-interacting Green`s functions
@@ -152,6 +155,8 @@ contains
     call parse_input_variable(gf_flag,"GF_FLAG",INPUTunit,default=(/( .false.,i=1,size(gf_flag) )/),comment="Flag to activate Greens functions calculation")
     call parse_input_variable(chispin_flag,"CHISPIN_FLAG",INPUTunit,default=(/( .false.,i=1,size(chispin_flag) )/),comment="Flag to activate spin susceptibility calculation.")
     call parse_input_variable(oc_flag,"OC_FLAG",INPUTunit,default=(/( .false.,i=1,size(oc_flag) )/),comment="Flag to activate Optical Conductivity and Drude weight calculation")
+    call parse_input_variable(dm_flag,"DM_FLAG",INPUTunit,default=.false.,comment="Flag to request the many-body Density Matrix for the whole lattice")
+    call parse_input_variable(rdm_flag,"RDM_FLAG",INPUTunit,default=.false.,comment="Flag to request all the reduced Density Matrices [tracing away 1,2...Nsites-1 lattice points]")
     call parse_input_variable(offdiag_gf_flag,"OFFDIAG_GF_FLAG",INPUTunit,default=.false.,comment="Flag to activate off-diagonal GF calculation as selected by gf_flag") 
     call parse_input_variable(offdiag_chispin_flag,"OFFDIAG_CHISPIN_FLAG",INPUTunit,default=.false.,comment="Flag to activate off-diagonal spin Chi calculation as selected by chispin_flag") 
     !
@@ -164,6 +169,7 @@ contains
     call parse_input_variable(ed_twin,"ED_TWIN",INPUTunit,default=.false.,comment="flag to reduce (T) or not (F,default) the number of visited sector using twin symmetry.")
     call parse_input_variable(ed_sparse_H,"ED_SPARSE_H",INPUTunit,default=.true.,comment="flag to select  storage of sparse matrix H (mem--, cpu++) if TRUE, or direct on-the-fly H*v product (mem++, cpu--) if FALSE ")   
     call parse_input_variable(ed_print_G,"ED_PRINT_G",INPUTunit,default=.true.,comment="flag to print impurity Greens function")
+    call parse_input_variable(ed_print_dm,"ED_PRINT_DM",INPUTunit,default=.false.,comment="flag to print density matrices")
     call parse_input_variable(ed_verbose,"ED_VERBOSE",INPUTunit,default=3,comment="Verbosity level: 0=almost nothing --> 5:all. Really: all")
     !
     call parse_input_variable(lanc_method,"LANC_METHOD",INPUTunit,default="arpack",comment="select the lanczos method to be used in the determination of the spectrum. ARPACK (default), LANCZOS (T=0 only)")

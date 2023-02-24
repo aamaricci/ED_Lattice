@@ -32,6 +32,9 @@ MODULE EDLAT
        ed_Hij_info     => Hij_info     , &
        ed_Hij_write    => Hij_write
 
+  USE ED_DENSITY_MATRIX, only: &
+       ed_get_density_matrix
+
   USE ED_IO, only: &
        ed_get_gimp_matsubara  , &
        ed_get_gimp_realaxis   , &

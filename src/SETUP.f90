@@ -183,8 +183,7 @@ contains
     global_oc_flag=.false.
     if(any([oc_flag]))global_oc_flag=.true.
     !
-    offdiag_gf_flag=offdiag_gf_flag.AND.Norb>1
-    !
+    global_dm_flag = dm_flag
     !
     !allocate observables
     allocate(ed_dens(Ns))
@@ -203,6 +202,9 @@ contains
     Drude_weight = 0d0
     OptCond_w    = zero
     !
+    !lattice density matrix
+    allocate(ed_dm_lattice(4**Ns,4**Ns))
+    !
   end subroutine init_ed_structure
 
 
@@ -212,8 +214,15 @@ contains
     if(iNs<Nimp)stop "ED ERROR: iNs<Nimp"
     !
     if(KondoFlag.AND.ed_twin)then
-       write(LOGfile,"(A)")"WARNING: can not yet use twin_sector with KondoFlag. Set to false."
+       write(LOGfile,"(A)")"WARNING: cannot yet use twin_sector with Kondo impurities. Forcefully setting ed_twin to false."
        ed_twin=.false.
+    endif
+    !
+    if(KondoFlag.AND.dm_flag)then
+       write(LOGfile,"(A)")"WARNING: cannot yet build density matrices with Kondo impurities. Forcefully setting dm_flag, rdm_flag and ed_print_dm to false."
+       dm_flag=.false.
+       rdm_flag=.false.
+       ed_print_dm=.false.
     endif
     !
     if(Nspin>1.AND.(ed_twin))then

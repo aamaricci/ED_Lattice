@@ -19,6 +19,7 @@ MODULE ED_AUX_FUNX
   public :: Splus,Sminus
   !BIT DECOMPOSITION 
   public :: bdecomp
+  public :: bjoin
   !BINARY SEARCH
   public :: binary_search
   !MPI PROCEDURES
@@ -147,6 +148,20 @@ contains
        if(busy)ivec(l+1)=1
     enddo
   end function bdecomp
+  !+------------------------------------------------------------------+
+  !PURPOSE  : input a vector ib(Nlevels) with the binary sequence 
+  ! and output the corresponding state |i>
+  !(corresponds to the recomposition of the number i-1)
+  !+------------------------------------------------------------------+
+  function bjoin(ib,Ntot) result(i)
+    integer                 :: Ntot
+    integer,dimension(Ntot) :: ib
+    integer                 :: i,j
+    i=0
+    do j=0,Ntot-1
+       i=i+ib(j+1)*2**j
+    enddo
+  end function bjoin
 
 
 
