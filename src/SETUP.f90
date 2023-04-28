@@ -33,35 +33,25 @@ contains
     logical                          :: Tbool
     !
     Jhflag=.FALSE.
-    if(Norb>1.AND.any([Jx,Jp,Jk_z,Jk_xy]/=0d0))Jhflag=.TRUE.
-    !
-    KondoFlag=.FALSE.
-    if(Nimp>0)KondoFlag=.TRUE.
+    if(Norb>1.AND.any([Jx,Jp]/=0d0))Jhflag=.TRUE.
     !
     !
     !>Setup Dimensions of the problem
-    eNs = 0; iNs = 0
     eNs = sum(Nsites(1:Norb))
-    if(KondoFlag)iNs = Nsites(Norb+1)
     !
-    Ns  = eNs + iNs
+    Ns  = eNs
     !
     call ed_checks_global
     !
-    Ntot= eNs + Nimp
-    ! Nsectors = (eNs+1)*(eNs+1)
-    ! if(KondoFlag)Nsectors = (eNs+Nimp+1)*(eNs+Nimp+1)-Nimp*(Nimp+1)
-    Nsectors = (Ntot+1)*(Ntot+1)-Nimp*(Nimp+1) !==(Ns+1)*(Ns+1) if Nimp==0, Ntot==eNs==Ns
+    Ntot= eNs
+    Nsectors = (Ntot+1)*(Ntot+1)
     !
     !
     if(MpiMaster)then
        write(LOGfile,"(A)")"Summary:"
        write(LOGfile,"(A)")"--------------------------------------------"
-       write(LOGfile,"(A,I15)")'# of levels per spin  = ',Ns
        write(LOGfile,"(A,I15)")'# of electronic levels= ',eNs
-       write(LOGfile,"(A,I15)")'# of impurity levels  = ',iNs
        write(LOGfile,"(A,I15)")'# of orbitals         = ',Norb
-       write(LOGfile,"(A,I15)")'# of impurities       = ',Nimp
        write(LOGfile,"(A,6I4)")'# Nsites              = ',Nsites
        write(LOGfile,"(A,I15)")'# of  sectors         = ',Nsectors
     endif
@@ -69,22 +59,14 @@ contains
 
     Nup = Ntot/2
     Ndw = Ntot-Nup
-    if(KondoFlag)then
-       Dim = get_sector_dimension(Nup,Ndw)
-       if(MpiMaster)then
-          write(LOGfile,"(A,2I20,I20)")'Largest Sector(s)     = ',Nup,Ndw,Dim
-          write(LOGfile,"(A)")"--------------------------------------------"
-       endif
-    else
-       allocate(DimUps(1))
-       allocate(DimDws(1))
-       DimUps(1) = get_sector_dimension(Nup)
-       DimDws(1) = get_sector_dimension(Ndw)
-       if(MpiMaster)then
-          write(LOGfile,"(A,1I8,2X,1I8,I20)")&
-               'Largest Sector(s)     = ',DimUps,DimDws,product(DimUps)*product(DimDws)
-          write(LOGfile,"(A)")"--------------------------------------------"
-       endif
+    allocate(DimUps(1))
+    allocate(DimDws(1))
+    DimUps(1) = get_sector_dimension(Nup)
+    DimDws(1) = get_sector_dimension(Ndw)
+    if(MpiMaster)then
+       write(LOGfile,"(A,1I8,2X,1I8,I20)")&
+            'Largest Sector(s)     = ',DimUps,DimDws,product(DimUps)*product(DimDws)
+       write(LOGfile,"(A)")"--------------------------------------------"
     endif
     !
     !
@@ -211,19 +193,6 @@ contains
   subroutine ed_checks_global
     if(Nspin>2)stop "ED ERROR: Nspin > 2 is currently not supported"
     if(Norb>5)stop "ED ERROR: Norb > 5 is currently not supported"
-    if(iNs<Nimp)stop "ED ERROR: iNs<Nimp"
-    !
-    if(KondoFlag.AND.ed_twin)then
-       write(LOGfile,"(A)")"WARNING: cannot yet use twin_sector with Kondo impurities. Forcefully setting ed_twin to false."
-       ed_twin=.false.
-    endif
-    !
-    if(KondoFlag.AND.dm_flag)then
-       write(LOGfile,"(A)")"WARNING: cannot yet build density matrices with Kondo impurities. Forcefully setting dm_flag, rdm_flag and ed_print_dm to false."
-       dm_flag=.false.
-       rdm_flag=.false.
-       ed_print_dm=.false.
-    endif
     !
     if(Nspin>1.AND.(ed_twin))then
        write(LOGfile,"(A)")"WARNING: using twin_sector with Nspin>1"
@@ -262,38 +231,19 @@ contains
     integer,dimension(:),allocatable :: list_sector
     type(sector) :: sectorI,sectorJ,sectorK,sectorG,sectorL
     !
-    !Store full dimension of the sectors:
-    if(KondoFlag)then
-       isector=0
-       do Nup=0,eNs+Nimp
-          do Ndw=0,eNs+Nimp
-             if( (Nup+Ndw < Nimp) .OR. ( Nup+Ndw > 2*eNs+Nimp) )cycle
-             isector=isector+1
-             if(ed_verbose>3.AND.MpiMaster)write(*,"(A,I6,A3,I2,A1,I2,A)")"--- sector",isector,"  (",Nup,",",Ndw,")---- "
-             getSector(Nup,Ndw)=isector
-             getNup(isector)=Nup
-             getNdw(isector)=Ndw
-             getDim(isector)=get_sector_dimension(nup,ndw)
-             if(ed_verbose>3.AND.MpiMaster)call show_sector(isector)
-             if(ed_verbose>3.AND.MpiMaster)write(*,"(A,2I6)")"--- DIM:",getDim(isector)
-             if(ed_verbose>3.AND.MpiMaster)write(*,*)""
-          enddo
-       enddo
-    else
-       do isector=1,Nsectors
-          call get_Nup(isector,Nups)
-          call get_Ndw(isector,Ndws)
-          if(ed_verbose>3.AND.MpiMaster)write(*,"(A,I6,A3,I2,A1,I2,A)")"--- sector",isector,"  (",Nups,",",Ndws,")---- "
-          call get_DimUp(isector,DimUps)
-          call get_DimDw(isector,DimDws)
-          DimUp = product(DimUps)
-          DimDw = product(DimDws)  
-          getDim(isector)  = DimUp*DimDw
-          if(ed_verbose>3.AND.MpiMaster)call show_sector(isector)
-          if(ed_verbose>3.AND.MpiMaster)write(*,"(A,2I6)")"--- DIM:",getDim(isector)
-          if(ed_verbose>3.AND.MpiMaster)write(*,*)""
-       enddo
-    endif
+    do isector=1,Nsectors
+       call get_Nup(isector,Nups)
+       call get_Ndw(isector,Ndws)
+       if(ed_verbose>3.AND.MpiMaster)write(*,"(A,I6,A3,I2,A1,I2,A)")"--- sector",isector,"  (",Nups,",",Ndws,")---- "
+       call get_DimUp(isector,DimUps)
+       call get_DimDw(isector,DimDws)
+       DimUp = product(DimUps)
+       DimDw = product(DimDws)  
+       getDim(isector)  = DimUp*DimDw
+       if(ed_verbose>3.AND.MpiMaster)call show_sector(isector)
+       if(ed_verbose>3.AND.MpiMaster)write(*,"(A,2I6)")"--- DIM:",getDim(isector)
+       if(ed_verbose>3.AND.MpiMaster)write(*,*)""
+    enddo
     !
     !
     do isector=1,Nsectors
@@ -302,7 +252,7 @@ contains
     !
     !
     twin_mask=.true.
-    if(ed_twin)then             !not with KondoFlag
+    if(ed_twin)then
        do isector=1,Nsectors
           call get_Nup(isector,Nups)
           call get_Ndw(isector,Ndws)
@@ -321,7 +271,6 @@ contains
        Jdws=Ndws 
        Jups(1)=Jups(1)-1;
        if(Jups(1) < 0)cycle
-       if(KondoFlag.AND.(Jups(1) <= 0) .AND. (Jdws(1)<=0) )cycle
        call get_Sector([Jups,Jdws],Ns,jsector)
        getCsector(1,1,isector)=jsector
     enddo
@@ -333,8 +282,7 @@ contains
        Jups=Nups
        Jdws=Ndws
        Jups(1)=Jups(1)+1;
-       if(Jups(1) > eNs+Nimp)cycle
-       if( KondoFlag .AND. (Jups(1) >=eNs+Nimp) .AND. (Jdws(1) >=eNs+Nimp) )cycle
+       if(Jups(1) > eNs)cycle
        call get_Sector([Jups,Jdws],Ns,jsector)
        getCDGsector(1,1,isector)=jsector
     enddo
@@ -346,7 +294,6 @@ contains
        Jdws=Ndws 
        Jdws(1)=Jdws(1)-1
        if(Jdws(1) < 0)cycle
-       if( KondoFlag .AND. (Jups(1) <= 0) .AND. (Jdws(1)<=0) )cycle
        call get_Sector([Jups,Jdws],Ns,jsector)
        getCsector(1,2,isector)=jsector
     enddo
@@ -357,8 +304,7 @@ contains
        Jups=Nups
        Jdws=Ndws 
        Jdws(1)=Jdws(1)+1;
-       if(Jdws(1) > eNs+Nimp)cycle
-       if(KondoFlag .AND. (Jups(1) >=eNs+Nimp) .AND. (Jdws(1) >=eNs+Nimp) )cycle
+       if(Jdws(1) > eNs)cycle
        call get_Sector([Jups,Jdws],Ns,jsector)
        getCDGsector(1,2,isector)=jsector
     enddo
@@ -373,19 +319,10 @@ contains
   !SECTOR PROCEDURES - Sectors,Nup,Ndw,DimUp,DimDw,...
   !##################################################################
   !##################################################################
-  elemental function get_sector_dimension(Nup,Ndw) result(dim)
+  elemental function get_sector_dimension(Nup) result(dim)
     integer,intent(in)          :: Nup
-    integer,optional,intent(in) :: Ndw
     integer                     :: i,ip,dim
-    if(present(Ndw))then
-       dim = 0
-       do i=0,Nimp
-          ip = Nimp-i
-          dim = dim +  binomial(iNs,i)*binomial(iNs,ip)*binomial(eNs,Nup-i)*binomial(eNs,Ndw-ip)
-       enddo
-    else
-       dim = binomial(Ns,Nup)
-    endif
+    dim = binomial(Ns,Nup)
   end function get_sector_dimension
 
 
