@@ -76,7 +76,7 @@ contains
   !PURPOSE  : Lanc method
   !+-------------------------------------------------------------------+
   subroutine lanc_observables()
-    integer                             :: iprob,istate,Nud(2,Ns),iud(2),jud(2),val,iimp
+    integer                             :: iprob,istate,Nud(2,Ns),iud(2),jud(2),val
     integer,dimension(2)                :: Indices,Jndices
     integer,dimension(1,Ns)             :: Nups,Ndws  ![1,Ns]-[Norb,1+Nbath]
     integer,dimension(Ns)               :: IbUp,IbDw  ![Ns]
@@ -149,23 +149,6 @@ contains
                 enddo
              enddo
              s2tot = s2tot  + (sum(sz))**2*state_weight*boltzman_weight
-
-             if(any([Jk_z,Jk_xy]/=0d0))then
-                do iimp=1,iNs
-                   if(nup(eNs+iimp)==1)then
-                      do is=1,eNs
-                         dens_ImpUp(1,is)  = dens_ImpUp(1,is)   +  nup(is)*state_weight*boltzman_weight
-                         dens_ImpUp(2,is)  = dens_ImpUp(2,is)   +  ndw(is)*state_weight*boltzman_weight
-                      enddo
-                   endif
-                   if(ndw(eNs+iimp)==1)then
-                      do is=1,eNs
-                         dens_ImpDw(1,is)  = dens_ImpDw(1,is)   +  nup(is)*state_weight*boltzman_weight
-                         dens_ImpDw(2,is)  = dens_ImpDw(2,is)   +  ndw(is)*state_weight*boltzman_weight
-                      enddo
-                   endif
-                enddo
-             endif
           enddo
           !
           call delete_sector(sectorI)
@@ -180,20 +163,8 @@ contains
     !
     if(MPIMASTER)then
        call write_observables()
-       if(KondoFlag)then
-          if(iNs==eNs)then
-             write(LOGfile,"(A,"//str(iNs)//"f15.8)")&
-                  "dens=",(dens(eNs+is),is=1,iNs)
-          else
-             write(LOGfile,"(A,"//str(max(1,Jkindx(1)-1))//"A15,"//str(iNs)//"f15.8)")&
-                  "dens=",("",is=1,max(1,Jkindx(1)-1)),(dens(eNs+is),is=1,iNs)
-          endif
-          write(LOGfile,"(A,100f15.8,f15.8)")&
-               "dens=",(dens(is),is=1,eNs),sum(dens)
-       else
-          write(LOGfile,"(A,100f15.8,f15.8)")&
-               "dens=",(dens(is),is=1,Ns),sum(dens)
-       endif
+       write(LOGfile,"(A,100f15.8,f15.8)")&
+            "dens=",(dens(is),is=1,Ns),sum(dens)
        if(Nspin==2)then
           write(LOGfile,"(A,10f18.12,A)")&
                "magZ=",(magz(is),is=1,Ns)
@@ -348,7 +319,7 @@ contains
     integer :: unit
     integer :: io,jo,iorb
     unit = fopen("parameters_last.ed",.true.)
-    write(unit,"(90F15.9)")xmu,temp,(uloc(iorb),iorb=1,Norb),Ust,Jh,Jx,Jp,Jk_z,Jk_xy
+    write(unit,"(90F15.9)")xmu,temp,(uloc(iorb),iorb=1,Norb),Ust,Jh,Jx,Jp
     close(unit)
 
     unit = fopen("dens.ed",.true.)
@@ -378,23 +349,6 @@ contains
        write(unit,"(90(F15.9,1X))")(n2(io,jo),jo=1,io)
     enddo
     close(unit)         
-
-
-    if(any([Jk_z,Jk_xy]/=0d0))then
-       unit = fopen("dens_up_w_impup.ed",.true.)
-       write(unit,"(90(F20.12,1X))")(dens_ImpUp(1,io),io=1,eNs)
-       close(unit)
-       unit = fopen("dens_dw_w_impup.ed",.true.)
-       write(unit,"(90(F20.12,1X))")(dens_ImpUp(2,io),io=1,eNs)
-       close(unit)         
-
-       unit = fopen("dens_up_w_impdw.ed",.true.)
-       write(unit,"(90(F20.12,1X))")(dens_ImpDw(1,io),io=1,eNs)
-       close(unit)
-       unit = fopen("dens_dw_w_impdw.ed",.true.)
-       write(unit,"(90(F20.12,1X))")(dens_ImpDw(2,io),io=1,eNs)
-       close(unit)         
-    endif
   end subroutine write_observables
 
 

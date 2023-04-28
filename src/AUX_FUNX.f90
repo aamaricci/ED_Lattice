@@ -13,7 +13,6 @@ MODULE ED_AUX_FUNX
   public :: pack_indices
   !KET INDICES:
   public :: ket_site_index
-  public :: ket_imp_index
   !FERMIONIC OPERATORS IN BITWISE OPERATIONS
   public :: c,cdg
   public :: Splus,Sminus
@@ -62,13 +61,6 @@ contains
     ipos = io + (ispin-1)*eNs
   end function ket_site_index
 
-
-  function ket_imp_index(iimp,ispin) result(ipos)
-    integer :: iimp,ispin
-    integer :: ipos
-    if(ispin/=1.AND.ispin/=2)stop "ket_iimp_index error: ispin!=1,2"
-    ipos = 2*eNs + iimp + (ispin-1)*iNs 
-  end function ket_imp_index
 
 
   !##################################################################

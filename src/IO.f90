@@ -112,53 +112,38 @@ contains
   subroutine print_chi_spin
     integer :: iorb,jorb,ilat,jlat,io,jo,iimp
     call allocate_grids()
-    if(KondoFlag)then
-       if(.not.chispin_flag(Norb+1))return
-       do iimp=1,iNs
-          io = eNs+iimp
-          suffix="spinChi_imp"//str(iimp)
+    do iorb=1,Norb
+       if(.not.chispin_flag(iorb))cycle
+       do ilat=1,Nsites(iorb)
+          io = pack_indices(ilat,iorb)
+          suffix="spinChi"//&
+               "_i"//str(ilat,site_indx_padding)//&
+               "_l"//str(iorb)
           call splot(reg(suffix)//"_tau"//reg(ed_file_suffix)//".ed",tau,spinChi_tau(io,io,0:))
           ! call splot(reg(suffix)//"_realw"//reg(ed_file_suffix)//".ed",vr,spinChi_w(io,io,:))
           ! call splot(reg(suffix)//"_iv"//reg(ed_file_suffix)//".ed",vm,spinChi_iv(io,io,:))
-          suffix="spinChi_bath_imp"//str(iimp)
-          call splot(reg(suffix)//"_tau"//reg(ed_file_suffix)//".ed",tau,spinChi_tau(io,1,0:))
        enddo
-       suffix="spinChi_bath"
-       call splot(reg(suffix)//"_tau"//reg(ed_file_suffix)//".ed",tau,spinChi_tau(1,1,0:))
-    else
+    enddo
+    if(offdiag_chispin_flag.AND.Norb>1)then
        do iorb=1,Norb
-          if(.not.chispin_flag(iorb))cycle
-          do ilat=1,Nsites(iorb)
-             io = pack_indices(ilat,iorb)
-             suffix="spinChi"//&
-                  "_i"//str(ilat,site_indx_padding)//&
-                  "_l"//str(iorb)
-             call splot(reg(suffix)//"_tau"//reg(ed_file_suffix)//".ed",tau,spinChi_tau(io,io,0:))
-             ! call splot(reg(suffix)//"_realw"//reg(ed_file_suffix)//".ed",vr,spinChi_w(io,io,:))
-             ! call splot(reg(suffix)//"_iv"//reg(ed_file_suffix)//".ed",vm,spinChi_iv(io,io,:))
-          enddo
-       enddo
-       if(offdiag_chispin_flag.AND.Norb>1)then
-          do iorb=1,Norb
-             do jorb=1,Norb
-                if(.not.chispin_flag(iorb).AND..not.chispin_flag(jorb))cycle
-                do ilat=1,Nsites(iorb)
-                   do jlat=1,Nsites(jorb)
-                      io  = pack_indices(ilat,iorb)
-                      jo  = pack_indices(jlat,jorb)
-                      if(io==jo)cycle
-                      !
-                      suffix="spinChi"//&
-                           "_i"//str(ilat,site_indx_padding)//"j"//str(jlat,site_indx_padding)//&
-                           "_l"//str(iorb)//"m"//str(jorb)
-                      call splot(reg(suffix)//"_tau"//reg(ed_file_suffix)//".ed",tau,spinChi_tau(io,jo,0:))
-                      ! call splot(reg(suffix)//"_realw"//reg(ed_file_suffix)//".ed",vr,spinChi_w(io,jo,:))
-                      ! call splot(reg(suffix)//"_iv"//reg(ed_file_suffix)//".ed",vm,spinChi_iv(io,jo,:))
-                   enddo
+          do jorb=1,Norb
+             if(.not.chispin_flag(iorb).AND..not.chispin_flag(jorb))cycle
+             do ilat=1,Nsites(iorb)
+                do jlat=1,Nsites(jorb)
+                   io  = pack_indices(ilat,iorb)
+                   jo  = pack_indices(jlat,jorb)
+                   if(io==jo)cycle
+                   !
+                   suffix="spinChi"//&
+                        "_i"//str(ilat,site_indx_padding)//"j"//str(jlat,site_indx_padding)//&
+                        "_l"//str(iorb)//"m"//str(jorb)
+                   call splot(reg(suffix)//"_tau"//reg(ed_file_suffix)//".ed",tau,spinChi_tau(io,jo,0:))
+                   ! call splot(reg(suffix)//"_realw"//reg(ed_file_suffix)//".ed",vr,spinChi_w(io,jo,:))
+                   ! call splot(reg(suffix)//"_iv"//reg(ed_file_suffix)//".ed",vm,spinChi_iv(io,jo,:))
                 enddo
              enddo
           enddo
-       endif
+       enddo
     endif
     call deallocate_grids()
   end subroutine print_chi_spin
@@ -197,48 +182,6 @@ contains
     call assert_shape(Func,[Nspin,ns,ns,Lfreq],"Ed_write_func","Func")
     !
     !
-    if(KondoFlag)then
-       if(MpiMaster)then
-          select case(iprint_)
-          case default
-             write(*,"(A,1x,A)")reg(fname),"ed_write_func: not written on file."
-             !
-             !
-          case(1)
-             write(*,"(A,1x,A)") reg(fname),"ed_write_func: diagonal lattice-spin-orbital."
-             do ispin=1,Nspin
-                if(.not.gf_flag(Norb+1))cycle
-                do iimp=1,iNs
-                   io = Ns+iimp
-                   suffix=reg(fname)//&
-                        "_Iimp"//str(iimp,site_indx_padding)//&
-                        str(w_suffix)//reg(ed_file_suffix)//str(gf_suffix)
-                   call splot(reg(suffix),zeta,Func(ispin,io,io,:))
-                enddo
-             enddo
-             !
-             !
-          case(2,3)
-             write(*,"(A,1x,A)") reg(fname),"ed_write_func:  all sites, diagonal spin-orbital."
-             do ispin=1,Nspin
-                if(.not.gf_flag(Norb+1))cycle
-                do iimp=1,iNs
-                   do jimp=1,iNs
-                      io = Ns+iimp
-                      jo = Ns+jimp
-                      !
-                      suffix=reg(fname)//&
-                           "_Iimp"//str(iimp,site_indx_padding)//"Jimp"//str(jimp,site_indx_padding)//&
-                           str(w_suffix)//reg(ed_file_suffix)//str(gf_suffix)
-                      call splot(reg(suffix),zeta,Func(ispin,io,jo,:))
-                   enddo
-                enddo
-             enddo
-             !
-             !
-          end select
-       endif
-    endif
     !
     if(MpiMaster)then
        select case(iprint_)

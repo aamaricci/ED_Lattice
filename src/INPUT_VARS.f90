@@ -10,19 +10,12 @@ MODULE ED_INPUT_VARS
   integer              :: Norb                !# of orbitals
   integer,allocatable  :: Nsites(:)           !# of sites per orbital species and impurity levels
   integer              :: Nspin               !Nspin=# spin degeneracy (max 2)
-  integer              :: Nimp                !Number of Kondo impurities (max 1)
   !
   real(8),allocatable  :: Uloc(:)             !local interactions
   real(8)              :: Ust                 !intra-orbitals interactions
   real(8)              :: Jh                  !J_Hund: Hunds' coupling constant 
   real(8)              :: Jx                  !J_X: coupling constant for the spin-eXchange interaction term
   real(8)              :: Jp                  !J_P: coupling constant for the Pair-hopping interaction term
-  real(8)              :: Jk_z                !J_Kondo: Kondo coupling, z-axis component
-  real(8)              :: Jk_xy               !J_Kondo: Kondo coupling, in-plane component
-  integer,allocatable  :: Jkindx(:)           !tags the position of the impurity sites with respect to the electron band, dim(Jkflags)=Nimp
-  !
-  real(8)              :: t_imp               !impurity hopping amplitude (if any)
-  real(8)              :: e_imp(2)            !impurity local energy 
   !
   real(8)              :: xmu                 !chemical potential
   real(8)              :: temp                !temperature
@@ -44,7 +37,7 @@ MODULE ED_INPUT_VARS
   logical              :: offdiag_chispin_flag !flag to select the calculation of the off-diagonal spin Chi as selected by chispin_flag.
   !
   !
-  integer              :: ed_filling          !Total number of allowed electrons not including Kondo impurities
+  integer              :: ed_filling          !Total number of allowed electrons
   logical              :: ed_finite_temp      !flag to select finite temperature method. note that if T then lanc_nstates_total must be > 1
   logical              :: ed_sparse_H         !flag to select  storage of sparse matrix H (mem--, cpu++) if TRUE, or direct on-the-fly H*v product (mem++, cpu--
   character(len=12)    :: ed_method           !select the diagonalization method: lanczos (see lanc_method then) or lapack (full diagonalization)
@@ -111,13 +104,11 @@ contains
     !
     !DEFAULT VALUES OF THE PARAMETERS:
     call parse_input_variable(Norb,"NORB",INPUTunit,default=1,comment="Number of impurity orbitals (max 5).")
-    call parse_input_variable(Nimp,"NIMP",INPUTunit,default=0,comment="Number of Kondo impurities (max 1 for now)")
     !
-    add=0;if(Nimp>0)add=1
-    allocate(Nsites(Norb+add))
+    allocate(Nsites(Norb))
     call parse_input_variable(Nsites,"NSITES",INPUTunit,default=(/( 1,i=1,size(Nsites) )/),comment="Number of sites per orbital species and impurity")
     call parse_input_variable(Nspin,"NSPIN",INPUTunit,default=1,comment="Number of spin degeneracy (max 2)")
-    call parse_input_variable(ed_filling,"ED_FILLING",INPUTunit,default=0,comment="Total number of allowed electrons not including Kondo impurities if any")
+    call parse_input_variable(ed_filling,"ED_FILLING",INPUTunit,default=0,comment="Total number of allowed electrons")
     !
     allocate(Uloc(Norb))
     call parse_input_variable(uloc,"ULOC",INPUTunit,default=(/( 2d0,i=1,size(Uloc) )/),comment="Values of the local interaction per orbital")
@@ -125,15 +116,6 @@ contains
     call parse_input_variable(Jh,"JH",INPUTunit,default=0.d0,comment="Hunds coupling")
     call parse_input_variable(Jx,"JX",INPUTunit,default=0.d0,comment="S-E coupling")
     call parse_input_variable(Jp,"JP",INPUTunit,default=0.d0,comment="P-H coupling")
-    call parse_input_variable(Jk_z,"JK_Z",INPUTunit,default=0.d0,comment="Kondo coupling, z-axis component")
-    call parse_input_variable(Jk_xy,"JK_XY",INPUTunit,default=0.d0,comment="Kondo coupling, xy-plane component")
-    !
-    dim=1;if(Nimp>0)dim=Nsites(Norb+1)
-    allocate(Jkindx(dim))
-    call parse_input_variable(Jkindx,"JKINDX",INPUTunit,default=(/( 1,i=1,size(Jkindx) )/),comment="labels of the Norb sites corresponding to the impurity sites, dim(Jkflags)=Nsites(Norb+1)")
-    !
-    call parse_input_variable(t_imp,"t_imp",INPUTunit,default=0.d0,comment="Impurity hopping amplitude")
-    call parse_input_variable(e_imp,"e_imp",INPUTunit,default=[0d0,0d0],comment="Impurity local energy")
     !
     call parse_input_variable(temp,"TEMP",INPUTunit,default=0.001d0,comment="temperature, at T=0 is used as a IR cut-off.")
     call parse_input_variable(ed_finite_temp,"ED_FINITE_TEMP",INPUTunit,default=.false.,comment="flag to select finite temperature method. note that if T then lanc_nstates_total must be > 1")
@@ -148,9 +130,8 @@ contains
     call parse_input_variable(Lreal,"LREAL",INPUTunit,default=5000,comment="Number of real-axis frequencies.")
     call parse_input_variable(Ltau,"LTAU",INPUTunit,default=1024,comment="Number of imaginary time points.")
     !
-    add =0;if(Nimp>0)add=1
-    allocate(gf_flag(Norb+add))
-    allocate(chispin_flag(Norb+add))
+    allocate(gf_flag(Norb))
+    allocate(chispin_flag(Norb))
     allocate(oc_flag(Norb))
     call parse_input_variable(gf_flag,"GF_FLAG",INPUTunit,default=(/( .false.,i=1,size(gf_flag) )/),comment="Flag to activate Greens functions calculation")
     call parse_input_variable(chispin_flag,"CHISPIN_FLAG",INPUTunit,default=(/( .false.,i=1,size(chispin_flag) )/),comment="Flag to activate spin susceptibility calculation.")

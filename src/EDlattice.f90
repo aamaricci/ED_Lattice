@@ -4,15 +4,11 @@ MODULE EDLAT
        Nsites        , &
        Norb          , &
        Nspin         , &
-       Nimp          , &
        Uloc          , &
        Ust           , &
        Jh            , &
        Jx            , &
        Jp            , &
-       Jk_z          , &
-       Jk_xy         , &
-       Jkindx        , &
        xmu           , &
        temp          , &
        eps           , &

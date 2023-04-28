@@ -112,16 +112,11 @@ MODULE ED_VARS_GLOBAL
 
   !-------------------------- ED  VARIABLES --------------------------!
 
-  !SIZE OF THE PROBLEM |..Ns..>_up*|..Ns..>_dw*|..iNs..>_up*|..iNs..>_dw
+  !SIZE OF THE PROBLEM |..Ns..>_up*|..Ns..>_dw
   !=========================================================
   integer,save                                     :: Ns       !Number of levels per spin
   integer,save                                     :: eNs      !Number of impurity levels per spin
-  integer,save                                     :: iNs      !Number of impurity levels per spin
   integer,save                                     :: Nsectors !Number of sectors
-  !kept for simplicity here: to be removed.
-  ! integer,save                                     :: Ns_imp   !Number of levels total (Ns+iNs)
-  ! integer,save                                     :: Ns_orb
-  ! integer,save                                     :: Ns_ud
 
 
 
@@ -208,7 +203,6 @@ MODULE ED_VARS_GLOBAL
   character(len=32)                                :: ed_file_suffix=""       !suffix string attached to the output files.
   integer                                          :: site_indx_padding=4
   logical                                          :: Jhflag              !spin-exchange and pair-hopping flag.
-  logical                                          :: KondoFlag
   logical                                          :: finiteT             !flag for finite temperature calculation
   logical                                          :: global_gf_flag
   logical                                          :: global_chi_flag
