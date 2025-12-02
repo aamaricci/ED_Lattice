@@ -271,8 +271,8 @@ contains
     !
     allocate(vt(mpiQup*DimDw))
     allocate(Hvt(mpiQup*DimDw))
-    vt=0d0
-    Hvt=0d0
+    vt=zero
+    Hvt=zero
     call vector_transpose_MPI(DimUp,MpiQdw,v(1:DimUp*MpiQdw),DimDw,MpiQup,vt)
     do idw=1,MpiQup             !<= Transposed order:  column-wise DW <--> UP  
        do iup=1,DimDw           !<= Transposed order:  column-wise DW <--> UP

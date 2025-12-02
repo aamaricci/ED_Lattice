@@ -297,11 +297,11 @@ contains
     !
     column = j
     !
-    if(column>=sparse%Istart.AND.column<=sparse%Iend)then
-       row => sparse%loc(i-sparse%Ishift)
-    else
-       row => sparse%row(i-sparse%Ishift)
-    endif
+    ! if(column>=sparse%Istart.AND.column<=sparse%Iend)then
+    !    row => sparse%loc(i-sparse%Ishift)
+    ! else
+    row => sparse%row(i-sparse%Ishift)
+    ! endif
     !
     iadd = .false.                          !check if column already exist
     if(any(row%cols == column))then         !
