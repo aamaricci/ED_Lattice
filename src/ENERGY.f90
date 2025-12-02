@@ -161,6 +161,7 @@ contains
                       ed_Ekin = ed_Ekin + &
                            Hij(1,io,jo)*sg1*sg2*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
                    endif
+                   !
                 enddo
              enddo
              !
@@ -176,7 +177,7 @@ contains
                       jdw = binary_search(sectorI%H(2)%map,k2)
                       j   = iup + (jdw-1)*sectorI%DimUp
                       ed_Ekin = ed_Ekin + &
-                           Hij(Nspin,io,jo)*sg1*sg2*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight*state_weight
+                           Hij(Nspin,io,jo)*sg1*sg2*state_cvec(i)*conjg(state_cvec(j))*boltzman_weight
                    endif
                 enddo
              enddo
