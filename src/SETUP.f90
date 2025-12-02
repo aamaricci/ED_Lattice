@@ -185,7 +185,7 @@ contains
     OptCond_w    = zero
     !
     !lattice density matrix
-    allocate(ed_dm_lattice(4**Ns,4**Ns))
+    if(global_dm_flag)allocate(ed_dm_lattice(4**Ns,4**Ns))
     !
   end subroutine init_ed_structure
 

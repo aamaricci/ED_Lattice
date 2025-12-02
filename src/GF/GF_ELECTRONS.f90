@@ -58,7 +58,7 @@ contains
                      " spin"//str(ispin)
                 call allocate_GFmatrix(impGmatrix(ispin,io,io),Nstate=state_list%size)
                 call lanc_build_gf_electrons_diag(isite,iorb,ispin)
-                if(MPIMASTER)call stop_timer(unit=LOGfile)
+                if(MPIMASTER)call stop_timer()
              enddo
           enddo
        enddo
@@ -82,7 +82,7 @@ contains
                          if(MPIMASTER)call start_timer
                          call allocate_GFmatrix(impGmatrix(ispin,io,jo),Nstate=state_list%size)
                          call lanc_build_gf_electrons_mix(isite,jsite,iorb,jorb,ispin)
-                         if(MPIMASTER)call stop_timer(unit=LOGfile)
+                         if(MPIMASTER)call stop_timer()
                       enddo
                    enddo
                 enddo
@@ -120,7 +120,7 @@ contains
              case ('lapack','full')
                 call full_eval_gf_electrons_diag(isite,iorb,ispin)
              end select
-             if(MPIMASTER)call stop_timer(unit=LOGfile)
+             if(MPIMASTER)call stop_timer()
           enddo
        enddo
     enddo
@@ -148,7 +148,7 @@ contains
                       case ('lapack','full')
                          call full_eval_gf_electrons_mix(isite,jsite,iorb,jorb,ispin)
                       end select
-                      if(MPIMASTER)call stop_timer(unit=LOGfile)
+                      if(MPIMASTER)call stop_timer()
                    enddo
                 enddo
              enddo

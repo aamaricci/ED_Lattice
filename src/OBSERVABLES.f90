@@ -64,7 +64,7 @@ contains
     case ("lapack","full")
        call full_observables()
     end select
-    if(MPIMASTER)call stop_timer(unit=LOGfile)
+    if(MPIMASTER)call stop_timer()
   end subroutine observables_lattice
 
 

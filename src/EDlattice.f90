@@ -26,7 +26,9 @@ MODULE EDLAT
        ed_Hij_get      => Hij_get      , &
        ed_Hij_local    => Hij_local    , &
        ed_Hij_info     => Hij_info     , &
-       ed_Hij_write    => Hij_write
+       ed_Hij_write    => Hij_write    , &
+       ed_Hij_get_g0inv  => Hij_get_g0inv, &
+       ed_Hij_get_g0func => Hij_get_g0func
 
   USE ED_DENSITY_MATRIX, only: &
        ed_get_density_matrix

@@ -54,7 +54,7 @@ contains
           if(MPIMASTER)call start_timer
           call allocate_GFmatrix(OcMatrix(iorb),Nstate=state_list%size)
           call lanc_ed_build_oc(iorb)
-          if(MPIMASTER)call stop_timer(unit=LOGfile)
+          if(MPIMASTER)call stop_timer()
        enddo
     end select
     !
@@ -80,7 +80,7 @@ contains
        case ('lapack','full')
           call full_ed_eval_oc(iorb)
        end select
-       if(MPIMASTER)call stop_timer(unit=LOGfile)
+       if(MPIMASTER)call stop_timer()
     enddo
     !
     !

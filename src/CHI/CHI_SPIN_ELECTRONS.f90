@@ -64,7 +64,7 @@ contains
              if(MPIMASTER)call start_timer
              call allocate_GFmatrix(SpinChiMatrix(io,io),Nstate=state_list%size)
              call lanc_build_spinChi_diag(isite,iorb)
-             if(MPIMASTER)call stop_timer(unit=LOGfile)
+             if(MPIMASTER)call stop_timer()
           enddo
        enddo
        !Off-diagonal
@@ -84,7 +84,7 @@ contains
                       if(MPIMASTER)call start_timer
                       call allocate_GFmatrix(SpinChiMatrix(io,jo),Nstate=state_list%size)
                       call lanc_build_spinChi_mix(isite,jsite,iorb,jorb)
-                      if(MPIMASTER)call stop_timer(unit=LOGfile)
+                      if(MPIMASTER)call stop_timer()
                    enddo
                 enddo
              enddo
@@ -114,7 +114,7 @@ contains
           case ('lapack','full')
              call full_eval_spinChi_electrons(isite,isite,iorb,iorb)
           end select
-          if(MPIMASTER)call stop_timer(unit=LOGfile)
+          if(MPIMASTER)call stop_timer()
        enddo
     enddo
     !
@@ -138,7 +138,7 @@ contains
                    case ('lapack','full')
                       call full_eval_spinChi_electrons(isite,isite,iorb,iorb)
                    end select
-                   if(MPIMASTER)call stop_timer(unit=LOGfile)
+                   if(MPIMASTER)call stop_timer()
                 enddo
              enddo
           enddo

@@ -44,7 +44,7 @@ contains
     case('lapack','full')
        call ed_full_d
     end select
-    if(MPIMASTER)call stop_timer(unit=LOGfile)
+    if(MPIMASTER)call stop_timer()
   end subroutine diagonalize_lattice
 
 
@@ -87,7 +87,7 @@ contains
     !
     if(MPIMASTER.AND.ed_verbose>=2)write(LOGfile,"(A,F20.12)")'Z   =',zeta_function
     !
-    if(MPIMASTER)call stop_timer(unit=LOGfile)
+    if(MPIMASTER)call stop_timer()
     !
   end subroutine partition_function_lattice
 
@@ -253,7 +253,7 @@ contains
           !
        endif
        !
-       if(ed_verbose>=3.AND.MPIMASTER)call stop_timer(unit=LOGfile)
+       if(ed_verbose>=3.AND.MPIMASTER)call stop_timer()
        !
        if(ed_verbose>=4)then
           write(LOGfile,*)"EigValues: ",eig_values(:Neigen)
@@ -387,7 +387,7 @@ contains
        if(MpiMaster)call eigh(espace(isector)%M, espace(isector)%e)
        if(dim==1)espace(isector)%M=one
        call delete_Hv_sector()
-       if(ed_verbose>=3.AND.MPIMASTER)call stop_timer(unit=LOGfile)
+       if(ed_verbose>=3.AND.MPIMASTER)call stop_timer()
        !
        Nprint=min(dim,lanc_nstates_sector)
        if(ed_verbose>=4)then

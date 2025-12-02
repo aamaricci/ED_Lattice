@@ -116,6 +116,8 @@ contains
        !
        Hmat = Hmat_tmp
        !
+       ! call print_mat(dreal(Hmat))
+       !
        deallocate(Htmp_up,Htmp_dw,Hmat_tmp)
     endif
     !
@@ -123,7 +125,15 @@ contains
     !
   end subroutine ed_buildh
 
-
+  subroutine print_mat(M)
+    real(8),dimension(:,:) :: M
+    integer :: i,j
+    print*,""
+    do i=1,size(M,1)
+       write(*,"("//str(size(M,2))//"(ES12.4,1x))")(M(i,j),j=1,size(M,2))
+    enddo
+    print*,""
+  end subroutine print_mat
 
 
 

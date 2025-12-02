@@ -77,7 +77,7 @@ contains
       end select
       if(MPIMASTER)then
          call ed_get_density_matrix(dm,doprint=ed_print_dm)
-         call stop_timer(unit=LOGfile)
+         call stop_timer()
       endif
       !
       if(MPIMASTER.and.rdm_flag)then
@@ -86,7 +86,7 @@ contains
          do Nr=Nsites(1)-1,1,-1
             call ed_get_density_matrix(dm,Nr,doprint=ed_print_dm)
          enddo
-         call stop_timer(unit=LOGfile)
+         call stop_timer()
       endif
    end subroutine eval_dm_lattice
 

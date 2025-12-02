@@ -257,14 +257,14 @@ contains
     j=0
     sgn=0d0
     !
-       call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
-       iud = sectorI%H(ispin)%map(Indices(ispin))
-       nud = Bdecomp(iud,eNs)
-       if(nud(ipos)/=0)return
-       call cdg(ipos,iud,r,sgn)
-       Jndices        = Indices
-       Jndices(ispin) = binary_search(sectorJ%H(ispin)%map,r)
-       call indices2state(Jndices,[sectorJ%DimUps,sectorJ%DimDws],j)
+    call state2indices(i,[sectorI%DimUps,sectorI%DimDws],Indices)
+    iud = sectorI%H(ispin)%map(Indices(ispin))
+    nud = Bdecomp(iud,eNs)
+    if(nud(ipos)/=0)return
+    call cdg(ipos,iud,r,sgn)
+    Jndices        = Indices
+    Jndices(ispin) = binary_search(sectorJ%H(ispin)%map,r)
+    call indices2state(Jndices,[sectorJ%DimUps,sectorJ%DimDws],j)
   end subroutine apply_op_CDG
 
 
